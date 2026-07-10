@@ -1,7 +1,7 @@
 // tsup build configuration (docs/SPECv2.md §2.3, §3).
 //
 // One entry per subpath that exists today (docs/SPECv2.md §5.1): root, `guards`, `errors`,
-// `problem-details`, `logging`. `hono`/`vite`/`testing`/`cli` each add their own entry in a
+// `problem-details`, `logging`, `hono`. `vite`/`testing`/`cli` each add their own entry in a
 // later issue, once those subpaths actually have content.
 //
 // ESM-only (docs/SPECv2.md §3) — no CJS output, since every consumer of this toolkit is a
@@ -26,9 +26,18 @@ export default defineConfig({
     "guards/index": "src/lib/guards/index.ts",
     "errors/index": "src/lib/errors/index.ts",
     "problem-details/index": "src/lib/problem-details/index.ts",
-    "logging/index": "src/lib/logging/index.ts"
+    "logging/index": "src/lib/logging/index.ts",
+    "hono/index": "src/lib/hono/index.ts"
   },
   format: ["esm"],
+  // `hono` is a peerDependency (docs/SPECv2.md §2.1), not bundled: `hono/index.ts` imports the
+  // runtime `HTTPException` class from `hono/http-exception` (issue #10, `error-handler.ts`).
+  // Without this, tsup would inline its own private copy of that class into
+  // `dist/hono/index.js`, and a consumer's own `new HTTPException(...)` (from *their* installed
+  // `hono`) would come back `false` for `instanceof HTTPException` against our bundled copy —
+  // silently breaking `problemDetailsErrorHandler`'s `HTTPException` handling. Verified in
+  // `test/package/hono.test.ts`.
+  external: ["hono"],
   // Preserves the sourcemap fix noted in the problem-details vendoring issue (docs/SPECv2.md
   // §5.4) for that subpath specifically, applied toolkit-wide.
   sourcemap: true,
