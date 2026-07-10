@@ -1,8 +1,8 @@
 // Defensive guards (docs/SPECv2.md §5.2): throwIfNull, valueOrDefault, sqlCount — the testable
 // defensive guards that let the rest of the toolkit (and consumers) hit 100% coverage without
-// inline, ad-hoc defensive branches (§8 rule 8). Depends only on `errors` (for NullError) — never
-// the reverse.
-import { NullError } from "../errors/index.js";
+// inline, ad-hoc defensive branches (§8 rule 8). Depends only on `errors` (for NullError and
+// InvalidShapeError) — never the reverse.
+import { InvalidShapeError, NullError } from "../errors/index.js";
 
 /**
  * Assert that `value` is neither `null` nor `undefined`. A genuine TypeScript assertion function
@@ -38,7 +38,9 @@ export function valueOrDefault<T>(value: T | null | undefined, defaultValue: T):
 /**
  * Extract a numeric count from a D1 `.first()` result for the `SELECT COUNT(*) AS count FROM t`
  * pattern (docs/SPECv2.md §5.2, §7.4). Validates that `row` is a non-null object with a numeric
- * `countProperty`; throws {@link NullError} (via {@link throwIfNull}) otherwise, since the whole
+ * `countProperty`; throws {@link NullError} (via {@link throwIfNull}) if `row` itself is
+ * `null`/`undefined`, or {@link InvalidShapeError} if `row` is non-null but does not have the
+ * expected shape (not an object, or `countProperty` on it missing/not a number) — since the whole
  * point of this guard is "this should never happen — if it does, that's a bug, not a 0".
  *
  * @param row - The value returned by D1's `.first()` — `null` when no rows match, otherwise
@@ -46,17 +48,18 @@ export function valueOrDefault<T>(value: T | null | undefined, defaultValue: T):
  *   input.
  * @param countProperty - The property on `row` holding the count. Defaults to `"count"`.
  * @returns The numeric count read from `row[countProperty]`.
- * @throws {NullError} If `row` is `null`/`undefined`, not an object, or `countProperty` on it is
+ * @throws {NullError} If `row` is `null` or `undefined`.
+ * @throws {InvalidShapeError} If `row` is non-null but not an object, or `countProperty` on it is
  *   missing or not a number.
  */
 export function sqlCount(row: unknown, countProperty = "count"): number {
   throwIfNull(row, "sqlCount: row is null or undefined (D1 .first() returned no rows)");
   if (typeof row !== "object") {
-    throw new NullError(`sqlCount: row is not an object (received ${typeof row})`);
+    throw new InvalidShapeError(`sqlCount: row is not an object (received ${typeof row})`);
   }
   const value = (row as Record<string, unknown>)[countProperty];
   if (typeof value !== "number") {
-    throw new NullError(`sqlCount: property "${countProperty}" is missing or not a number`);
+    throw new InvalidShapeError(`sqlCount: property "${countProperty}" is missing or not a number`);
   }
   return value;
 }
