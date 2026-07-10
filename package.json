@@ -28,6 +28,10 @@
     "./logging": {
       "types": "./dist/logging/index.d.ts",
       "import": "./dist/logging/index.js"
+    },
+    "./hono": {
+      "types": "./dist/hono/index.d.ts",
+      "import": "./dist/hono/index.js"
     }
   },
   "files": [
@@ -59,6 +63,7 @@
     "@vitest/coverage-istanbul": "^4.1.10",
     "eslint": "^10.6.0",
     "eslint-plugin-jsdoc": "^63.0.12",
+    "hono": "^4.12.28",
     "husky": "^9.1.7",
     "npm-run-all2": "^9.0.2",
     "prettier": "^3.9.5",
