@@ -5,6 +5,36 @@
   "type": "module",
   "license": "MIT",
   "private": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./guards": {
+      "types": "./dist/guards/index.d.ts",
+      "import": "./dist/guards/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "import": "./dist/errors/index.js"
+    },
+    "./problem-details": {
+      "types": "./dist/problem-details/index.d.ts",
+      "import": "./dist/problem-details/index.js"
+    },
+    "./logging": {
+      "types": "./dist/logging/index.d.ts",
+      "import": "./dist/logging/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
+  ],
   "engines": {
     "node": ">=24",
     "npm": ">=11"
@@ -19,8 +49,8 @@
     }
   },
   "dependencies": {
-    "jose": "^6.2.3",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "jose": "^6.2.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.18.3",
@@ -32,17 +62,22 @@
     "husky": "^9.1.7",
     "npm-run-all2": "^9.0.2",
     "prettier": "^3.9.5",
+    "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.10",
     "wrangler": "^4.109.0"
   },
   "scripts": {
-    "check": "run-s check:types check:lint check:format",
+    "build": "tsup",
+    "check": "run-s check:types check:lint check:format check:pack",
     "check:format": "prettier --check .",
     "check:lint": "eslint .",
+    "check:pack": "npm pack --ignore-scripts --dry-run",
     "check:types": "tsc --noEmit",
     "prepare": "husky",
+    "pretest": "npm run build",
+    "pretest:coverage": "npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   }
