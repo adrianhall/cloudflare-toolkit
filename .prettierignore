@@ -1,0 +1,7 @@
+.husky/
+coverage/
+dist/
+node_modules/
+package-lock.json
+*.tgz
+**/worker-configuration.d.ts

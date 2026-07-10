@@ -25,7 +25,7 @@ To remedy these problems, we propose a "cloudflare-toolkit".
 
 - Node.js `>= 24`, npm `>= 11` (needed for npm 11.x OIDC Trusted Publishing support in CI — §3)
 - GitHub Actions for PR checks and Releases
-  - **Note**: Many GitHub Actions have new versions because of imminent Node v20 support removal.  Check release versions available on GitHub repositories before including.
+  - **Note**: Many GitHub Actions have new versions because of imminent Node v20 support removal. Check release versions available on GitHub repositories before including.
 
 Every pinned package below links to its npm registry page — the definitive source for the version
 being pinned. Versions reflect what was actually published as of this writing, with two
@@ -36,20 +36,20 @@ deliberate exceptions (`typescript`, `@cloudflare/workers-types`) explained in �
 Declared in `package.json#peerDependencies`. Consumers install these themselves — the toolkit
 never bundles them.
 
-| Package | Version | Required? |
-| --- | --- | --- |
+| Package                                      | Version    | Required?                                           |
+| -------------------------------------------- | ---------- | --------------------------------------------------- |
 | [`hono`](https://www.npmjs.com/package/hono) | `^4.12.28` | Required — everything under `/hono` (§5.5) needs it |
-| [`vite`](https://www.npmjs.com/package/vite) | `^8.1.4` | Optional — only `/vite` (§5.6) needs it |
+| [`vite`](https://www.npmjs.com/package/vite) | `^8.1.4`   | Optional — only `/vite` (§5.6) needs it             |
 
 ### 2.2 Dependencies
 
 Declared in `package.json#dependencies` — installed regardless of which subpath a consumer
 actually imports.
 
-| Package | Version | Why |
-| --- | --- | --- |
-| [`jose`](https://www.npmjs.com/package/jose) | `^6.2.3` | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it |
-| [`commander`](https://www.npmjs.com/package/commander) | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it |
+| Package                                                | Version   | Why                                                                                                                                                              |
+| ------------------------------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`jose`](https://www.npmjs.com/package/jose)           | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it |
+| [`commander`](https://www.npmjs.com/package/commander) | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                         |
 
 No other runtime dependencies. The vendored `hono-problem-details` primitives (§5.4) are pure
 TypeScript with no dependencies of their own, and everything else (`guards`, `errors`, the
@@ -57,23 +57,23 @@ TypeScript with no dependencies of their own, and everything else (`guards`, `er
 
 ### 2.3 DevDependencies (build, lint, test tooling)
 
-| Package | Version | Purpose |
-| --- | --- | --- |
-| [`typescript`](https://www.npmjs.com/package/typescript) | `^6.0.3` | Deliberately not npm's current `latest` tag — see note below |
-| [`eslint`](https://www.npmjs.com/package/eslint) | `^10.6.0` | Static analysis (§8, rule 3) |
-| [`typescript-eslint`](https://www.npmjs.com/package/typescript-eslint) | `^8.63.0` | Type-checked lint rules |
-| [`eslint-plugin-jsdoc`](https://www.npmjs.com/package/eslint-plugin-jsdoc) | `^63.0.12` | Enforces JSDoc on public exports (§8, rule 2) |
-| [`prettier`](https://www.npmjs.com/package/prettier) | `^3.9.5` | Formatting, run via husky pre-commit (§8, rule 5) |
-| [`vitest`](https://www.npmjs.com/package/vitest) | `^4.1.10` | Test runner (§7) |
-| [`@vitest/coverage-istanbul`](https://www.npmjs.com/package/@vitest/coverage-istanbul) | `^4.1.10` | Istanbul coverage provider (§7.1) — version tracks `vitest`'s own major |
-| [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `^0.18.3` | Runs `test/workers` in real `workerd` (§7.2) |
-| [`@cloudflare/workers-types`](https://www.npmjs.com/package/@cloudflare/workers-types) | `5.20260708.1` (exact, no `^`) | Ambient Workers runtime types for the codebase and tests — see note below |
-| [`wrangler`](https://www.npmjs.com/package/wrangler) | `^4.109.0` | Needed to test `generate-wrangler-types` (§5.7) end-to-end, and used by `@cloudflare/vitest-pool-workers` internally |
-| [`husky`](https://www.npmjs.com/package/husky) | `^9.1.7` | Git hooks (§8, rules 5–6) |
-| [`npm-run-all2`](https://www.npmjs.com/package/npm-run-all2) | `^9.0.2` | `run-s`/`run-p` for composed `npm run check` scripts (§8, rule 1) |
-| [`tsup`](https://www.npmjs.com/package/tsup) | `^8.5.1` | Bundles `src/` into `dist/` (ESM-only, §3) immediately before publish |
-| [`@changesets/cli`](https://www.npmjs.com/package/@changesets/cli) | `^2.31.0` | Versioning/changelog generation, wired into the release workflow (§3) |
-| [`@types/node`](https://www.npmjs.com/package/@types/node) | `^26.1.1` | Types for the Node-only surfaces: `vite/*` (§5.6) and `cli/*` (§5.7) |
+| Package                                                                                            | Version                        | Purpose                                                                                                              |
+| -------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| [`typescript`](https://www.npmjs.com/package/typescript)                                           | `^6.0.3`                       | Deliberately not npm's current `latest` tag — see note below                                                         |
+| [`eslint`](https://www.npmjs.com/package/eslint)                                                   | `^10.6.0`                      | Static analysis (§8, rule 3)                                                                                         |
+| [`typescript-eslint`](https://www.npmjs.com/package/typescript-eslint)                             | `^8.63.0`                      | Type-checked lint rules                                                                                              |
+| [`eslint-plugin-jsdoc`](https://www.npmjs.com/package/eslint-plugin-jsdoc)                         | `^63.0.12`                     | Enforces JSDoc on public exports (§8, rule 2)                                                                        |
+| [`prettier`](https://www.npmjs.com/package/prettier)                                               | `^3.9.5`                       | Formatting, run via husky pre-commit (§8, rule 5)                                                                    |
+| [`vitest`](https://www.npmjs.com/package/vitest)                                                   | `^4.1.10`                      | Test runner (§7)                                                                                                     |
+| [`@vitest/coverage-istanbul`](https://www.npmjs.com/package/@vitest/coverage-istanbul)             | `^4.1.10`                      | Istanbul coverage provider (§7.1) — version tracks `vitest`'s own major                                              |
+| [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `^0.18.3`                      | Runs `test/workers` in real `workerd` (§7.2)                                                                         |
+| [`@cloudflare/workers-types`](https://www.npmjs.com/package/@cloudflare/workers-types)             | `5.20260708.1` (exact, no `^`) | Ambient Workers runtime types for the codebase and tests — see note below                                            |
+| [`wrangler`](https://www.npmjs.com/package/wrangler)                                               | `^4.109.0`                     | Needed to test `generate-wrangler-types` (§5.7) end-to-end, and used by `@cloudflare/vitest-pool-workers` internally |
+| [`husky`](https://www.npmjs.com/package/husky)                                                     | `^9.1.7`                       | Git hooks (§8, rules 5–6)                                                                                            |
+| [`npm-run-all2`](https://www.npmjs.com/package/npm-run-all2)                                       | `^9.0.2`                       | `run-s`/`run-p` for composed `npm run check` scripts (§8, rule 1)                                                    |
+| [`tsup`](https://www.npmjs.com/package/tsup)                                                       | `^8.5.1`                       | Bundles `src/` into `dist/` (ESM-only, §3) immediately before publish                                                |
+| [`@changesets/cli`](https://www.npmjs.com/package/@changesets/cli)                                 | `^2.31.0`                      | Versioning/changelog generation, wired into the release workflow (§3)                                                |
+| [`@types/node`](https://www.npmjs.com/package/@types/node)                                         | `^26.1.1`                      | Types for the Node-only surfaces: `vite/*` (§5.6) and `cli/*` (§5.7)                                                 |
 
 `@cloudflare/vite-plugin` and `@hono/cloudflare-access` are **not** devDependencies of this repo —
 see §5.6 and §5.5 respectively for why each is referenced without being installed here.
@@ -103,11 +103,11 @@ Not part of the published library's own dependency tree — this lives in its ow
 `vite@^8.1.4` peer dependency (§2.1). Sharing one dependency tree would be a real version
 collision, not a theoretical one.
 
-| Package | Version | Purpose |
-| --- | --- | --- |
-| [`vitepress`](https://www.npmjs.com/package/vitepress) | `^1.6.4` | Docs-site shell + guides (§6.1) |
-| [`typedoc`](https://www.npmjs.com/package/typedoc) | `^0.28.20` | Generates API reference from JSDoc (§6.1) |
-| [`typedoc-plugin-markdown`](https://www.npmjs.com/package/typedoc-plugin-markdown) | `^4.12.0` | Renders TypeDoc output as markdown VitePress can consume (requires `typedoc@0.28.x` exactly) |
+| Package                                                                            | Version    | Purpose                                                                                      |
+| ---------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| [`vitepress`](https://www.npmjs.com/package/vitepress)                             | `^1.6.4`   | Docs-site shell + guides (§6.1)                                                              |
+| [`typedoc`](https://www.npmjs.com/package/typedoc)                                 | `^0.28.20` | Generates API reference from JSDoc (§6.1)                                                    |
+| [`typedoc-plugin-markdown`](https://www.npmjs.com/package/typedoc-plugin-markdown) | `^4.12.0`  | Renders TypeDoc output as markdown VitePress can consume (requires `typedoc@0.28.x` exactly) |
 
 ## 3. Package Identity & Distribution
 
@@ -160,23 +160,23 @@ The toolkit consists of four parts:
 
 ### 5.1 Subpath & Export Summary
 
-| Subpath | Exports | Notes |
-| --- | --- | --- |
-| `@adrianhall/cloudflare-toolkit` (root) | Re-exports of `guards`, `errors`, `problem-details`, `logging` | Framework-agnostic — safe to import from any runtime (Worker, Node, browser). Does **not** re-export anything from `hono`, `vite`, or `testing`, since those pull in a `hono`/`vite`/Node-only runtime dependency |
-| `@adrianhall/cloudflare-toolkit/guards` | `throwIfNull`, `valueOrDefault`, `sqlCount` | No `hono` dependency. Depends only on `errors` (for `NullError`) — never the reverse |
-| `@adrianhall/cloudflare-toolkit/errors` | HTTP error generators (§5.3), `NullError` | Depends only on `problem-details` |
-| `@adrianhall/cloudflare-toolkit/problem-details` | `ProblemDetailsError`, `problemDetails()`, `statusToPhrase`, `statusToSlug`, `createProblemTypeRegistry`, `ProblemDetails`/`ProblemDetailsInput` types | Hono-free by design — see §5.4 |
-| `@adrianhall/cloudflare-toolkit/hono` | `cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`, `AuthVariables`, `LoggerVariables`, `CloudflareToolkitVariables` | Requires `hono` as a peer dependency — see §5.5. `problemDetailsErrorHandler` is a **direct re-export** of the vendored handler (§5.4), not a toolkit-authored wrapper. No combined/coordinator middleware is exported — all four middleware are wired independently |
-| `@adrianhall/cloudflare-toolkit/vite` | `cloudflareAccessPlugin` | Requires `vite` as a peer dependency. Node-only; never imported from Worker code — see §5.6 |
-| `@adrianhall/cloudflare-toolkit/logging` | `createLogger`, `resolveLoggerConfig`, transports, logging types | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps |
-| `@adrianhall/cloudflare-toolkit/testing` | Dev-JWT signing + cookie helpers for Vitest/Playwright tests | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment |
+| Subpath                                          | Exports                                                                                                                                                   | Notes                                                                                                                                                                                                                                                                |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@adrianhall/cloudflare-toolkit` (root)          | Re-exports of `guards`, `errors`, `problem-details`, `logging`                                                                                            | Framework-agnostic — safe to import from any runtime (Worker, Node, browser). Does **not** re-export anything from `hono`, `vite`, or `testing`, since those pull in a `hono`/`vite`/Node-only runtime dependency                                                    |
+| `@adrianhall/cloudflare-toolkit/guards`          | `throwIfNull`, `valueOrDefault`, `sqlCount`                                                                                                               | No `hono` dependency. Depends only on `errors` (for `NullError`) — never the reverse                                                                                                                                                                                 |
+| `@adrianhall/cloudflare-toolkit/errors`          | HTTP error generators (§5.3), `NullError`                                                                                                                 | Depends only on `problem-details`                                                                                                                                                                                                                                    |
+| `@adrianhall/cloudflare-toolkit/problem-details` | `ProblemDetailsError`, `problemDetails()`, `statusToPhrase`, `statusToSlug`, `createProblemTypeRegistry`, `ProblemDetails`/`ProblemDetailsInput` types    | Hono-free by design — see §5.4                                                                                                                                                                                                                                       |
+| `@adrianhall/cloudflare-toolkit/hono`            | `cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`, `AuthVariables`, `LoggerVariables`, `CloudflareToolkitVariables` | Requires `hono` as a peer dependency — see §5.5. `problemDetailsErrorHandler` is a **direct re-export** of the vendored handler (§5.4), not a toolkit-authored wrapper. No combined/coordinator middleware is exported — all four middleware are wired independently |
+| `@adrianhall/cloudflare-toolkit/vite`            | `cloudflareAccessPlugin`                                                                                                                                  | Requires `vite` as a peer dependency. Node-only; never imported from Worker code — see §5.6                                                                                                                                                                          |
+| `@adrianhall/cloudflare-toolkit/logging`         | `createLogger`, `resolveLoggerConfig`, transports, logging types                                                                                          | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps                                                                                                                                                                                      |
+| `@adrianhall/cloudflare-toolkit/testing`         | Dev-JWT signing + cookie helpers for Vitest/Playwright tests                                                                                              | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment                                                                                                                                                            |
 
 Separately, the package ships a `generate-wrangler-types` **CLI** (`bin`, not an import subpath) —
 see §5.7.
 
 ### 5.2 Defensive Guards
 
-We want all Cloudflare demo applications to be fully tested.  Sometimes, there are defensive guards in our code (including the library code) that is not easily testable.  Adding testable defensive guards ensure we can maintain a 100% code coverage.
+We want all Cloudflare demo applications to be fully tested. Sometimes, there are defensive guards in our code (including the library code) that is not easily testable. Adding testable defensive guards ensure we can maintain a 100% code coverage.
 
 Three defensive guards are envisioned:
 
@@ -190,24 +190,24 @@ Three defensive guards are envisioned:
 
 - `valueOrDefault<T>(value: T | null | undefined, defaultValue: T): T`
 
-  Literally `value ?? defaultValue`. Exists purely so lint rules can flag *ad hoc* `??` fallbacks used defensively while allowing this one blessed, individually-tested helper.
+  Literally `value ?? defaultValue`. Exists purely so lint rules can flag _ad hoc_ `??` fallbacks used defensively while allowing this one blessed, individually-tested helper.
 
 These guards are located in `src/lib/guards`, so they can be imported using the following lines:
 
 ```ts
-import { sqlCount, throwIfNull, valueOrDefault } from '@adrianhall/cloudflare-toollkit/guards';
+import { sqlCount, throwIfNull, valueOrDefault } from "@adrianhall/cloudflare-toollkit/guards";
 ```
 
-The `NullError` mentioned in the spec is a specialized version of the error returned by `internalServerError()` shown in the next section.  This allows us to avoid catching the `NullError` as it is logged and returned as an RFC 9457 problem details error using standard Hono error handling.
+The `NullError` mentioned in the spec is a specialized version of the error returned by `internalServerError()` shown in the next section. This allows us to avoid catching the `NullError` as it is logged and returned as an RFC 9457 problem details error using standard Hono error handling.
 
 ### 5.3 HTTP Errors
 
-Cloudflare Workers apps are constructed with REST-like APIs.  We want to be able to handle the happy-path (that leads to a success status code) while throwing errors for any unhappy-paths.  We also want to support RFC 9457 problem detail responses.  We have middleware (see below) that handles `ProblemDetailsError` objects and turns them into RFC 9457 problem detail responses.  However, we need easy methods to construct problem detail errors.
+Cloudflare Workers apps are constructed with REST-like APIs. We want to be able to handle the happy-path (that leads to a success status code) while throwing errors for any unhappy-paths. We also want to support RFC 9457 problem detail responses. We have middleware (see below) that handles `ProblemDetailsError` objects and turns them into RFC 9457 problem detail responses. However, we need easy methods to construct problem detail errors.
 
 Each status code in the [HTTP Status Code 300-599](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status) will have a method that can be used to generate an appropriate error:
 
 | Generator                      | Status |
-|--------------------------------|--------|
+| ------------------------------ | ------ |
 | `badRequest(input?)`           | 400    |
 | `unauthorized(input?)`         | 401    |
 | `forbidden(input?)`            | 403    |
@@ -229,12 +229,12 @@ Every generator uniformly has the signature: `(input?: Omit<ProblemDetailsInput,
 Error generators live in `src/lib/errors` and can be imported like this:
 
 ```ts
-import { forbidden, unprocessableContent } from '@adrianhall/cloudflare-toolkit/errors';
+import { forbidden, unprocessableContent } from "@adrianhall/cloudflare-toolkit/errors";
 ```
 
 ### 5.4 Hono Problem Details
 
-Contains a **vendored port** of [`adrianhall/hono-problem-details`](https://github.com/adrianhall/hono-problem-details)'s RFC 9457 core primitives — itself a fork of the third-party, MIT-licensed [`paveg/hono-problem-details`](https://github.com/paveg/hono-problem-details). It's vendored rather than depended upon because `adrianhall/hono-problem-details` is **not published to npm**, so it cannot be a resolvable `dependency` (or `peerDependency`) of a package that *is* published: `npm install @adrianhall/cloudflare-toolkit` would fail to resolve a transitive dependency that doesn't exist on the registry.
+Contains a **vendored port** of [`adrianhall/hono-problem-details`](https://github.com/adrianhall/hono-problem-details)'s RFC 9457 core primitives — itself a fork of the third-party, MIT-licensed [`paveg/hono-problem-details`](https://github.com/paveg/hono-problem-details). It's vendored rather than depended upon because `adrianhall/hono-problem-details` is **not published to npm**, so it cannot be a resolvable `dependency` (or `peerDependency`) of a package that _is_ published: `npm install @adrianhall/cloudflare-toolkit` would fail to resolve a transitive dependency that doesn't exist on the registry.
 
 This subpath is **Hono-free by design**, matching the toolkit's broader rule that anything safe to import from any runtime (Worker, Node, browser) must never pull in `hono` (or `vite`) as a runtime dependency. It exports: `ProblemDetailsError`, `problemDetails()`, `statusToPhrase`, `statusToSlug`, `createProblemTypeRegistry`, and the `ProblemDetails`/`ProblemDetailsInput` types.
 
@@ -256,19 +256,24 @@ error handling, and two deal with Cloudflare specifics. There is deliberately **
 coordinator middleware wrapping any of these — each is wired independently by the consumer:
 
 - `problemDetailsErrorHandler` handles all the errors that the code throws from the [HTTP Errors](#53-http-errors) section (and any thrown `HTTPException`), returning them to the user as an RFC 9457 problem-details response with the right HTTP status code. This is the vendored handler itself (§5.4), **re-exported directly** from this subpath — no toolkit-authored wrapper is needed, because §5.3's generators all produce a plain `ProblemDetailsError` uniformly, and the vendored handler already knows how to turn any `ProblemDetailsError` into a response. (An earlier draft of this spec had a toolkit-specific `errorHandler` wrapper here, needed only to special-case the now-removed `notModified()`/`conflict()`/`preconditionFailed()` generators — with those gone, the wrapper served no purpose and has been dropped.)
-- `notFoundHandler` returns a 404 Not Found with a problem details block.  This mimics what happens when `notFound()` is thrown. Unlike `problemDetailsErrorHandler`, this one *is* toolkit-authored — there's no equivalent primitive in the vendored `hono-problem-details` code, since `app.notFound()` is a separate Hono hook from `app.onError()`.
+- `notFoundHandler` returns a 404 Not Found with a problem details block. This mimics what happens when `notFound()` is thrown. Unlike `problemDetailsErrorHandler`, this one _is_ toolkit-authored — there's no equivalent primitive in the vendored `hono-problem-details` code, since `app.notFound()` is a separate Hono hook from `app.onError()`.
 - `cloudflareLogger` injects a structured logger into the pipeline (backed by `@adrianhall/cloudflare-toolkit/logging`'s core logger, §5.1) that other middleware and APIs can use.
-- `cloudflareAccess` handles Cloudflare Access in the same way as the `cloudflare-auth` implementation of this functionality — path-based policies, a fail-closed local-dev token bypass, cookie- *and* header-based JWT extraction, and a pluggable logger. This is kept as a bespoke implementation rather than switched to the community [`@hono/cloudflare-access`](https://www.npmjs.com/package/@hono/cloudflare-access) package, which lacks all four of those. JWT signing/verification is provided by [`jose`](https://www.npmjs.com/package/jose) (§2.2).
+- `cloudflareAccess` handles Cloudflare Access in the same way as the `cloudflare-auth` implementation of this functionality — path-based policies, a fail-closed local-dev token bypass, cookie- _and_ header-based JWT extraction, and a pluggable logger. This is kept as a bespoke implementation rather than switched to the community [`@hono/cloudflare-access`](https://www.npmjs.com/package/@hono/cloudflare-access) package, which lacks all four of those. JWT signing/verification is provided by [`jose`](https://www.npmjs.com/package/jose) (§2.2).
 
 A developer wires all four independently:
 
 ```ts
-import { cloudflareAccess, cloudflareLogger, problemDetailsErrorHandler, notFoundHandler } from '@adrianhall/cloudflare-toolkit/hono';
+import {
+  cloudflareAccess,
+  cloudflareLogger,
+  problemDetailsErrorHandler,
+  notFoundHandler
+} from "@adrianhall/cloudflare-toolkit/hono";
 
 const app = new Hono<AppContext>();
 
-app.use(cloudflareLogger({ /* ... */ }));
-app.use(cloudflareAccess({ /* ... */ }));
+app.use(cloudflareLogger({/* ... */}));
+app.use(cloudflareAccess({/* ... */}));
 
 app.onError(problemDetailsErrorHandler());
 app.notFound(notFoundHandler());
@@ -304,24 +309,24 @@ interface AppVariables extends CloudflareToolkitVariables {
 
 ### 5.6 Vite Plugins
 
-There is already a very functional [`@cloudflare/vite-plugin`](https://www.npmjs.com/package/@cloudflare/vite-plugin) plugin for vite that allows the user to run their Worker on Miniflare.  However, it doesn't support Cloudflare Access.  The `cloudflare-auth` repo has a vite plugin, used like this:
+There is already a very functional [`@cloudflare/vite-plugin`](https://www.npmjs.com/package/@cloudflare/vite-plugin) plugin for vite that allows the user to run their Worker on Miniflare. However, it doesn't support Cloudflare Access. The `cloudflare-auth` repo has a vite plugin, used like this:
 
 ```ts
-import { defineConfig } from 'vite';
-import { cloudflare } from '@cloudflare/vite-plugin';
-import { cloudflareAccessPlugin } from '@adrianhall/cloudflare-toolkit/vite';
-import { authPolicies } from './src/auth-policies';
+import { defineConfig } from "vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { cloudflareAccessPlugin } from "@adrianhall/cloudflare-toolkit/vite";
+import { authPolicies } from "./src/auth-policies";
 
 export default defineConfig({
-    plugins: [
-        cloudflareAccessPlugin({ policies: authPolicies }),
-        cloudflare(),
-        /* ... other plugins */
-    ]
+  plugins: [
+    cloudflareAccessPlugin({ policies: authPolicies }),
+    cloudflare()
+    /* ... other plugins */
+  ]
 });
 ```
 
-`@cloudflare/vite-plugin` is referenced above only as something a *consuming* project also has
+`@cloudflare/vite-plugin` is referenced above only as something a _consuming_ project also has
 installed alongside `cloudflareAccessPlugin` — it is **not** a dependency of this toolkit's own
 repo (§2.3). `cloudflareAccessPlugin`'s own tests (§7.2) mock the underlying Vite connect-middleware
 layer directly, the same technique `cloudflare-auth` already uses, rather than requiring a live
@@ -336,18 +341,18 @@ moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 
 ### 5.7 NPM Scripts
 
-Most of the scripts within `cloudflare-scripts` are relevant only in Terraform deployments.  This toolkit is explicitly for wrangler-only deployments.  The only script that is relevant is the `generate-types` script, which generates the `worker-configuration.d.ts` file only when the `wrangler.jsonc` file changes.
+Most of the scripts within `cloudflare-scripts` are relevant only in Terraform deployments. This toolkit is explicitly for wrangler-only deployments. The only script that is relevant is the `generate-types` script, which generates the `worker-configuration.d.ts` file only when the `wrangler.jsonc` file changes.
 
 This script will be ported from `cloudflare-scripts/src/cli/generate-types/*` with only the bin name changed (`generate-types` → `generate-wrangler-types`) and the CLI's internal `--help`/`--version` banner text updated to match. Behavior, flags (`-c/--config`, `-d/--dir`, `-f/--force`, `-o/--output`, `-q/--quiet`, `-v/--verbose`, `--` passthrough to `wrangler types`), and exit codes are unchanged — this is a rename, not a rewrite. Its one runtime dependency is [`commander`](https://www.npmjs.com/package/commander) (§2.2) for argument parsing, carried over from `cloudflare-scripts`; testing it end-to-end needs [`wrangler`](https://www.npmjs.com/package/wrangler) (§2.3) as a devDependency, since the whole script wraps `wrangler types`. Wired into a consuming project:
 
 ```jsonc
 // package.json
-{ 
-    "scripts": { 
-        "prebuild": "generate-wrangler-types",
-        "build": "vite build",
-        /* ... */
-    }
+{
+  "scripts": {
+    "prebuild": "generate-wrangler-types",
+    "build": "vite build"
+    /* ... */
+  }
 }
 ```
 
@@ -497,7 +502,7 @@ this spec:
 
 ### 6.3 AGENTS.md
 
-The toolkit's own repo needs an `AGENTS.md` (distinct from the installable skill, which teaches *consumers*; this teaches *contributors to the toolkit itself*) with one non-negotiable rule: **always consult live documentation via MCP** for Cloudflare, Hono, Vite, and Vitest before writing or reviewing code that touches those surfaces — explicitly calling out that Vite and Vitest each have Cloudflare-specific documentation pages that differ from their generic docs and **must** be consulted whenever this repo's code interacts with either. This should follow the structure already used in `cloudflare-logger/AGENTS.md` (quality gates, coverage recipe, project structure map, architectural rules) rather than inventing a new template.
+The toolkit's own repo needs an `AGENTS.md` (distinct from the installable skill, which teaches _consumers_; this teaches _contributors to the toolkit itself_) with one non-negotiable rule: **always consult live documentation via MCP** for Cloudflare, Hono, Vite, and Vitest before writing or reviewing code that touches those surfaces — explicitly calling out that Vite and Vitest each have Cloudflare-specific documentation pages that differ from their generic docs and **must** be consulted whenever this repo's code interacts with either. This should follow the structure already used in `cloudflare-logger/AGENTS.md` (quality gates, coverage recipe, project structure map, architectural rules) rather than inventing a new template.
 
 ## 7. Testing Plan
 
@@ -517,11 +522,11 @@ The toolkit's own repo needs an `AGENTS.md` (distinct from the installable skill
 
 ### 7.2 Test projects (proposed, adjustable in the implementation plan)
 
-| Project | Runtime | Covers |
-| --- | --- | --- |
-| `test/node` | Plain Node | `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects, same technique `cloudflare-auth` already uses), `cli/generate-wrangler-types/*` (injected `WranglerRunner`/`FileSystem` fakes, same technique `cloudflare-scripts` already uses) |
-| `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them |
-| `test/package` | Plain Node | Imports the **built** `dist/` (not `src/`) for every subpath in §5.1 and asserts the expected named exports exist with the expected runtime type (`typeof x === "function"`, etc.) — catches `package.json#exports`/`tsup` entry-point misconfiguration before publish |
+| Project        | Runtime                                                                                                          | Covers                                                                                                                                                                                                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/node`    | Plain Node                                                                                                       | `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects, same technique `cloudflare-auth` already uses), `cli/generate-wrangler-types/*` (injected `WranglerRunner`/`FileSystem` fakes, same technique `cloudflare-scripts` already uses) |
+| `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them                                                                                                        |
+| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` (not `src/`) for every subpath in §5.1 and asserts the expected named exports exist with the expected runtime type (`typeof x === "function"`, etc.) — catches `package.json#exports`/`tsup` entry-point misconfiguration before publish                                |
 
 A `browser` project (present in `cloudflare-logger` for its `/react` subpath) is **not** included,
 since nothing in this package's scope runs in a browser. If a future subpath changes that, add the
@@ -534,10 +539,10 @@ When a line/branch is not covered:
 1. **Write a test.** Default, strongly preferred outcome — this is true for the overwhelming
    majority of gaps in this kind of code (pure functions, thin middleware).
 2. **Extract a small testable helper** if the gap is buried inside a larger function and awkward to
-   reach from the public surface — export it from the *module*, not the *barrel*, and unit-test it
+   reach from the public surface — export it from the _module_, not the _barrel_, and unit-test it
    directly (`cloudflare-logger`'s `replaceNonJsonValue()` pattern).
 3. **`/* istanbul ignore next -- @preserve */` — last resort**, requires: (a) a same-line/preceding
-   comment stating *why* the branch is genuinely unreachable in any test runtime, and (b) explicit
+   comment stating _why_ the branch is genuinely unreachable in any test runtime, and (b) explicit
    maintainer approval before merge, per this toolkit's own repository rules (§8). Target: **zero**
    ignore annotations at initial release, same starting bar `cloudflare-logger` holds today.
 
@@ -573,18 +578,18 @@ only needs one required check.
 These are the toolkit's own repository rules, resolving ambiguity where the existing sibling repos
 disagree with each other on a given point.
 
-| # | Rule | Detail |
-| --- | --- | --- |
-| 1 | `npm run check` runs type-checking + static analysis | `run-s check:types check:lint ...` pattern already used by all four repos. `check:types` = `tsc --noEmit` (or `tsc -b` for the multi-tsconfig layout); `check:lint` = `eslint .` |
-| 2 | Full JSDoc on all public code, enforced by eslint | Add `eslint-plugin-jsdoc` (§2.3). "Public" = anything exported from a barrel (`index.ts`) under any subpath. Enable `jsdoc/require-jsdoc` scoped to exported `function`/`class`/`interface`/`type` declarations, plus `jsdoc/require-description`, `jsdoc/check-param-names`. None of the four source repos currently run `eslint-plugin-jsdoc` — their JSDoc discipline today is manual convention only — so this is a **net-new lint gate**, not a lift-and-shift |
-| 3 | ESLint: `recommendedTypeChecked` + `stylisticTypeChecked` + no deprecated APIs | All four repos currently use only `tseslint.configs.recommended` (non-type-checked). This is a deliberate tightening for the new package. Requires `parserOptions: { projectService: true }` (or an explicit `project` array covering every `tsconfig*.json`) so type-aware rules can run. Add `@typescript-eslint/no-deprecated` explicitly (it's a "strict" rule, not part of `recommendedTypeChecked`) |
-| 4 | TypeScript version | Pin `typescript@^6.0.3` (§2.3), matching all four existing sibling repos exactly, for the foreseeable future. TypeScript 7.0 adoption is deferred until `typescript-eslint` supports it — see §2.3 for the concrete evidence behind this |
-| 5 | Husky auto-formats on commit | Pre-commit hook runs Prettier against staged files only and re-stages (`cloudflare-logger`'s pattern), not a full `npm run check` |
-| 6 | Husky blocks commits that fail `tsc`/`eslint` | This is `cloudflare-auth`'s pattern (`npm run check && npm run build && git add dist` in `pre-commit`), tightened here to run only `check:types` + `check:lint` at commit time (not the full test suite, to keep commits fast) — full `npm run check` including tests is the CI merge gate. Since `dist/` is not committed at all (§3), the hook does **not** run a build or `git add dist` |
-| 7 | Vitest, 100% coverage target, Istanbul provider | Mirrors `cloudflare-logger/vitest.config.ts` exactly: multi-project setup, `coverage.provider: "istanbul"`, `thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 }`, `exclude: ["src/**/*.d.ts", "src/**/index.ts"]` (barrels aren't measured) |
-| 8 | Functional testing focus; use guards for unreachable branches | This is the entire reason `guards` (§5.2) exists as public/importable, not just internal-only like `cloudflare-logger`'s private `defensive-guards.ts`. The toolkit's own source should eat its own dog food: use `throwIfNull`/`valueOrDefault` internally wherever the existing repos currently have an inline defensive `??`/`if (!x) throw` |
-| 9 | Trivially-testable branches must be tested | No blanket ignores for "it's just a defensive check" — see §7 (Testing Plan) for the exact decision procedure, copied from `cloudflare-logger/AGENTS.md`'s "How to reach 100% coverage" section, which already codifies this |
-| 10 | Untestable code requires approval + a justified `istanbul ignore next -- @preserve` | Same wording/mechanics as `cloudflare-logger/AGENTS.md`. "Approval" in this repo's workflow = a maintainer sign-off comment on the PR before the ignore annotation is merged, not a self-granted exception |
+| #   | Rule                                                                                | Detail                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `npm run check` runs type-checking + static analysis                                | `run-s check:types check:lint ...` pattern already used by all four repos. `check:types` = `tsc --noEmit` (or `tsc -b` for the multi-tsconfig layout); `check:lint` = `eslint .`                                                                                                                                                                                                                                                                                    |
+| 2   | Full JSDoc on all public code, enforced by eslint                                   | Add `eslint-plugin-jsdoc` (§2.3). "Public" = anything exported from a barrel (`index.ts`) under any subpath. Enable `jsdoc/require-jsdoc` scoped to exported `function`/`class`/`interface`/`type` declarations, plus `jsdoc/require-description`, `jsdoc/check-param-names`. None of the four source repos currently run `eslint-plugin-jsdoc` — their JSDoc discipline today is manual convention only — so this is a **net-new lint gate**, not a lift-and-shift |
+| 3   | ESLint: `recommendedTypeChecked` + `stylisticTypeChecked` + no deprecated APIs      | All four repos currently use only `tseslint.configs.recommended` (non-type-checked). This is a deliberate tightening for the new package. Requires `parserOptions: { projectService: true }` (or an explicit `project` array covering every `tsconfig*.json`) so type-aware rules can run. Add `@typescript-eslint/no-deprecated` explicitly (it's a "strict" rule, not part of `recommendedTypeChecked`)                                                           |
+| 4   | TypeScript version                                                                  | Pin `typescript@^6.0.3` (§2.3), matching all four existing sibling repos exactly, for the foreseeable future. TypeScript 7.0 adoption is deferred until `typescript-eslint` supports it — see §2.3 for the concrete evidence behind this                                                                                                                                                                                                                            |
+| 5   | Husky auto-formats on commit                                                        | Pre-commit hook runs Prettier against staged files only and re-stages (`cloudflare-logger`'s pattern), not a full `npm run check`                                                                                                                                                                                                                                                                                                                                   |
+| 6   | Husky blocks commits that fail `tsc`/`eslint`                                       | This is `cloudflare-auth`'s pattern (`npm run check && npm run build && git add dist` in `pre-commit`), tightened here to run only `check:types` + `check:lint` at commit time (not the full test suite, to keep commits fast) — full `npm run check` including tests is the CI merge gate. Since `dist/` is not committed at all (§3), the hook does **not** run a build or `git add dist`                                                                         |
+| 7   | Vitest, 100% coverage target, Istanbul provider                                     | Mirrors `cloudflare-logger/vitest.config.ts` exactly: multi-project setup, `coverage.provider: "istanbul"`, `thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 }`, `exclude: ["src/**/*.d.ts", "src/**/index.ts"]` (barrels aren't measured)                                                                                                                                                                                                 |
+| 8   | Functional testing focus; use guards for unreachable branches                       | This is the entire reason `guards` (§5.2) exists as public/importable, not just internal-only like `cloudflare-logger`'s private `defensive-guards.ts`. The toolkit's own source should eat its own dog food: use `throwIfNull`/`valueOrDefault` internally wherever the existing repos currently have an inline defensive `??`/`if (!x) throw`                                                                                                                     |
+| 9   | Trivially-testable branches must be tested                                          | No blanket ignores for "it's just a defensive check" — see §7 (Testing Plan) for the exact decision procedure, copied from `cloudflare-logger/AGENTS.md`'s "How to reach 100% coverage" section, which already codifies this                                                                                                                                                                                                                                        |
+| 10  | Untestable code requires approval + a justified `istanbul ignore next -- @preserve` | Same wording/mechanics as `cloudflare-logger/AGENTS.md`. "Approval" in this repo's workflow = a maintainer sign-off comment on the PR before the ignore annotation is merged, not a self-granted exception                                                                                                                                                                                                                                                          |
 
 ## 9. Security Considerations
 
@@ -612,7 +617,7 @@ Source for each of the repositories to be replaced is in [repos/adrianhall](../.
 - [`adrianhall/cloudflare-scripts`](https://github.com/adrianhall/cloudflare-scripts)
 - [`adrianhall/hono-problem-details`](https://github.com/adrianhall/hono-problem-details) (fork of [`paveg/hono-problem-details`](https://github.com/paveg/hono-problem-details))
 
-These repositories will **NOT** be touched as part of this work (see also §4).  Source material will be copied from the source repositories when building cloudflare-toolkit. All four are already MIT-licensed (§3), so nothing ported or vendored from them needs a license/compatibility review.
+These repositories will **NOT** be touched as part of this work (see also §4). Source material will be copied from the source repositories when building cloudflare-toolkit. All four are already MIT-licensed (§3), so nothing ported or vendored from them needs a license/compatibility review.
 
 - [Cloudflare Plugin for Vite](https://developers.cloudflare.com/workers/vite-plugin/)
 - [Cloudflare Vitest Information](https://developers.cloudflare.com/workers/testing/vitest-integration/)
@@ -624,10 +629,10 @@ These repositories will **NOT** be touched as part of this work (see also §4). 
 record of what was asked and where the resolution now lives, in case the reasoning is useful
 later.
 
-| # | Question | Resolution | Where it lives now |
-| --- | --- | --- | --- |
-| 1 | TypeScript 6 vs. 7 — when to revisit? | Stay on TypeScript 6 for the foreseeable future; revisit only once `typescript-eslint` ships a release supporting TypeScript 7 in its peer range | §2.3 |
-| 2 | Documentation-site technology | Locked: VitePress + TypeDoc/`typedoc-plugin-markdown` | §6.1 |
-| 3 | Documentation-site location & deploy cadence | `docs/` subfolder, own `package.json`; built and published by the `build-docs` CI step as part of the release workflow (triggered by a successful npm publish), so the published docs always match the published release | §3, §6.1 |
-| 4 | `@cloudflare/workers-types` pinning strategy | Pin exactly (no `^`); bump deliberately | §2.3 |
-| 5 | `@types/node` scope | No action needed — confirmed | §2.3 |
+| #   | Question                                     | Resolution                                                                                                                                                                                                               | Where it lives now |
+| --- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| 1   | TypeScript 6 vs. 7 — when to revisit?        | Stay on TypeScript 6 for the foreseeable future; revisit only once `typescript-eslint` ships a release supporting TypeScript 7 in its peer range                                                                         | §2.3               |
+| 2   | Documentation-site technology                | Locked: VitePress + TypeDoc/`typedoc-plugin-markdown`                                                                                                                                                                    | §6.1               |
+| 3   | Documentation-site location & deploy cadence | `docs/` subfolder, own `package.json`; built and published by the `build-docs` CI step as part of the release workflow (triggered by a successful npm publish), so the published docs always match the published release | §3, §6.1           |
+| 4   | `@cloudflare/workers-types` pinning strategy | Pin exactly (no `^`); bump deliberately                                                                                                                                                                                  | §2.3               |
+| 5   | `@types/node` scope                          | No action needed — confirmed                                                                                                                                                                                             | §2.3               |
