@@ -1,0 +1,28 @@
+{
+  "name": "@adrianhall/cloudflare-toolkit",
+  "version": "0.0.0",
+  "description": "A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "peerDependencies": {
+    "hono": "^4.12.28",
+    "vite": "^8.1.4"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "jose": "^6.2.3",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
