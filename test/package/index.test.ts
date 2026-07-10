@@ -61,9 +61,9 @@ describe("dist/index.js — root barrel exports", () => {
 
   it("does not leak hono/vite/testing symbols", () => {
     const keys = Object.keys(root);
-    // These subpaths are empty `export {}` stubs today (docs/SPECv2.md §5.1) and are populated
-    // in later, separate issues — this test exists so that whichever future issue populates them
-    // fails loudly here if it also (incorrectly) re-exports through the root barrel.
+    // `hono`/`vite` are populated by earlier issues (#13/#14) and `testing` by this one (#15) —
+    // this test exists so that whichever issue populates a subpath fails loudly here if it also
+    // (incorrectly) re-exports through the root barrel (docs/SPECv2.md §5.1).
     for (const forbidden of [
       "cloudflareAccess",
       "cloudflareLogger",
@@ -72,7 +72,12 @@ describe("dist/index.js — root barrel exports", () => {
       "AuthVariables",
       "LoggerVariables",
       "CloudflareToolkitVariables",
-      "cloudflareAccessPlugin"
+      "cloudflareAccessPlugin",
+      "signDevJwt",
+      "buildCookieHeader",
+      "clearCookieHeader",
+      "JWT_HEADER",
+      "COOKIE_NAME"
     ]) {
       expect(keys).not.toContain(forbidden);
     }

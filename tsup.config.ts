@@ -1,8 +1,8 @@
 // tsup build configuration (docs/SPECv2.md §2.3, §3).
 //
 // One entry per subpath that exists today (docs/SPECv2.md §5.1): root, `guards`, `errors`,
-// `problem-details`, `logging`, `hono`, `vite`. `testing`/`cli` each add their own entry in a
-// later issue, once those subpaths actually have content.
+// `problem-details`, `logging`, `hono`, `vite`, `testing`. `cli` adds its own entry in a later
+// issue, once that subpath actually has content.
 //
 // ESM-only (docs/SPECv2.md §3) — no CJS output, since every consumer of this toolkit is a
 // Vite/Wrangler/Vitest project and all of those are ESM-first.
@@ -28,7 +28,8 @@ export default defineConfig({
     "problem-details/index": "src/lib/problem-details/index.ts",
     "logging/index": "src/lib/logging/index.ts",
     "hono/index": "src/lib/hono/index.ts",
-    "vite/index": "src/lib/vite/index.ts"
+    "vite/index": "src/lib/vite/index.ts",
+    "testing/index": "src/lib/testing/index.ts"
   },
   format: ["esm"],
   // `hono` and `vite` are both peerDependencies (docs/SPECv2.md §2.1) and must never be bundled:
@@ -46,12 +47,12 @@ export default defineConfig({
   //   against a consumer's own `@cloudflare/vite-plugin`-adjacent `vite` install.
   //
   // `jose` (a real `dependency`, not a peer — docs/SPECv2.md §2.2) is external for a related but
-  // distinct reason: `auth-internal` (issue #12) is imported by BOTH the `hono` and `vite`
-  // entries (issues #13/#14) for its shared JWT/JWKS/policy primitives (docs/SPECv2.md §5.9,
-  // §9). Without this, each entry would bundle its own private copy of `jose`, doubling bundle
-  // size for no benefit since it's the same npm package either way, and risking the same
-  // `instanceof`-mismatch class of bug as `HTTPException` above should either entry ever branch
-  // on one of `jose`'s own error classes.
+  // distinct reason: `auth-internal` (issue #12) is imported by the `hono`, `vite`, AND
+  // `testing` entries (issues #13/#14/#15) for its shared JWT/JWKS/policy primitives
+  // (docs/SPECv2.md §5.9, §9). Without this, each entry would bundle its own private copy of
+  // `jose`, doubling (tripling) bundle size for no benefit since it's the same npm package
+  // either way, and risking the same `instanceof`-mismatch class of bug as `HTTPException`
+  // above should any entry ever branch on one of `jose`'s own error classes.
   external: ["hono", "vite", "jose"],
   // Preserves the sourcemap fix noted in the problem-details vendoring issue (docs/SPECv2.md
   // §5.4) for that subpath specifically, applied toolkit-wide.
