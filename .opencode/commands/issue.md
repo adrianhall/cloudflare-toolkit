@@ -73,7 +73,7 @@ If no issue number is provided, ask for one before doing any work.
    npm run test
    ```
 
-   These checks must run with zero warnings or errors. Fix the warnings or errors before continuing.  Only bypass these checks if the issue text explicitly tells you they are bypassable.
+   These checks must run with zero warnings or errors. Fix the warnings or errors before continuing. Only bypass these checks if the issue text explicitly tells you they are bypassable.
 
 9. Review changes.
 

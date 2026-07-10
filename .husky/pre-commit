@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Auto-format staged files with Prettier before each commit, then block the
+# commit if type-checking or linting fails (docs/SPECv2.md §8 rules 5-6).
+# Only touches files that are already staged (ACMR filter) and re-stages any
+# files that Prettier rewrites so the commit includes the fix.
+# Deliberately does NOT run tests or a build here -- npm run check (full,
+# including tests) is the CI merge gate, and dist/ is not committed (§3).
+# Note: husky adds node_modules/.bin to PATH, so `prettier`/`npm` resolve to
+# the local devDependency versions.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -n "$staged" ]; then
+  echo "$staged" | sed 's| |\\ |g' | xargs prettier --write --ignore-unknown
+  git update-index --again
+fi
+
+npm run check:types && npm run check:lint
