@@ -1,8 +1,10 @@
-// Hono context-variable types (docs/SPECv2.md §5.5 "Hono Bindings Helpers", §5.9). Only
-// `LoggerVariables` is defined here for now — `AuthVariables`/`CloudflareToolkitVariables` land
-// with the `cloudflareAccess` issue, since a single merged type would incorrectly claim a
-// variable is always set when the corresponding middleware might not be wired at all
-// (docs/SPECv2.md §5.5).
+// Hono context-variable types (docs/SPECv2.md §5.5 "Hono Bindings Helpers", §5.9).
+// `AuthVariables`/`LoggerVariables` are deliberately kept as two separate, independently
+// composable interfaces — matching the exact names already used by `cloudflare-auth`/
+// `cloudflare-logger` today — rather than one merged type, because either middleware may or may
+// not be wired at all in a given app; a single unconditional type would claim a variable is
+// always set when it might not be (docs/SPECv2.md §5.5). `CloudflareToolkitVariables` is
+// provided as a convenience alias for the common case of using both together.
 import type { Logger } from "../logging/types.js";
 
 /**
@@ -23,3 +25,41 @@ export interface LoggerVariables {
   /** The request-scoped `Logger` set by `cloudflareLogger`. */
   LOGGER: Logger;
 }
+
+/**
+ * Context variables set by {@link cloudflareAccess} on a successfully authenticated request.
+ * Intersect this with your own `Variables` when typing your `Hono` instance so that
+ * `c.get("userEmail")`/`c.get("userSub")` are statically known:
+ *
+ * ```ts
+ * interface AppVariables extends AuthVariables {
+ *   // Custom variables go here
+ * }
+ *
+ * type AppContext = { Bindings: Env; Variables: AppVariables };
+ * ```
+ *
+ * Matches the exact name already used by `cloudflare-auth` today (docs/SPECv2.md §5.5).
+ */
+export interface AuthVariables {
+  /** Authenticated user's email address (from the JWT `email` claim). */
+  userEmail: string;
+  /** Authenticated user's unique identifier (from the JWT `sub` claim). */
+  userSub: string;
+}
+
+/**
+ * Convenience alias for the common case of using {@link cloudflareAccess} and
+ * {@link cloudflareLogger} together:
+ *
+ * ```ts
+ * interface AppVariables extends CloudflareToolkitVariables {
+ *   // Custom variables go here
+ * }
+ * ```
+ *
+ * Exactly equal to `AuthVariables & LoggerVariables` — {@link AuthVariables} and
+ * {@link LoggerVariables} remain separate, independently composable types; this alias does not
+ * replace using either on its own (docs/SPECv2.md §5.5).
+ */
+export type CloudflareToolkitVariables = AuthVariables & LoggerVariables;
