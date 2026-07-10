@@ -3,8 +3,8 @@
 // relative path — see guards.test.ts for why.
 //
 // `ProblemDetailsErrorHandlerOptions`/`NotFoundHandlerOptions`/`CloudflareLoggerOptions`/
-// `LoggerVariables` are `export type`-only and have no runtime representation, so they are not
-// asserted here.
+// `CloudflareAccessOptions`/`AuthVariables`/`CloudflareToolkitVariables`/`LoggerVariables` are
+// `export type`-only and have no runtime representation, so they are not asserted here.
 import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 // Deliberately imported from a plain `hono/http-exception` path, NOT through this package — this
@@ -28,14 +28,19 @@ describe("dist hono/index.js — exports", () => {
     expect(typeof hono.cloudflareLogger).toBe("function");
   });
 
-  it("exports exactly the documented runtime symbols", () => {
-    expect(Object.keys(hono).sort()).toStrictEqual(
-      ["problemDetailsErrorHandler", "notFoundHandler", "cloudflareLogger"].sort()
-    );
+  it("exports cloudflareAccess as a function", () => {
+    expect(typeof hono.cloudflareAccess).toBe("function");
   });
 
-  it("does not leak cloudflareAccess symbols (later issue)", () => {
-    expect(Object.keys(hono)).not.toContain("cloudflareAccess");
+  it("exports exactly the documented runtime symbols", () => {
+    expect(Object.keys(hono).sort()).toStrictEqual(
+      [
+        "problemDetailsErrorHandler",
+        "notFoundHandler",
+        "cloudflareLogger",
+        "cloudflareAccess"
+      ].sort()
+    );
   });
 });
 
@@ -78,5 +83,26 @@ describe("hono smoke test against the built dist/", () => {
     expect(res.status).toBe(200);
     expect(capture.records).toHaveLength(1);
     expect(capture.records[0]?.message).toBe("hello from dist");
+  });
+
+  it("cloudflareAccess blocks a request with no token by default (defaultAction: block)", async () => {
+    const app = new Hono();
+    app.use(hono.cloudflareAccess());
+    app.get("/", (c) => c.json({ email: c.get("userEmail") ?? null }));
+
+    // No JWT provided at all — defaultAction defaults to "block", so this is a 401, proving the
+    // middleware from dist/ is wired and enforcing auth, not silently passing every request.
+    const res = await app.request("/");
+    expect(res.status).toBe(401);
+  });
+
+  it("cloudflareAccess bypasses a public path via policies without requiring a token", async () => {
+    const app = new Hono();
+    app.use(hono.cloudflareAccess({ policies: [{ pattern: /^\/public$/, authenticate: false }] }));
+    app.get("/public", (c) => c.text("ok"));
+
+    const res = await app.request("/public");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("ok");
   });
 });
