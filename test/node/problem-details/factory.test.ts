@@ -1,0 +1,210 @@
+// Adapted from adrianhall/hono-problem-details's tests/factory.test.ts (MIT) — see
+// THIRD-PARTY-NOTICES.md. Imports from the public barrel, matching how a consumer would use
+// `@adrianhall/cloudflare-toolkit/problem-details`.
+import { describe, expect, it } from "vitest";
+import { ProblemDetailsError, problemDetails } from "../../../src/lib/problem-details/index.js";
+
+describe("problemDetails factory", () => {
+  it("creates problem with minimal input (status only)", () => {
+    const error = problemDetails({ status: 404 });
+    expect(error.problemDetails.type).toBe("about:blank");
+    expect(error.problemDetails.status).toBe(404);
+    expect(error.problemDetails.title).toBe("Not Found");
+    expect(error.problemDetails.detail).toBeUndefined();
+  });
+
+  it("uses all specified fields as-is", () => {
+    const error = problemDetails({
+      status: 409,
+      type: "https://example.com/conflict",
+      title: "Custom Title",
+      detail: "Custom detail message",
+      instance: "/orders/123"
+    });
+    expect(error.problemDetails.type).toBe("https://example.com/conflict");
+    expect(error.problemDetails.status).toBe(409);
+    expect(error.problemDetails.title).toBe("Custom Title");
+    expect(error.problemDetails.detail).toBe("Custom detail message");
+    expect(error.problemDetails.instance).toBe("/orders/123");
+  });
+
+  it("flattens extension members to top level in response body", async () => {
+    const error = problemDetails({
+      status: 422,
+      extensions: {
+        errors: [{ field: "email", message: "invalid" }]
+      }
+    });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.errors).toEqual([{ field: "email", message: "invalid" }]);
+    expect(body.extensions).toBeUndefined();
+  });
+
+  it("getResponse() returns correct Content-Type and JSON body", async () => {
+    const error = problemDetails({ status: 400 });
+    const response = error.getResponse();
+    expect(response.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+    const body = await response.json();
+    expect(body.type).toBe("about:blank");
+    expect(body.status).toBe(400);
+    expect(body.title).toBe("Bad Request");
+  });
+
+  it("response status matches problem status (RFC 9457 MUST)", () => {
+    const error = problemDetails({ status: 422 });
+    const response = error.getResponse();
+    expect(response.status).toBe(422);
+  });
+
+  it("is instanceof Error and ProblemDetailsError", () => {
+    const error = problemDetails({ status: 500 });
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(ProblemDetailsError);
+  });
+
+  it("falls back to 'Unknown Error' title for unknown status code", () => {
+    const error = problemDetails({ status: 999 });
+    expect(error.problemDetails.title).toBe("Unknown Error");
+  });
+
+  it("standard fields take precedence over colliding extension keys", async () => {
+    const error = problemDetails({
+      status: 422,
+      type: "https://example.com/validation",
+      title: "Validation Error",
+      extensions: { status: 200, type: "evil", title: "Fake" }
+    });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.status).toBe(422);
+    expect(body.type).toBe("https://example.com/validation");
+    expect(body.title).toBe("Validation Error");
+    expect(response.status).toBe(422);
+  });
+
+  it("error.message is detail when detail is provided", () => {
+    const error = problemDetails({ status: 404, detail: "User 123 not found" });
+    expect(error.message).toBe("User 123 not found");
+  });
+
+  it("error.message is title when detail is omitted", () => {
+    const error = problemDetails({ status: 404 });
+    expect(error.message).toBe("Not Found");
+  });
+
+  it("dangerous extension keys are stripped from response", async () => {
+    const error = problemDetails({
+      status: 400,
+      extensions: { __proto__: { polluted: true }, constructor: "bad", safe: "ok" }
+    });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.status).toBe(400);
+    expect(body.safe).toBe("ok");
+    expect(Object.hasOwn(body, "constructor")).toBe(false);
+    expect(Object.hasOwn(body, "__proto__")).toBe(false);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("getResponse() clamps out-of-range status to 500", () => {
+    const error = problemDetails({ status: 9999 });
+    const response = error.getResponse();
+    expect(response.status).toBe(500);
+  });
+
+  it("getResponse() clamps 1xx status to 500", () => {
+    const error = problemDetails({ status: 100 });
+    const response = error.getResponse();
+    expect(response.status).toBe(500);
+  });
+
+  it("getResponse() preserves original status in body even when HTTP status is clamped", async () => {
+    const error = problemDetails({ status: 9999 });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.status).toBe(9999);
+    expect(response.status).toBe(500);
+  });
+
+  it("getResponse() returns fallback when extensions contain circular reference", async () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const error = problemDetails({ status: 422, extensions: circular });
+    const response = error.getResponse();
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.type).toBe("about:blank");
+    expect(body.status).toBe(500);
+    expect(body.title).toBe("Internal Server Error");
+  });
+
+  it("getResponse() returns fallback when extensions contain BigInt", async () => {
+    const error = problemDetails({
+      status: 422,
+      extensions: { big: BigInt(42) }
+    });
+    const response = error.getResponse();
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.type).toBe("about:blank");
+    expect(body.status).toBe(500);
+  });
+
+  it("getResponse() includes detail field in response body", async () => {
+    const error = problemDetails({ status: 404, detail: "User 123 not found" });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.detail).toBe("User 123 not found");
+    expect(body.status).toBe(404);
+    expect(body.title).toBe("Not Found");
+  });
+
+  it("dangerous extension key 'prototype' is stripped", async () => {
+    const error = problemDetails({
+      status: 400,
+      extensions: { prototype: "bad", safe: "ok" }
+    });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.safe).toBe("ok");
+    expect(Object.hasOwn(body, "prototype")).toBe(false);
+  });
+
+  it("extensions with only dangerous keys produce clean body", async () => {
+    const error = problemDetails({
+      status: 400,
+      extensions: { __proto__: "x", constructor: "y", prototype: "z" }
+    });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.status).toBe(400);
+    expect(body.type).toBe("about:blank");
+    expect(Object.hasOwn(body, "__proto__")).toBe(false);
+    expect(Object.hasOwn(body, "constructor")).toBe(false);
+    expect(Object.hasOwn(body, "prototype")).toBe(false);
+  });
+
+  it("empty extensions object produces body without extensions key", async () => {
+    const error = problemDetails({ status: 400, extensions: {} });
+    const response = error.getResponse();
+    const body = await response.json();
+    expect(body.status).toBe(400);
+    expect(body.type).toBe("about:blank");
+    expect(Object.hasOwn(body, "extensions")).toBe(false);
+  });
+
+  it("clamps 1xx boundary values (101, 150, 199) to 500", () => {
+    for (const status of [101, 150, 199]) {
+      const error = problemDetails({ status });
+      const response = error.getResponse();
+      expect(response.status).toBe(500);
+    }
+  });
+
+  it("accepts 200 status without clamping", () => {
+    const error = problemDetails({ status: 200 });
+    const response = error.getResponse();
+    expect(response.status).toBe(200);
+  });
+});
