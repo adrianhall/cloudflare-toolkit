@@ -1,8 +1,9 @@
 // tsup build configuration (docs/SPECv2.md §2.3, §3).
 //
 // One entry per subpath that exists today (docs/SPECv2.md §5.1): root, `guards`, `errors`,
-// `problem-details`, `logging`, `hono`, `vite`, `testing`. `cli` adds its own entry in a later
-// issue, once that subpath actually has content.
+// `problem-details`, `logging`, `hono`, `vite`, `testing` — plus one entry for the
+// `generate-wrangler-types` **bin** (docs/SPECv2.md §5.7, issue #16), which is not part of
+// `package.json#exports` at all (§5.1's table is import subpaths only).
 //
 // ESM-only (docs/SPECv2.md §3) — no CJS output, since every consumer of this toolkit is a
 // Vite/Wrangler/Vitest project and all of those are ESM-first.
@@ -10,6 +11,8 @@
 // Entry names use a `<subpath>/index` shape (not a flat `<subpath>`) so the built `dist/`
 // mirrors `src/lib/<subpath>/index.ts` — this keeps `package.json#exports` easy to read and
 // matches the nested-output convention already used by `@adrianhall/cloudflare-logger`.
+// `cli/generate-wrangler-types/index` mirrors `src/cli/generate-wrangler-types/index.ts` the
+// same way, matching `package.json#bin`'s own `./dist/cli/generate-wrangler-types/index.js`.
 //
 // tsup enables ESM code-splitting by default, which is required here, not optional: `guards`
 // depends on `errors` (for `NullError`), and `logging` depends on `guards` (for
@@ -18,7 +21,17 @@
 // every built entry point; disabling splitting would silently duplicate these classes per
 // bundle and break `instanceof` checks for real consumers (verified while planning this
 // build — see the PR description).
+//
+// `CLI_VERSION` is a build-time constant referenced by `src/cli/generate-wrangler-types/run.ts`
+// (`declare const CLI_VERSION: string`) for Commander's `--version` output — substituted here
+// from the package's own `version` field, mirroring `cloudflare-scripts`'s own `tsup.config.ts`
+// (docs/SPECv2.md §10).
+import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+const { version } = JSON.parse(readFileSync("./package.json", "utf-8")) as {
+  version: string;
+};
 
 export default defineConfig({
   entry: {
@@ -29,7 +42,8 @@ export default defineConfig({
     "logging/index": "src/lib/logging/index.ts",
     "hono/index": "src/lib/hono/index.ts",
     "vite/index": "src/lib/vite/index.ts",
-    "testing/index": "src/lib/testing/index.ts"
+    "testing/index": "src/lib/testing/index.ts",
+    "cli/generate-wrangler-types/index": "src/cli/generate-wrangler-types/index.ts"
   },
   format: ["esm"],
   // `hono` and `vite` are both peerDependencies (docs/SPECv2.md §2.1) and must never be bundled:
@@ -53,11 +67,24 @@ export default defineConfig({
   // `jose`, doubling (tripling) bundle size for no benefit since it's the same npm package
   // either way, and risking the same `instanceof`-mismatch class of bug as `HTTPException`
   // above should any entry ever branch on one of `jose`'s own error classes.
-  external: ["hono", "vite", "jose"],
+  //
+  // `commander`/`chalk` (both real `dependencies` — docs/SPECv2.md §2.2, issue #16) are external
+  // for a simpler reason than either of the above: they're only ever imported by the
+  // `cli/generate-wrangler-types/index` entry, npm already installs them for the consumer
+  // regardless (they're declared `dependencies`, not bundled-in extras), and leaving them
+  // un-external would have tsup inline a full private copy into the CLI's own
+  // `dist/cli/generate-wrangler-types/index.js` for no benefit — verified while planning this
+  // issue: a spike build of a small `commander`-using CLI came out at ~107 KB/3,385 lines with
+  // `commander` inlined vs. a handful of lines with it marked `external`, while still keeping
+  // the entry's shebang intact.
+  external: ["hono", "vite", "jose", "commander", "chalk"],
   // Preserves the sourcemap fix noted in the problem-details vendoring issue (docs/SPECv2.md
   // §5.4) for that subpath specifically, applied toolkit-wide.
   sourcemap: true,
   clean: true,
+  define: {
+    CLI_VERSION: JSON.stringify(version)
+  },
   dts: {
     compilerOptions: {
       // tsup's dts build step (rollup-plugin-dts) unconditionally injects a `baseUrl` into the

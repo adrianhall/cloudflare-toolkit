@@ -46,14 +46,17 @@ never bundles them.
 Declared in `package.json#dependencies` — installed regardless of which subpath a consumer
 actually imports.
 
-| Package                                                | Version   | Why                                                                                                                                                              |
-| ------------------------------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`jose`](https://www.npmjs.com/package/jose)           | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it |
-| [`commander`](https://www.npmjs.com/package/commander) | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                         |
+| Package                                                | Version   | Why                                                                                                                                                                   |
+| ------------------------------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`jose`](https://www.npmjs.com/package/jose)           | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it      |
+| [`commander`](https://www.npmjs.com/package/commander) | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                              |
+| [`chalk`](https://www.npmjs.com/package/chalk)         | `^5.6.2`  | Colorized stderr log output for `generate-wrangler-types`'s internal CLI logger (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it |
 
-No other runtime dependencies. The vendored `hono-problem-details` primitives (§5.4) are pure
-TypeScript with no dependencies of their own, and everything else (`guards`, `errors`, the
-`logging` core) is self-contained.
+Only `generate-wrangler-types` (a `bin`, not an import subpath — §5.7) pulls in `commander`/
+`chalk`; nothing under `package.json#exports` depends on either, so tree-shaking a consumer's own
+bundle of one of the importable subpaths never pays for the CLI's dependencies. The vendored
+`hono-problem-details` primitives (§5.4) are pure TypeScript with no dependencies of their own,
+and everything else (`guards`, `errors`, the `logging` core) is self-contained.
 
 ### 2.3 DevDependencies (build, lint, test tooling)
 
@@ -343,7 +346,7 @@ moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 
 Most of the scripts within `cloudflare-scripts` are relevant only in Terraform deployments. This toolkit is explicitly for wrangler-only deployments. The only script that is relevant is the `generate-types` script, which generates the `worker-configuration.d.ts` file only when the `wrangler.jsonc` file changes.
 
-This script will be ported from `cloudflare-scripts/src/cli/generate-types/*` with only the bin name changed (`generate-types` → `generate-wrangler-types`) and the CLI's internal `--help`/`--version` banner text updated to match. Behavior, flags (`-c/--config`, `-d/--dir`, `-f/--force`, `-o/--output`, `-q/--quiet`, `-v/--verbose`, `--` passthrough to `wrangler types`), and exit codes are unchanged — this is a rename, not a rewrite. Its one runtime dependency is [`commander`](https://www.npmjs.com/package/commander) (§2.2) for argument parsing, carried over from `cloudflare-scripts`; testing it end-to-end needs [`wrangler`](https://www.npmjs.com/package/wrangler) (§2.3) as a devDependency, since the whole script wraps `wrangler types`. Wired into a consuming project:
+This script will be ported from `cloudflare-scripts/src/cli/generate-types/*` with only the bin name changed (`generate-types` → `generate-wrangler-types`) and the CLI's internal `--help`/`--version` banner text updated to match. Behavior, flags (`-c/--config`, `-d/--dir`, `-f/--force`, `-o/--output`, `-q/--quiet`, `-v/--verbose`, `--` passthrough to `wrangler types`), and exit codes are unchanged — this is a rename, not a rewrite. Its runtime dependencies are [`commander`](https://www.npmjs.com/package/commander) (§2.2) for argument parsing and [`chalk`](https://www.npmjs.com/package/chalk) (§2.2) for colorized stderr log output, both carried over from `cloudflare-scripts`; testing it end-to-end needs [`wrangler`](https://www.npmjs.com/package/wrangler) (§2.3) as a devDependency, since the whole script wraps `wrangler types`. Wired into a consuming project:
 
 ```jsonc
 // package.json
