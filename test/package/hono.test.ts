@@ -2,8 +2,9 @@
 // §5.1, §5.5, §7.2). Imports the built package by name/subpath resolution against `dist/`, not a
 // relative path — see guards.test.ts for why.
 //
-// `ProblemDetailsErrorHandlerOptions`/`NotFoundHandlerOptions` are `export type`-only and have no
-// runtime representation, so they are not asserted here.
+// `ProblemDetailsErrorHandlerOptions`/`NotFoundHandlerOptions`/`CloudflareLoggerOptions`/
+// `LoggerVariables` are `export type`-only and have no runtime representation, so they are not
+// asserted here.
 import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 // Deliberately imported from a plain `hono/http-exception` path, NOT through this package — this
@@ -12,6 +13,7 @@ import { Hono } from "hono";
 // `instanceof` check against the one baked into our bundle, and this test would fail.
 import { HTTPException } from "hono/http-exception";
 import * as hono from "@adrianhall/cloudflare-toolkit/hono";
+import { createCaptureTransport } from "@adrianhall/cloudflare-toolkit/logging";
 
 describe("dist hono/index.js — exports", () => {
   it("exports problemDetailsErrorHandler as a function", () => {
@@ -22,17 +24,18 @@ describe("dist hono/index.js — exports", () => {
     expect(typeof hono.notFoundHandler).toBe("function");
   });
 
+  it("exports cloudflareLogger as a function", () => {
+    expect(typeof hono.cloudflareLogger).toBe("function");
+  });
+
   it("exports exactly the documented runtime symbols", () => {
     expect(Object.keys(hono).sort()).toStrictEqual(
-      ["problemDetailsErrorHandler", "notFoundHandler"].sort()
+      ["problemDetailsErrorHandler", "notFoundHandler", "cloudflareLogger"].sort()
     );
   });
 
-  it("does not leak cloudflareAccess/cloudflareLogger symbols (later issues)", () => {
-    const keys = Object.keys(hono);
-    for (const forbidden of ["cloudflareAccess", "cloudflareLogger"]) {
-      expect(keys).not.toContain(forbidden);
-    }
+  it("does not leak cloudflareAccess symbols (later issue)", () => {
+    expect(Object.keys(hono)).not.toContain("cloudflareAccess");
   });
 });
 
@@ -59,5 +62,21 @@ describe("hono smoke test against the built dist/", () => {
     expect(res.status).toBe(404);
     const body = (await res.json()) as { type: string; status: number; title: string };
     expect(body).toStrictEqual({ type: "about:blank", status: 404, title: "Not Found" });
+  });
+
+  it("cloudflareLogger sets c.get('LOGGER') and downstream handlers can log through it", async () => {
+    const capture = createCaptureTransport();
+    const app = new Hono();
+    app.use(hono.cloudflareLogger({ transport: capture, level: "info" }));
+    app.get("/", (c) => {
+      const logger = c.get("LOGGER") as { info: (message: string) => void };
+      logger.info("hello from dist");
+      return c.text("ok");
+    });
+
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    expect(capture.records).toHaveLength(1);
+    expect(capture.records[0]?.message).toBe("hello from dist");
   });
 });
