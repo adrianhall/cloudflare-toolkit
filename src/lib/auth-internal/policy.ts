@@ -1,8 +1,7 @@
-// Shared path-policy evaluation for the auth internals (docs/SPECv2.md §5.9, §9). Ported from
-// adrianhall/cloudflare-auth's `src/policy.ts` (same author, MIT — see docs/SPECv2.md §10; source
-// repo is read-only and not modified by this port), unchanged: pure logic with no runtime
-// dependencies, so this stays both Worker-safe (for `hono/`) and Node-safe (for `vite/`) as-is.
-
+/**
+ * @file Shared path-policy evaluation for the auth internals. Pure logic with no runtime
+ * dependencies, so this module is both Worker-safe (for `hono/`) and Node-safe (for `vite/`).
+ */
 import type { PathPolicy, PolicyMatch } from "./types.js";
 
 /**

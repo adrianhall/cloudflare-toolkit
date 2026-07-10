@@ -1,11 +1,11 @@
-// Error serialization for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/serialize.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is read-only and
-// not modified by this port).
-//
-// `serializeError()` converts `Error` instances to plain objects so transports can safely
-// forward structured context without raw `Error` values escaping into JSON serialization or
-// console methods. Only top-level context values are serialized by the logger (`logger.ts`);
-// nested errors are left as-is unless they appear as a direct `cause` of a top-level error.
+/**
+ * @file Error serialization for the logging subpath.
+ *
+ * `serializeError()` converts `Error` instances to plain objects so transports can safely
+ * forward structured context without raw `Error` values escaping into JSON serialization or
+ * console methods. Only top-level context values are serialized by the logger (`logger.ts`);
+ * nested errors are left as-is unless they appear as a direct `cause` of a top-level error.
+ */
 import { optionalField } from "./internal/optional-field.js";
 
 /**

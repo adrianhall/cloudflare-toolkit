@@ -1,10 +1,10 @@
-// Numeric level weights for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/levels.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is read-only and not
-// modified by this port).
-//
-// `LOG_LEVELS` and `levelValue()` are internal implementation details — not exported from
-// `src/lib/logging/index.ts`. Numeric values are stable for the emitted `LogRecord.levelValue`
-// field.
+/**
+ * @file Numeric level weights for the logging subpath.
+ *
+ * `LOG_LEVELS` and `levelValue()` are internal implementation details, not exported from
+ * `src/lib/logging/index.ts`. Numeric values are stable for the emitted `LogRecord.levelValue`
+ * field.
+ */
 import type { LogLevel } from "./types.js";
 
 /**
@@ -26,9 +26,9 @@ export const LOG_LEVELS: Readonly<Record<LogLevel, number>> = {
  *
  * Throws a `TypeError` for any value that is not a recognized `LogLevel`. TypeScript consumers
  * should rely on the `LogLevel` union type and never reach this error path under normal usage.
- * Deliberately not swapped for `throwIfNull` (docs/SPECv2.md §8 rule 8): this throws a
- * `TypeError` for an unrecognized string, not a `null`/`undefined` guard, so swapping it would
- * change the thrown error type.
+ * Deliberately not implemented with `throwIfNull`: this throws a `TypeError` for an unrecognized
+ * string, not a `null`/`undefined` guard, so using that helper would change the thrown error
+ * type.
  *
  * @param level - The level to look up.
  * @returns The numeric weight for `level`.

@@ -1,12 +1,11 @@
-// ESLint flat config for @adrianhall/cloudflare-toolkit.
-//
-// Repository rules (docs/SPECv2.md §8):
-//   - Rule 2: full JSDoc on all public exports, enforced via eslint-plugin-jsdoc.
-//     "Public" = anything exported from a barrel (index.ts) under any subpath.
-//   - Rule 3: typescript-eslint recommendedTypeChecked + stylisticTypeChecked,
-//     plus @typescript-eslint/no-deprecated (a "strict" rule, not part of
-//     recommendedTypeChecked). Requires parserOptions.projectService so
-//     type-aware rules can run.
+/**
+ * @file ESLint flat config for @adrianhall/cloudflare-toolkit.
+ *
+ * Enforces full JSDoc on all public exports (anything exported from a barrel `index.ts` under
+ * any subpath) via eslint-plugin-jsdoc, plus typescript-eslint's `recommendedTypeChecked` +
+ * `stylisticTypeChecked`, plus `@typescript-eslint/no-deprecated`. Requires
+ * `parserOptions.projectService` so type-aware rules can run.
+ */
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
 
@@ -26,8 +25,8 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-deprecated": "error",
 
-      // Scoped to exported function/class/interface/type declarations only
-      // (docs/SPECv2.md §8 rule 2) — not every function/class in the file.
+      // Scoped to exported function/class/interface/type declarations only — not every
+      // function/class in the file.
       "jsdoc/require-jsdoc": [
         "error",
         {

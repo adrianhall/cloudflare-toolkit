@@ -1,16 +1,15 @@
-// Browser transport for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/transports/browser.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is
-// read-only and not modified by this port).
-//
-// `createBrowserTransport()` formats records for browser DevTools using `%c` styled level
-// badges. It maps severity levels to appropriate console methods and passes the context object
-// as a separate argument when non-empty, so DevTools can expand it interactively.
-//
-// Level-to-method mapping:
-//   trace, debug → console.debug
-//   info          → console.info
-//   warn          → console.warn
-//   error, fatal  → console.error
+/**
+ * @file A transport that formats records for browser DevTools using `%c` styled level badges.
+ *
+ * `createBrowserTransport()` maps severity levels to appropriate console methods and passes the
+ * context object as a separate argument when non-empty, so DevTools can expand it interactively.
+ *
+ * Level-to-method mapping:
+ *   trace, debug → console.debug
+ *   info          → console.info
+ *   warn          → console.warn
+ *   error, fatal  → console.error
+ */
 import { getConsoleMethod } from "../internal/console.js";
 import type { ConsoleLike, ConsoleMethodName } from "../internal/console.js";
 import type { BrowserTransportOptions, LogLevel, LogRecord, Transport } from "../types.js";

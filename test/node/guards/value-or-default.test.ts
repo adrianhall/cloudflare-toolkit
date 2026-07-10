@@ -1,6 +1,3 @@
-// Tests for valueOrDefault (docs/SPECv2.md §5.2) — literally `value ?? defaultValue`, covering
-// the null, undefined, and defined-value cases. Imports from the public barrel, matching how a
-// consumer would use `@adrianhall/cloudflare-toolkit/guards`.
 import { describe, expect, it } from "vitest";
 import { valueOrDefault } from "../../../src/lib/guards/index.js";
 

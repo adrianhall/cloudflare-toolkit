@@ -1,9 +1,6 @@
 {
-  // Minimal Worker configuration used only by the `workers` Vitest project to
-  // boot workerd via @cloudflare/vitest-pool-workers (docs/SPECv2.md §7.2).
-  // `worker.ts` is an inert stub — no test in this project exercises it
-  // directly; hono/* tests wire their own bare `Hono` instances in the test
-  // file instead (docs/SPECv2.md §7.4).
+  // Minimal Worker configuration used only by the `workers` Vitest project to boot workerd via
+  // @cloudflare/vitest-pool-workers. `worker.ts` is an inert stub.
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "cloudflare-toolkit-test-workers",
   "main": "worker.ts",

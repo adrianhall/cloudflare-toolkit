@@ -1,7 +1,3 @@
-// Tests for the HTTP error generators (docs/SPECv2.md §5.3). One generator per row of the
-// generator table; every generator is asserted to produce the correct `status`/`title` and to
-// forward `detail`/`type`/`instance`/`extensions` untouched. Imports from the public barrel,
-// matching how a consumer would use `@adrianhall/cloudflare-toolkit/errors`.
 import { describe, expect, it } from "vitest";
 import {
   badRequest,
@@ -74,7 +70,7 @@ describe("HTTP error generators", () => {
     }).toThrow(ProblemDetailsError);
   });
 
-  it("429/304/409/412 generators are deliberately not exported (docs/SPECv2.md §4/§5.3)", async () => {
+  it("429/304/409/412 generators are deliberately not exported", async () => {
     const generatorsModule: Record<string, unknown> =
       await import("../../../src/lib/errors/generators.js");
     for (const forbiddenName of [

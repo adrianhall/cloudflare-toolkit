@@ -1,5 +1,6 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md.
+/**
+ * @file The RFC 9457 Problem Details error class.
+ */
 import type { ProblemDetails, ProblemDetailsInput } from "./types.js";
 import { buildProblemResponse, normalizeProblemDetails } from "./utils.js";
 

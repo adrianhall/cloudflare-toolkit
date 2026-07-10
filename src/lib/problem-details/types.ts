@@ -1,7 +1,7 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md. Trimmed to the Hono-free core (docs/SPECv2.md §5.4): the
-// upstream `ProblemDetailsHandlerOptions`/`OtelApiLike` types depend on Hono's `Context` and the
-// handler-only `localize`/`otelApi` options, so they are intentionally not ported here.
+/**
+ * @file Core RFC 9457 Problem Details types: the `ProblemDetails` object shape and the
+ * `ProblemDetailsInput` accepted by the `problemDetails()` factory.
+ */
 
 /**
  * RFC 9457 Problem Details object.

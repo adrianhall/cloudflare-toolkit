@@ -1,13 +1,3 @@
-// Tests for getRemoteJwks/ensureHttps (docs/SPECv2.md §5.9, issue #12). `ensureHttps` cases are
-// ported from adrianhall/cloudflare-auth's `tests/jwt.test.ts` (same author, MIT — see
-// docs/SPECv2.md §10; that file exercised `ensureHttps` alongside `jwt.ts`'s own tests via a
-// re-export). The cache-behavior cases below are new: cloudflare-auth's own suite mocks
-// `getRemoteJwks` away entirely rather than asserting on its cache, so the "fetch + cache
-// behavior, cache invalidation/refresh" bullet in issue #12's test plan has no direct upstream
-// equivalent to port.
-//
-// `createRemoteJWKSet` builds a lazy fetcher — it never issues a network request until actually
-// invoked to verify a token — so cache identity can be asserted without any HTTP mocking.
 import { describe, expect, it } from "vitest";
 import { ensureHttps, getRemoteJwks } from "../../../src/lib/auth-internal/jwks.js";
 

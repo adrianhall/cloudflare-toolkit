@@ -1,14 +1,15 @@
-// Defensive guards (docs/SPECv2.md §5.2): throwIfNull, valueOrDefault, sqlCount — the testable
-// defensive guards that let the rest of the toolkit (and consumers) hit 100% coverage without
-// inline, ad-hoc defensive branches (§8 rule 8). Depends only on `errors` (for NullError and
-// InvalidShapeError) — never the reverse.
+/**
+ * @file Testable defensive guards — `throwIfNull`, `valueOrDefault`, `sqlCount` — that let call
+ * sites replace inline, ad-hoc defensive branches with a single, individually-tested helper.
+ *
+ * Depends only on `errors` (for `NullError` and `InvalidShapeError`) — never the reverse.
+ */
 import { InvalidShapeError, NullError } from "../errors/index.js";
 
 /**
- * Assert that `value` is neither `null` nor `undefined`. A genuine TypeScript assertion function
- * (docs/SPECv2.md §5.2): once called, TypeScript narrows `value` to `NonNullable<T>` for the rest
- * of the calling scope, so callers get type narrowing for free instead of needing a separate
- * `if`/cast.
+ * Assert that `value` is neither `null` nor `undefined`. A genuine TypeScript assertion function:
+ * once called, TypeScript narrows `value` to `NonNullable<T>` for the rest of the calling scope,
+ * so callers get type narrowing for free instead of needing a separate `if`/cast.
  *
  * @param value - The value to check.
  * @param message - Human-readable explanation of what was unexpectedly null/undefined. Forwarded
@@ -23,9 +24,8 @@ export function throwIfNull<T>(value: T, message: string): asserts value is NonN
 
 /**
  * Return `value` unless it is `null`/`undefined`, in which case return `defaultValue` instead.
- * Literally `value ?? defaultValue` (docs/SPECv2.md §5.2) — exists purely so lint rules can flag
- * _ad hoc_ `??` fallbacks used defensively while allowing this one blessed, individually-tested
- * helper.
+ * Literally `value ?? defaultValue` — exists purely so lint rules can flag _ad hoc_ `??`
+ * fallbacks used defensively while allowing this one blessed, individually-tested helper.
  *
  * @param value - The value to return if defined.
  * @param defaultValue - The fallback returned when `value` is `null`/`undefined`.
@@ -37,8 +37,8 @@ export function valueOrDefault<T>(value: T | null | undefined, defaultValue: T):
 
 /**
  * Extract a numeric count from a D1 `.first()` result for the `SELECT COUNT(*) AS count FROM t`
- * pattern (docs/SPECv2.md §5.2, §7.4). Validates that `row` is a non-null object with a numeric
- * `countProperty`; throws {@link NullError} (via {@link throwIfNull}) if `row` itself is
+ * pattern. Validates that `row` is a non-null object with a numeric `countProperty`; throws
+ * {@link NullError} (via {@link throwIfNull}) if `row` itself is
  * `null`/`undefined`, or {@link InvalidShapeError} if `row` is non-null but does not have the
  * expected shape (not an object, or `countProperty` on it missing/not a number) — since the whole
  * point of this guard is "this should never happen — if it does, that's a bug, not a 0".

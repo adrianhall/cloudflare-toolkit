@@ -1,10 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/defensive-guards.test.ts (same author;
-// source repo is read-only per docs/SPECv2.md §10, not modified by this port). Renamed
-// alongside the source file (docs/SPECv2.md §5.9) to avoid confusion with this toolkit's own
-// `src/lib/guards` subpath.
-//
-// `optionalField` is an internal helper, not exported from `src/lib/logging/index.ts` — tested
-// here by importing the module directly rather than through the public barrel.
 import { describe, expect, it } from "vitest";
 import * as sut from "../../../../src/lib/logging/internal/optional-field.js";
 

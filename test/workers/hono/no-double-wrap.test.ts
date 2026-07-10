@@ -1,7 +1,3 @@
-// docs/SPECv2.md §7.4's specific risk area: `problemDetailsErrorHandler` and `notFoundHandler`
-// must not double-wrap a single request. Both are wired independently on a bare `Hono` instance
-// exactly as a real consumer would (docs/SPECv2.md §5.5) — `app.onError()`/`app.notFound()` are
-// distinct Hono hooks with no combined/coordinator middleware between them.
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
@@ -64,13 +60,12 @@ describe("problemDetailsErrorHandler + notFoundHandler wired together", () => {
   it("notFoundHandler and a thrown 404 HTTPException through problemDetailsErrorHandler agree on type/title conventions", async () => {
     // Two independent codepaths for a 404: (1) app.notFound() firing for an unmatched route, and
     // (2) a matched route throwing a 404 HTTPException through onError. Neither one invokes the
-    // other (no double-wrap), but — per docs/SPECv2.md §7.4 — they must still agree on
-    // `type`/`title` conventions (`typePrefix`, `autoInstance`) so a consumer sees a consistent
-    // RFC 9457 shape for "not found" regardless of which path produced it. (A thrown
-    // `ProblemDetailsError` from the `notFound()` generator is deliberately not used here: per
-    // upstream's own H31 case, `typePrefix` never overrides a `ProblemDetailsError`'s already-
-    // normalized `type` — only the `HTTPException`/fallback paths apply `buildType`, which is
-    // the actual mechanism both handlers need to agree on.)
+    // other (no double-wrap), but they must still agree on `type`/`title` conventions
+    // (`typePrefix`, `autoInstance`) so a consumer sees a consistent RFC 9457 shape for "not
+    // found" regardless of which path produced it. (A thrown `ProblemDetailsError` from the
+    // `notFound()` generator is deliberately not used here: `typePrefix` never overrides a
+    // `ProblemDetailsError`'s already-normalized `type` — only the `HTTPException`/fallback
+    // paths apply `buildType`, which is the actual mechanism both handlers need to agree on.)
     const viaNotFoundHook = new Hono();
     viaNotFoundHook.notFound(notFoundHandler(SHARED_OPTIONS));
     const hookRes = await viaNotFoundHook.request("/orders/123");

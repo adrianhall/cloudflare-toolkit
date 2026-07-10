@@ -1,8 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/internal/console.test.ts (same author;
-// source repo is read-only per docs/SPECv2.md §10, not modified by this port).
-//
-// `getConsoleMethod` is an internal helper, not exported from `src/lib/logging/index.ts` —
-// tested here by importing the module directly rather than through the public barrel.
 import { describe, expect, it, vi } from "vitest";
 import * as sut from "../../../../src/lib/logging/internal/console.js";
 

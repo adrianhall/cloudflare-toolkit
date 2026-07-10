@@ -1,5 +1,6 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md.
+/**
+ * @file A registry for pre-defined, type-safe RFC 9457 problem types.
+ */
 import { ProblemDetailsError } from "./error.js";
 
 interface ProblemTypeDefinition {

@@ -1,23 +1,3 @@
-// Cross-module handshake test (docs/SPECv2.md §9, issue #14 acceptance criteria). Adapted from
-// adrianhall/cloudflare-auth's `tests/vite-access-handshake.test.ts` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port).
-//
-// Proves the contract between the dev Vite plugin (./plugin.ts) and the production Worker
-// middleware (../hono/cloudflare-access.ts) *without* booting a real Vite server, and *without*
-// either side reimplementing the other's JWT/JWKS/policy logic — both consume the exact same
-// `auth-internal` module (issue #12):
-//
-//   1. The plugin middleware receives a request carrying a valid `CF_Authorization` cookie and
-//      injects the Access headers onto `req.rawHeaders` (the structure `@cloudflare/vite-plugin`
-//      reads).
-//   2. We rebuild a `Request` from `req.rawHeaders` (mirroring what the Cloudflare plugin does
-//      when dispatching into `workerd`).
-//   3. A Hono app using only `cloudflareAccess()` validates the injected HS256 token via its
-//      HMAC-first path — no network, no `developerAuthentication`.
-//
-// Runs under plain Node (docs/SPECv2.md §7.2) — `cloudflareAccess` needs no workerd-specific API
-// for this scenario (no D1/KV bindings, just `c.env.CLOUDFLARE_TEAM_DOMAIN`), so a real
-// `workerd` runtime is not required to prove the handshake.
 import { describe, it, expect } from "vitest";
 import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";

@@ -1,11 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/workers/hono.test.ts (MIT) — see
-// THIRD-PARTY-NOTICES.md — narrowed to this toolkit's scope for `cloudflareLogger`
-// (docs/SPECv2.md §5.5): only the `LOGGER` context-variable wiring and `resolveLoggerConfig`
-// resolution are covered here, since the automatic request/response trace logging,
-// correlation-id derivation, and header-redaction behavior from upstream are deliberately not
-// ported (see logger-middleware.ts). Runs under workerd (@cloudflare/vitest-pool-workers,
-// docs/SPECv2.md §7.2) against a bare `Hono` instance wired exactly as a real consumer would —
-// `app.use(cloudflareLogger(options))` — with no dependency on `cloudflareAccess`.
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { cloudflareLogger } from "../../../src/lib/hono/logger-middleware.js";

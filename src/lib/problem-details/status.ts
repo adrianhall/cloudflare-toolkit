@@ -1,5 +1,6 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md.
+/**
+ * @file Standard HTTP reason phrases and URL-safe slugs, keyed by status code.
+ */
 const STATUS_PHRASES: Record<number, string> = {
   400: "Bad Request",
   401: "Unauthorized",

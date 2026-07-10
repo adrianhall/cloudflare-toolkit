@@ -1,9 +1,8 @@
-// Node.js filesystem adapter for the `generate-wrangler-types` CLI (docs/SPECv2.md §5.7, §5.9).
-// Ported from adrianhall/cloudflare-scripts's `src/cli/generate-types/fs.ts` (same author, MIT —
-// see docs/SPECv2.md §10; source repo is read-only and not modified by this port). Wraps
-// `node:fs/promises` behind the {@link FileSystem} interface so that file I/O can be swapped for
-// an in-memory stub in unit tests without mocking the built-in module directly.
-
+/**
+ * @file A Node.js filesystem adapter for the `generate-wrangler-types` CLI. Wraps
+ * `node:fs/promises` behind the {@link FileSystem} interface so that file I/O can be swapped for
+ * an in-memory stub in unit tests without mocking the built-in module directly.
+ */
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import type { FileSystem } from "./types.js";

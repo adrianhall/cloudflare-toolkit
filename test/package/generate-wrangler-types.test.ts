@@ -1,16 +1,3 @@
-// Package-level smoke test for the `generate-wrangler-types` bin (docs/SPECv2.md §5.7, §7.2).
-// `generate-wrangler-types` ships as `package.json#bin`, not an `exports` subpath, so the
-// self-referencing-import pattern used by the other `test/package/*.test.ts` files (e.g.
-// `guards.test.ts`) does not apply here — there is no subpath to import. Instead, this test
-// spawns the **built** `dist/cli/generate-wrangler-types/index.js` directly as a child process
-// and asserts on its exit code/stdout/stderr, proving the shebang, `commander` wiring, and
-// `CLI_VERSION` build-time substitution all ended up in a working, executable artifact.
-//
-// Only exit paths reachable without a real `wrangler.jsonc`/`wrangler` invocation are exercised
-// here (--help, --version, argument errors, and the "config not found" path via the real
-// `FileSystem` adapter) — this keeps the test hermetic and fast. The full flag/exit-code matrix,
-// including the freshness-check skip path, is already covered against `src/` directly in
-// `test/node/cli/generate-wrangler-types/run.test.ts`.
 import { execFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

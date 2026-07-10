@@ -1,31 +1,15 @@
-// cloudflareAccess (docs/SPECv2.md §5.5, §5.9, §9) — Hono middleware that validates a Cloudflare
-// Access JWT (from the `CF_Authorization` cookie or the `Cf-Access-Jwt-Assertion` header) and
-// populates `AuthVariables` (`userEmail`, `userSub`, ./types.ts) on the Hono context for
-// downstream handlers.
-//
-// Ported from adrianhall/cloudflare-auth's `src/cloudflare-access.ts` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port), built on top of
-// this toolkit's own `auth-internal` module (#12, docs/SPECv2.md §5.9) for the shared JWT/JWKS/
-// policy primitives (`matchPolicy`, `verifyDevJwt`, `verifyAccessJwt`, `parseCookie`,
-// `JWT_HEADER`, `DEFAULT_DEV_SECRET`).
-//
-// Two deliberate differences from upstream:
-//   1. The `logger` option accepts this toolkit's own `Logger` (`../logging/types.js`) — the
-//      same contract `cloudflareLogger` (./logger-middleware.ts) already uses — instead of
-//      upstream's bespoke 4-method interface, so there is exactly one canonical logger contract
-//      across this toolkit's Hono middleware. When no logger is supplied, this defaults to a
-//      **silent** logger (`createSilentTransport`), not upstream's automatic `console.*`
-//      fallback, matching this toolkit's "nothing logs to `console` unless a consumer wires a
-//      transport" convention (docs/SPECv2.md §5.5).
-//   2. `AuthVariables`/`CloudflareToolkitVariables` live in `./types.ts`, not here, matching
-//      where `LoggerVariables` already lives (docs/SPECv2.md §5.5 "Hono Bindings Helpers").
-//
-// **Security-critical fail-closed default (docs/SPECv2.md §9, §7.4)**: `enableDevTokens`
-// defaults to `false`. Absent an explicit `enableDevTokens: true`, the HS256 dev-token
-// verification branch below is never even attempted — only the real Cloudflare Access JWKS path
-// runs — so a deployed Worker can never be tricked into trusting a token signed with the public
-// `DEFAULT_DEV_SECRET`. This must be preserved exactly; see the "fail-closed" describe block in
-// `test/workers/hono/cloudflare-access.test.ts`.
+/**
+ * @file `cloudflareAccess` — Hono middleware that validates a Cloudflare Access JWT (from the
+ * `CF_Authorization` cookie or the `Cf-Access-Jwt-Assertion` header) and populates
+ * `AuthVariables` (`userEmail`, `userSub`, ./types.ts) on the Hono context for downstream
+ * handlers.
+ *
+ * Built on this toolkit's own `auth-internal` module for the shared JWT/JWKS/policy primitives
+ * (`matchPolicy`, `verifyDevJwt`, `verifyAccessJwt`, `parseCookie`, `JWT_HEADER`,
+ * `DEFAULT_DEV_SECRET`). The `logger` option accepts this toolkit's own `Logger`
+ * (`../logging/types.js`) — the same contract `cloudflareLogger` (./logger-middleware.ts) uses —
+ * and defaults to a silent logger (`createSilentTransport`) when omitted.
+ */
 import type { Context, MiddlewareHandler } from "hono";
 import {
   DEFAULT_DEV_SECRET,
@@ -119,8 +103,7 @@ export interface CloudflareAccessOptions {
   readonly devSecret?: string;
   /**
    * Structured logger used for debug/info/warn/error diagnostics. Defaults to a silent logger
-   * (nothing is emitted) when omitted, matching this toolkit's "no logging without an explicit
-   * transport" convention (docs/SPECv2.md §5.5).
+   * (nothing is emitted) when omitted.
    */
   readonly logger?: Logger;
 }
@@ -135,7 +118,7 @@ function createDefaultLogger(): Logger {
  *
  * When `enableDevTokens` is `true`, the dev (HS256) secret is tried first as a fast in-process
  * path; otherwise that path is skipped entirely and only Cloudflare Access JWKS verification
- * runs — the fail-closed default (docs/SPECv2.md §9).
+ * runs — the fail-closed default.
  *
  * Returns the verified claims or `null`.
  */
@@ -199,6 +182,8 @@ async function verifyToken(
  * Worker never silently trusts a forgeable HS256 token signed with the public
  * `DEFAULT_DEV_SECRET`. Enable it only in local development.
  *
+ * @remarks Security-critical: this fail-closed default must be preserved exactly — see the
+ * "fail-closed" describe block in `test/workers/hono/cloudflare-access.test.ts`.
  * @param options - Options controlling path policies, the default action for unmatched paths,
  * the Cloudflare Access team domain/audience, dev-token verification, and the logger.
  * @returns A Hono `MiddlewareHandler`.

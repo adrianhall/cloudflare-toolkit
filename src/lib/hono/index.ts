@@ -1,6 +1,10 @@
-// Hono middleware barrel (docs/SPECv2.md §5.1, §5.5, §5.9). There is deliberately no combined/
-// coordinator middleware exported — each of the four pieces is wired independently by the
-// consumer (docs/SPECv2.md §5.5).
+/**
+ * @file Public entry point for the `hono` subpath: `problemDetailsErrorHandler`,
+ * `notFoundHandler`, `cloudflareLogger`, `cloudflareAccess`, and their context-variable types.
+ *
+ * There is no combined/coordinator middleware exported — each piece is wired independently by
+ * the consumer.
+ */
 export { problemDetailsErrorHandler } from "./error-handler.js";
 export type { ProblemDetailsErrorHandlerOptions } from "./error-handler.js";
 export { notFoundHandler } from "./not-found-handler.js";

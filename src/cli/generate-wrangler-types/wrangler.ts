@@ -1,13 +1,12 @@
-// Wrangler CLI adapter for the `generate-wrangler-types` CLI (docs/SPECv2.md §5.7, §5.9). Ported
-// from adrianhall/cloudflare-scripts's `src/cli/generate-types/wrangler.ts` (same author, MIT —
-// see docs/SPECv2.md §10; source repo is read-only and not modified by this port). Wraps the
-// execution of `npx wrangler types` behind the {@link WranglerRunner} interface so that tests can
-// substitute a stub without spawning a real process.
-//
-// The real implementation spawns `npx wrangler types <outputPath> [extraArgs]` in the given
-// working directory and captures stdout/stderr for logging. `shell: true` is required on Windows
-// where `npx` is a `.cmd` file.
-
+/**
+ * @file A Wrangler CLI adapter for the `generate-wrangler-types` CLI. Wraps the execution of
+ * `npx wrangler types` behind the {@link WranglerRunner} interface so that tests can substitute
+ * a stub without spawning a real process.
+ *
+ * The real implementation spawns `npx wrangler types <outputPath> [extraArgs]` in the given
+ * working directory and captures stdout/stderr for logging. `shell: true` is required on Windows
+ * where `npx` is a `.cmd` file.
+ */
 import { spawn } from "node:child_process";
 import type { WranglerResult, WranglerRunner } from "./types.js";
 

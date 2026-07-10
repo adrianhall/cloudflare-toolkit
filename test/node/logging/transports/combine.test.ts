@@ -1,6 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/transports/combine.test.ts (same author;
-// source repo is read-only per docs/SPECv2.md §10, not modified by this port). Imports from the
-// public barrel, matching how a consumer would use `@adrianhall/cloudflare-toolkit/logging`.
 import { describe, expect, it, vi } from "vitest";
 import {
   combineTransports,

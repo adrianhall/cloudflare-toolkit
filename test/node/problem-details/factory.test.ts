@@ -1,6 +1,3 @@
-// Adapted from adrianhall/hono-problem-details's tests/factory.test.ts (MIT) — see
-// THIRD-PARTY-NOTICES.md. Imports from the public barrel, matching how a consumer would use
-// `@adrianhall/cloudflare-toolkit/problem-details`.
 import { describe, expect, it } from "vitest";
 import { ProblemDetailsError, problemDetails } from "../../../src/lib/problem-details/index.js";
 

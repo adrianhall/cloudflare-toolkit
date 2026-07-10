@@ -1,7 +1,3 @@
-// Tests for matchPolicy (docs/SPECv2.md §5.9, issue #12). Ported from
-// adrianhall/cloudflare-auth's `tests/policy.test.ts` (same author, MIT — see docs/SPECv2.md
-// §10), adjusted only for the new import path. Imports directly from the module (not a barrel —
-// auth-internal has no public export, docs/SPECv2.md §5.9).
 import { describe, expect, it } from "vitest";
 import { matchPolicy } from "../../../src/lib/auth-internal/policy.js";
 import type { PathPolicy } from "../../../src/lib/auth-internal/types.js";

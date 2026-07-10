@@ -1,9 +1,3 @@
-// Tests for the `generate-wrangler-types` CLI's private stderr logger (docs/SPECv2.md §5.7,
-// §7.2). Adapted from adrianhall/cloudflare-scripts's
-// `src/lib/logger/__tests__/{logger,sink}.test.ts` (same author, MIT — see docs/SPECv2.md §10),
-// merged into one file to match this port's consolidated `logger.ts` (see that file's header
-// comment for why). Covers level-based filtering, message routing to the correct sink level, and
-// the default stderr sink behavior (timestamp format, color application).
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createLogger } from "../../../../src/cli/generate-wrangler-types/logger.js";
 import type { LogLevel, LogSink } from "../../../../src/cli/generate-wrangler-types/logger.js";

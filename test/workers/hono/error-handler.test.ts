@@ -1,8 +1,3 @@
-// Adapted from adrianhall/hono-problem-details's tests/handler.test.ts (MIT) — see
-// THIRD-PARTY-NOTICES.md. Runs under workerd (@cloudflare/vitest-pool-workers, docs/SPECv2.md
-// §7.2) against a bare `Hono` instance wired exactly as a real consumer would (docs/SPECv2.md
-// §5.5) — `app.onError(problemDetailsErrorHandler(options))`. The `otelApi` cases from upstream
-// are omitted: that integration is intentionally not ported (docs/SPECv2.md §5.4).
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
@@ -154,7 +149,7 @@ describe("problemDetailsErrorHandler — unhandled Error fallback", () => {
   });
 });
 
-describe("problemDetailsErrorHandler — includeStack (docs/SPECv2.md §9)", () => {
+describe("problemDetailsErrorHandler — includeStack", () => {
   it("defaults to false: never leaks a stack trace by default", async () => {
     const app = createApp();
     app.get("/", () => {
@@ -215,8 +210,7 @@ describe("problemDetailsErrorHandler — typePrefix/defaultType", () => {
     const app = createApp({ typePrefix: "https://api.example.com/problems" });
     app.get("/", () => {
       // 419 has no entry in statusToSlug's map — cast through unknown since HTTPException's
-      // constructor only accepts known ContentfulStatusCode literals (mirrors upstream's own
-      // H18 test, which uses the same cast to reach this branch).
+      // constructor only accepts known ContentfulStatusCode literals.
       throw new HTTPException(419 as unknown as 400);
     });
     const res = await app.request("/");

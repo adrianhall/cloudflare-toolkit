@@ -1,10 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/problem-details`
-// (docs/SPECv2.md §5.1, §5.4, §7.2). Imports the built package by name/subpath resolution
-// against `dist/`, not a relative path — see guards.test.ts for why.
-//
-// `ProblemDetails`/`ProblemDetailsInput` are `export type`-only (docs/SPECv2.md §5.1) and have
-// no runtime representation, so they are not asserted here — there is nothing to import at
-// runtime to check a `typeof` against.
 import { describe, expect, it } from "vitest";
 import * as problemDetails from "@adrianhall/cloudflare-toolkit/problem-details";
 

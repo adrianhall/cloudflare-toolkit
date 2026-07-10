@@ -1,15 +1,12 @@
-// JWT helpers for the Cloudflare Access authentication internals (docs/SPECv2.md §5.9, §9).
-// Ported from adrianhall/cloudflare-auth's `src/jwt.ts` (same author, MIT — see docs/SPECv2.md
-// §10; source repo is read-only and not modified by this port). Uses `jose` v6 for all
-// cryptographic operations and only Web-standard APIs (`crypto.randomUUID`, `TextEncoder`)
-// otherwise, so this stays both Worker-safe (for the future `hono/cloudflare-access.ts`, #13) and
-// Node-safe (for the future `vite/plugin.ts`, #14) without modification.
-//
-// `USER_HEADER` (`cf-access-user`) from the upstream module is intentionally NOT ported: its only
-// upstream consumer, `developer-authentication.ts`, is dropped from this toolkit entirely
-// (docs/SPECv2.md §5.6), and neither `cloudflareAccess` (#13) nor `cloudflareAccessPlugin` (#14)
-// reads it.
-
+/**
+ * @file JWT helpers for the Cloudflare Access authentication internals: signing and verifying
+ * developer tokens, verifying real Cloudflare Access tokens, and reading/writing the
+ * authorization cookie.
+ *
+ * Uses `jose` v6 for all cryptographic operations and only Web-standard APIs
+ * (`crypto.randomUUID`, `TextEncoder`) otherwise, so this module is both Worker-safe (for
+ * `hono/cloudflare-access.ts`) and Node-safe (for `vite/plugin.ts`).
+ */
 import { SignJWT, jwtVerify } from "jose";
 import type { JWTPayload } from "jose";
 import type { AccessJwtPayload } from "./types.js";

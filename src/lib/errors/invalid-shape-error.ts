@@ -1,11 +1,7 @@
-// InvalidShapeError (docs/SPECv2.md §5.2, §5.3): thrown by the guards subpath's `sqlCount` when a
-// non-null value does not have the shape it was expected to have (not an object, or missing/wrong
-// -typed property) — "this should never happen, that's a bug, not a 0/empty result". Sibling to
-// `NullError` (which covers the `null`/`undefined` case specifically): both are specialized
-// `internalServerError()`-shaped `ProblemDetailsError`s, deliberately not distinct cases callers
-// need to catch differently — each flows through standard Hono error handling (the vendored
-// `problemDetailsErrorHandler`, §5.4/§5.5, a later issue) exactly like any other
-// `ProblemDetailsError`.
+/**
+ * @file A specialized internal-server-error class for a non-null value that does not have the
+ * shape it was expected to have.
+ */
 import { ProblemDetailsError } from "../problem-details/error.js";
 
 /**

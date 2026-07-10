@@ -1,17 +1,15 @@
-// Internal safe JSON/string formatting for the logging subpath. Ported from
-// adrianhall/cloudflare-logger's `src/internal/safe-json.ts` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port).
-//
-// `safeStringify()` serializes arbitrary values to a compact JSON string while handling the
-// common non-JSON types that appear in structured log context:
-//   - Circular references  → `"[Circular]"`
-//   - `bigint`             → `"<n>n"` (e.g. `42n` → `"42n"`)
-//   - `symbol`             → `"Symbol(description)"`
-//   - `function`           → `"[Function name]"` or `"[Function (anonymous)]"`
-//   - `undefined`          → omitted from objects, `"undefined"` at top level
-//
-// Not exported from `src/lib/logging/index.ts`. Used by `createConsoleTransport` and
-// `createStructuredTransport`.
+/**
+ * @file Internal safe JSON/string formatting for the logging subpath. Not exported from
+ * `src/lib/logging/index.ts`; used by `createConsoleTransport` and `createStructuredTransport`.
+ *
+ * `safeStringify()` serializes arbitrary values to a compact JSON string while handling the
+ * common non-JSON types that appear in structured log context:
+ *   - Circular references  → `"[Circular]"`
+ *   - `bigint`             → `"<n>n"` (e.g. `42n` → `"42n"`)
+ *   - `symbol`             → `"Symbol(description)"`
+ *   - `function`           → `"[Function name]"` or `"[Function (anonymous)]"`
+ *   - `undefined`          → omitted from objects, `"undefined"` at top level
+ */
 
 /**
  * A stable placeholder emitted when `JSON.stringify` itself throws unexpectedly (e.g. a getter

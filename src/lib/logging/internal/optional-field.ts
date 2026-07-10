@@ -1,10 +1,7 @@
-// Internal helper for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/defensive-guards.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is
-// read-only and not modified by this port), renamed to `optional-field.ts` to avoid confusion
-// with this toolkit's own `src/lib/guards` subpath (docs/SPECv2.md §5.2) — `optionalField` is a
-// different, logging-internal helper, not one of the toolkit's public defensive guards.
-//
-// Not exported from `src/lib/logging/index.ts`.
+/**
+ * @file An internal helper for the logging subpath — not one of the toolkit's public defensive
+ * guards (`src/lib/guards`) and not exported from `src/lib/logging/index.ts`.
+ */
 
 /**
  * Returns `{ [prop]: o[prop] }` when `prop` is an own property of `o` with a non-`undefined`

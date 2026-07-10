@@ -1,15 +1,14 @@
-// Core logger implementation for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/logger.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is read-only and not
-// modified by this port). This is the framework-agnostic core that the `cloudflareLogger` Hono
-// middleware (a later issue, `@adrianhall/cloudflare-toolkit/hono`) wraps — it must never import
-// `hono`.
-//
-// `createLogger()` constructs a `Logger` that:
-//   - Filters records below the configured level before touching context.
-//   - Merges bindings and per-call context into a new object (never mutates input).
-//   - Serializes top-level `Error` values in context before delivering to transport.
-//   - Wraps transport delivery in try/catch so transport failures never escape.
-//   - Supports child loggers that inherit transport, level, clock, and error handler.
+/**
+ * @file The core logger implementation. This is the framework-agnostic core that the
+ * `cloudflareLogger` Hono middleware wraps — it must never import `hono`.
+ *
+ * `createLogger()` constructs a `Logger` that:
+ *   - Filters records below the configured level before touching context.
+ *   - Merges bindings and per-call context into a new object (never mutates input).
+ *   - Serializes top-level `Error` values in context before delivering to transport.
+ *   - Wraps transport delivery in try/catch so transport failures never escape.
+ *   - Supports child loggers that inherit transport, level, clock, and error handler.
+ */
 import { levelValue } from "./levels.js";
 import { serializeError } from "./serialize.js";
 import type {

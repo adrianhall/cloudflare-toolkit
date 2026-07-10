@@ -1,19 +1,12 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md. Ported from `src/handler.ts`'s `problemDetailsHandler`,
-// renamed `problemDetailsErrorHandler` (docs/SPECv2.md §5.5) to match this toolkit's naming.
-//
-// This is a **direct re-export**, not a toolkit-authored wrapper (docs/SPECv2.md §5.4/§5.5, §9):
-// every generator in `@adrianhall/cloudflare-toolkit/errors` produces a plain `ProblemDetailsError`
-// uniformly, so the vendored handler logic below — copied unmodified except for the changes noted
-// — needs no toolkit-specific special-casing on top of it.
-//
-// Two deliberate differences from upstream:
-//   1. Imports the shared RFC 9457 primitives from `../problem-details/*` instead of duplicating
-//      them, since that subpath is itself a vendored port of the same upstream project
-//      (docs/SPECv2.md §5.4) — one copy of `statusToPhrase`/`buildProblemResponse`/etc., not two.
-//   2. The `otelApi` option (and its backing `getOtelTraceId`/`integrations/opentelemetry.ts`)
-//      is dropped entirely: docs/SPECv2.md §5.4 explicitly excludes the opentelemetry integration
-//      (along with zod/valibot/openapi/standard-schema) from what's vendored in v1.
+/**
+ * @file A Hono `app.onError` handler that converts thrown errors into RFC 9457
+ * `application/problem+json` responses.
+ *
+ * Handles {@link ProblemDetailsError} directly, maps Hono `HTTPException` to an equivalent
+ * problem response, and falls back to a generic `500` for any other unhandled exception. Shares
+ * the RFC 9457 primitives from `../problem-details/*` (`statusToPhrase`, `buildProblemResponse`,
+ * etc.) rather than duplicating them. There is no OpenTelemetry/zod/valibot/openapi integration.
+ */
 import type { Context, ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ProblemDetailsError } from "../problem-details/error.js";
@@ -34,7 +27,7 @@ export interface ProblemDetailsErrorHandlerOptions {
    * top-level `stack` extension member per RFC 9457 §3.1 flattening, not in `detail`, to
    * prevent leakage into UIs that render `detail` verbatim.
    *
-   * Development-only. Must default to `false` (docs/SPECv2.md §9).
+   * Security-sensitive: development-only, must default to `false`.
    */
   includeStack?: boolean;
   /**

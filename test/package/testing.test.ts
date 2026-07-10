@@ -1,6 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/testing` (docs/SPECv2.md
-// §5.1, §5.9, §7.2, issue #15). Imports the built package by name/subpath resolution against
-// `dist/`, not a relative path — see guards.test.ts for why.
 import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import * as testing from "@adrianhall/cloudflare-toolkit/testing";
@@ -53,7 +50,7 @@ describe("cross-entry: a testing-signed token is accepted/rejected by hono's clo
     expect(body.email).toBe("dev@example.com");
   });
 
-  it("rejects the same token when enableDevTokens is not enabled (fail-closed, docs/SPECv2.md §9)", async () => {
+  it("rejects the same token when enableDevTokens is not enabled (fail-closed)", async () => {
     const token = await testing.signDevJwt("dev@example.com");
 
     const app = new Hono();

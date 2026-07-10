@@ -1,11 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/browser/transports/browser.test.ts (same
-// author; source repo is read-only per docs/SPECv2.md §10, not modified by this port).
-//
-// Upstream ran this suite under jsdom, but `createBrowserTransport` never touches real DOM/
-// browser globals — it only calls methods on an injected console-like object — so it runs
-// unmodified under plain Node (docs/SPECv2.md §7.2 deliberately omits a dedicated browser test
-// project for this toolkit). Imports `createBrowserTransport` from the public barrel, matching
-// how a consumer would use `@adrianhall/cloudflare-toolkit/logging`.
 import { describe, expect, it, vi } from "vitest";
 import { createBrowserTransport } from "../../../../src/lib/logging/index.js";
 import type { ConsoleLike } from "../../../../src/lib/logging/internal/console.js";

@@ -1,8 +1,7 @@
-// Shared type definitions for the `generate-wrangler-types` CLI (docs/SPECv2.md §5.7, §5.9).
-// Ported from adrianhall/cloudflare-scripts's `src/cli/generate-types/types.ts` (same author,
-// MIT — see docs/SPECv2.md §10; source repo is read-only and not modified by this port). These
-// interfaces are used across the filesystem, wrangler, and orchestration layers to keep each
-// module independently testable.
+/**
+ * @file Shared type definitions for the `generate-wrangler-types` CLI, used across the
+ * filesystem, wrangler, and orchestration layers to keep each module independently testable.
+ */
 
 /**
  * The result of executing a `wrangler types` command.

@@ -1,5 +1,7 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md.
+/**
+ * @file Helper functions for sanitizing, normalizing, and serializing RFC 9457 Problem Details
+ * objects into `application/problem+json` responses.
+ */
 import { statusToPhrase } from "./status.js";
 import type { ProblemDetails, ProblemDetailsInput } from "./types.js";
 

@@ -1,6 +1,3 @@
-// Adapted from adrianhall/hono-problem-details's tests/status.test.ts (MIT) — see
-// THIRD-PARTY-NOTICES.md. See docs/SPECv2.md §7.2 (this is the first real test/node coverage for
-// problem-details/*, replacing the deleted smoke test).
 import { describe, expect, it } from "vitest";
 import { statusToPhrase, statusToSlug } from "../../../src/lib/problem-details/status.js";
 

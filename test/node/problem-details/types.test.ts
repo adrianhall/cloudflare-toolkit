@@ -1,7 +1,3 @@
-// Adapted from adrianhall/hono-problem-details's tests/types.test.ts (MIT) — see
-// THIRD-PARTY-NOTICES.md. Trimmed to the types actually ported (docs/SPECv2.md §5.4):
-// `ProblemDetailsHandlerOptions` is a Hono-wired, handler-only type and was not ported into this
-// Hono-free subpath, so its type tests are dropped along with it.
 import { describe, expectTypeOf, it } from "vitest";
 import {
   ProblemDetailsError,
