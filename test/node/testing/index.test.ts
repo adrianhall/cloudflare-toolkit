@@ -1,25 +1,3 @@
-// Tests for the `testing` subpath barrel (docs/SPECv2.md §5.1, §5.9, §7.4, issue #15).
-//
-// `src/lib/testing/index.ts` is a pure re-export over `auth-internal/jwt.ts` (already
-// exhaustively unit-tested in `test/node/auth-internal/jwt.test.ts`), so this file does not
-// re-test `signDevJwt`/`buildCookieHeader`/`clearCookieHeader` in isolation. Instead it proves
-// the three things this issue's acceptance criteria actually care about:
-//
-//   1. The re-exported bindings ARE `auth-internal`'s bindings (reference-identity), not
-//      independently-authored copies.
-//   2. A token signed via `testing`'s `signDevJwt` round-trips through `auth-internal`'s own
-//      `verifyDevJwt`, and the cookie helper produces the exact `Cookie` header shape
-//      `cloudflareAccess`'s cookie-based extraction expects — cross-checked against the same
-//      fixture pattern used in `test/workers/hono/cloudflare-access.test.ts` (`${COOKIE_NAME}=`
-//      + token) and `test/node/vite/handshake.test.ts` (`buildCookieHeader(...).split(";")[0]`).
-//   3. **The security-critical acceptance criterion**: a token signed by `testing`'s helpers is
-//      accepted by `cloudflareAccess` when `enableDevTokens: true`, and rejected when it isn't —
-//      re-proving the fail-closed invariant (docs/SPECv2.md §9) through this new public surface,
-//      not just internally against `auth-internal` directly.
-//
-// Runs under plain Node (docs/SPECv2.md §7.2) — `cloudflareAccess` needs no workerd-specific API
-// for this scenario (no D1/KV bindings, just `c.env.CLOUDFLARE_TEAM_DOMAIN`), the same reasoning
-// already established by `test/node/vite/handshake.test.ts`.
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
 import * as testing from "../../../src/lib/testing/index.js";
@@ -84,9 +62,8 @@ describe("testing barrel — cookie helper shape", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Acceptance criteria: a testing-signed token is accepted by cloudflareAccess when
-// enableDevTokens is true, and rejected when it isn't (docs/SPECv2.md §9's fail-closed
-// invariant, re-proven through this issue's new public surface).
+// A testing-signed token is accepted by cloudflareAccess when enableDevTokens is true, and
+// rejected when it isn't (the fail-closed invariant, proven through this public surface).
 // ---------------------------------------------------------------------------
 describe("testing barrel + cloudflareAccess acceptance criteria", () => {
   type AccessEnv = { Bindings: Record<string, never>; Variables: AuthVariables };

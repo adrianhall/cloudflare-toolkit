@@ -1,20 +1,17 @@
-// Console transport for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/transports/console.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is
-// read-only and not modified by this port).
-//
-// `createConsoleTransport()` formats records as human-readable single-line output intended for
-// terminal environments including `wrangler dev`. It supports optional ANSI color codes and
-// configurable timestamp formats.
-//
-// Level-to-method mapping:
-//   trace, debug, info → console.log
-//   warn, error, fatal  → console.error
-//
-// Output format:
-//   [timestamp] LEVEL  message [{"key":"value"}]
-//
-// Dogfooding (docs/SPECv2.md §8 rule 8): the two `options?.x ?? default` fallbacks below are the
-// toolkit's own `valueOrDefault` guard instead of an ad hoc `??`.
+/**
+ * @file A transport that formats records as human-readable single-line output intended for
+ * terminal environments including `wrangler dev`.
+ *
+ * `createConsoleTransport()` supports optional ANSI color codes and configurable timestamp
+ * formats.
+ *
+ * Level-to-method mapping:
+ *   trace, debug, info  → console.log
+ *   warn, error, fatal  → console.error
+ *
+ * Output format:
+ *   [timestamp] LEVEL  message [{"key":"value"}]
+ */
 import { getConsoleMethod } from "../internal/console.js";
 import type { ConsoleLike } from "../internal/console.js";
 import { safeStringify } from "../internal/safe-json.js";

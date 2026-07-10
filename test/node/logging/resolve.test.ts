@@ -1,6 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/resolve.test.ts (same author; source
-// repo is read-only per docs/SPECv2.md §10, not modified by this port). Imports from the public
-// barrel, matching how a consumer would use `@adrianhall/cloudflare-toolkit/logging`.
 import { describe, expect, it, vi } from "vitest";
 import { resolveLoggerConfig } from "../../../src/lib/logging/index.js";
 import type { LogRecord } from "../../../src/lib/logging/index.js";

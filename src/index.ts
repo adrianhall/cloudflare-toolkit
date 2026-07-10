@@ -1,9 +1,12 @@
-// Root barrel (docs/SPECv2.md §5.1): re-exports guards + errors + problem-details + logging
-// only. Framework-agnostic — safe to import from any runtime (Worker, Node, browser).
-//
-// Must NEVER re-export anything from a `hono`/`vite`/`testing` subpath (each pulls in a
-// `hono`/`vite`/Node-only runtime dependency and stays import-by-subpath-only) — enforced by
-// test/package/index.test.ts, which asserts the exact set of runtime exports below.
+/**
+ * @file Root barrel for `@adrianhall/cloudflare-toolkit`: re-exports `guards`, `errors`,
+ * `problem-details`, and `logging`. Framework-agnostic — safe to import from any runtime
+ * (Worker, Node, browser).
+ *
+ * Never re-exports anything from a `hono`/`vite`/`testing` subpath, each of which pulls in a
+ * `hono`/`vite`/Node-only runtime dependency and stays import-by-subpath-only. That exact set of
+ * runtime exports is asserted by `test/package/index.test.ts`.
+ */
 export { sqlCount, throwIfNull, valueOrDefault } from "./lib/guards/index.js";
 
 export {

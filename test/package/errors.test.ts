@@ -1,6 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/errors` (docs/SPECv2.md
-// §5.1, §5.3, §7.2). Imports the built package by name/subpath resolution against `dist/`, not a
-// relative path — see guards.test.ts for why.
 import { describe, expect, it } from "vitest";
 import * as errors from "@adrianhall/cloudflare-toolkit/errors";
 import { ProblemDetailsError } from "@adrianhall/cloudflare-toolkit/problem-details";
@@ -50,8 +47,8 @@ describe("error generators smoke test against the built dist/", () => {
 
 describe("NullError/InvalidShapeError — cross-subpath identity", () => {
   // Both classes are `ProblemDetailsError` subclasses declared in a module that `./errors`
-  // depends on (docs/SPECv2.md §5.1). tsup's default ESM code-splitting extracts that shared
-  // code into one chunk that both the `./errors` and `./problem-details` built entries import,
+  // depends on. tsup's default ESM code-splitting extracts that shared code into one chunk that
+  // both the `./errors` and `./problem-details` built entries import,
   // so a single `NullError`/`InvalidShapeError` thrown here must still satisfy `instanceof
   // ProblemDetailsError` when `ProblemDetailsError` is imported from the *other* built entry
   // point — proving the two entries were not each given their own duplicate copy of the class.

@@ -18,8 +18,9 @@ The RFC 9457 Problem Details core primitives under `src/lib/problem-details/` (`
 This code is vendored — copied at a point in time — rather than depended upon, because
 `adrianhall/hono-problem-details` is not published to npm and so cannot be a resolvable
 `dependency`/`peerDependency` of a published package. Vendoring does not imply any ongoing
-relationship with, or endorsement by, either upstream project; see each vendored file's
-source-attribution header comment for the specific origin.
+relationship with, or endorsement by, either upstream project. This notice is the authoritative
+record of the vendored files' origin — the files themselves carry only a purpose-focused `@file`
+comment, not a source-attribution header.
 
 Only the Hono-free core primitives were ported. The `zod`/`valibot`/`openapi`/`standard-schema`/
 `opentelemetry` integrations, and the Hono-specific `problemDetailsHandler`, were intentionally

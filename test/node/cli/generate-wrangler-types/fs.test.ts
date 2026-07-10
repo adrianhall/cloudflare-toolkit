@@ -1,8 +1,3 @@
-// Tests for the `generate-wrangler-types` filesystem adapter (docs/SPECv2.md §5.7, §7.2, §7.4).
-// Ported from adrianhall/cloudflare-scripts's `src/cli/generate-types/__tests__/fs.test.ts` (same
-// author, MIT — see docs/SPECv2.md §10) — only the import path changed. These tests use real
-// files in a temporary directory to verify that `createFileSystem` correctly wraps
-// `node:fs/promises`.
 import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

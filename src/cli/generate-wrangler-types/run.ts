@@ -1,23 +1,17 @@
-// Core orchestration logic for the `generate-wrangler-types` CLI (docs/SPECv2.md §5.7, §5.9).
-// Ported from adrianhall/cloudflare-scripts's `src/cli/generate-types/run.ts` (same author, MIT —
-// see docs/SPECv2.md §10; source repo is read-only and not modified by this port). Behavior,
-// flags, and exit codes are unchanged from upstream (docs/SPECv2.md §5.7) — the only differences
-// are: the bin name/`--help`/`--version` banner text (`generate-types` → `generate-wrangler-types`
-// in `.name()`), and importing the CLI's own local `./logger.js` instead of
-// `cloudflare-scripts`'s shared `#lib/logger` (this toolkit ships only this one CLI, so there is
-// no other consumer to share that module with — see logger.ts's own header comment).
-//
-// This module owns the full execution pipeline:
-//   1. Argument parsing (Commander, with `--` passthrough for wrangler args)
-//   2. Logger creation
-//   3. Path resolution
-//   4. Wrangler config existence check
-//   5. Freshness check (compare config vs. output modification times)
-//   6. `wrangler types` execution
-//
-// All external I/O is accessed through the injected {@link GenerateWranglerTypesDeps} interfaces,
-// making the function fully testable without touching the real filesystem or spawning processes.
-
+/**
+ * @file Core orchestration logic for the `generate-wrangler-types` CLI.
+ *
+ * This module owns the full execution pipeline:
+ *   1. Argument parsing (Commander, with `--` passthrough for wrangler args)
+ *   2. Logger creation
+ *   3. Path resolution
+ *   4. Wrangler config existence check
+ *   5. Freshness check (compare config vs. output modification times)
+ *   6. `wrangler types` execution
+ *
+ * All external I/O is accessed through the injected {@link GenerateWranglerTypesDeps} interfaces,
+ * making the function fully testable without touching the real filesystem or spawning processes.
+ */
 import { isAbsolute, resolve } from "node:path";
 import { Command, CommanderError } from "commander";
 import type { LogLevel, LogSink } from "./logger.js";

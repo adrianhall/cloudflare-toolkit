@@ -1,6 +1,3 @@
-// Toolkit-authored — no upstream equivalent to adapt from (docs/SPECv2.md §5.5). Runs under
-// workerd (@cloudflare/vitest-pool-workers, docs/SPECv2.md §7.2) against a bare `Hono` instance
-// wired exactly as a real consumer would: `app.notFound(notFoundHandler(options))`.
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { notFoundHandler } from "../../../src/lib/hono/not-found-handler.js";

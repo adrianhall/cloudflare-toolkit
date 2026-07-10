@@ -1,10 +1,3 @@
-// Package-level export validation for the root barrel, `@adrianhall/cloudflare-toolkit`
-// (docs/SPECv2.md §5.1, §7.2). Imports the built package by name/subpath resolution against
-// `dist/`, not a relative path — see guards.test.ts for why.
-//
-// This is the one place that proves the root barrel is exactly "guards + errors +
-// problem-details + logging" (docs/SPECv2.md §5.1) — no more, no less, and never anything from a
-// future `hono`/`vite`/`testing` subpath.
 import { describe, expect, it } from "vitest";
 import * as root from "@adrianhall/cloudflare-toolkit";
 import * as guards from "@adrianhall/cloudflare-toolkit/guards";
@@ -61,9 +54,8 @@ describe("dist/index.js — root barrel exports", () => {
 
   it("does not leak hono/vite/testing symbols", () => {
     const keys = Object.keys(root);
-    // `hono`/`vite` are populated by earlier issues (#13/#14) and `testing` by this one (#15) —
-    // this test exists so that whichever issue populates a subpath fails loudly here if it also
-    // (incorrectly) re-exports through the root barrel (docs/SPECv2.md §5.1).
+    // Fails loudly if any of the `hono`/`vite`/`testing` subpaths are ever (incorrectly)
+    // re-exported through the root barrel.
     for (const forbidden of [
       "cloudflareAccess",
       "cloudflareLogger",
@@ -88,8 +80,8 @@ describe("dist/index.js — cross-entry identity (chunk-splitting sanity check)"
   // Every symbol below is re-exported by the root barrel from a source module that its own
   // dedicated subpath entry (e.g. `./errors`) also exports. tsup's default ESM code-splitting
   // extracts that shared source into one common chunk that both the root and the subpath entry
-  // import (docs/SPECv2.md — see tsup.config.ts), so the exact same class/function reference
-  // must come back from both import paths — not two independently-bundled duplicates.
+  // import (see tsup.config.ts), so the exact same class/function reference must come back from
+  // both import paths — not two independently-bundled duplicates.
   it("guards re-exports are reference-identical to the ./guards entry", () => {
     expect(root.sqlCount).toBe(guards.sqlCount);
     expect(root.throwIfNull).toBe(guards.throwIfNull);

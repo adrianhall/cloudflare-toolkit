@@ -1,32 +1,19 @@
-// cloudflareAccessPlugin (docs/SPECv2.md §5.6, §5.9, §9) — dev-only Vite plugin that emulates
-// the Cloudflare Access edge in front of `@cloudflare/vite-plugin`. In production, Cloudflare
-// Access sits at the edge and injects the `Cf-Access-Jwt-Assertion` header (and friends) into
-// every request before it reaches the Worker; during `vite dev` there is no Access in the loop.
-// This plugin reproduces that behavior at the Vite connect layer so the Worker can keep **only**
-// the production `cloudflareAccess` middleware (../hono/cloudflare-access.ts, #13) — no
-// `developerAuthentication`, no `run_worker_first`.
-//
-// Built on this toolkit's own `auth-internal` module (#12, docs/SPECv2.md §5.9) for the shared
-// JWT/JWKS/policy primitives — the SAME `matchPolicy`/`signDevJwt`/`verifyDevJwt`/`parseCookie`/
-// `buildCookieHeader`/`clearCookieHeader`/`DEFAULT_DEV_SECRET`/`JWT_HEADER`/`EMAIL_HEADER` that
-// `hono/cloudflare-access.ts` (#13) also consumes — so a session created here is accepted there
-// without any duplicated verification logic (docs/SPECv2.md §9's single-audited-unit
-// requirement; proved end-to-end in test/node/vite/handshake.test.ts).
-//
-// Ported from adrianhall/cloudflare-auth's `src/vite.ts` (same author, MIT — see docs/SPECv2.md
-// §10; source repo is read-only and not modified by this port). Two deliberate differences from
-// upstream:
-//   1. Imports come from this toolkit's own `../auth-internal/*` module instead of upstream's
-//      local `./jwt.js`/`./policy.js`/`./types.js` — the whole point of `auth-internal` existing
-//      (docs/SPECv2.md §5.9, §9).
-//   2. Upstream's own local `valueOrDefault` helper (used only for option defaults, not the
-//      "should never happen" defensive-guard case §5.2 is about) is dropped in favor of plain
-//      `??`, matching the option-default style already used throughout
-//      `hono/cloudflare-access.ts` (#13).
-//
-// Supersedes upstream's `developer-authentication.ts` (and its own `login-page.ts` renderer) —
-// neither is ported into this toolkit at all (docs/SPECv2.md §5.6): local-dev authentication now
-// lives entirely at this Vite dev-server layer instead of inside the Worker.
+/**
+ * @file `cloudflareAccessPlugin` — a dev-only Vite plugin that emulates the Cloudflare Access
+ * edge in front of `@cloudflare/vite-plugin`. In production, Cloudflare Access sits at the edge
+ * and injects the `Cf-Access-Jwt-Assertion` header (and friends) into every request before it
+ * reaches the Worker; during `vite dev` there is no Access in the loop. This plugin reproduces
+ * that behavior at the Vite connect layer so the Worker can keep only the production
+ * `cloudflareAccess` middleware (../hono/cloudflare-access.ts) — no separate dev-authentication
+ * middleware, no `run_worker_first`.
+ *
+ * Built on this toolkit's own `auth-internal` module for the shared JWT/JWKS/policy primitives
+ * — the same `matchPolicy`/`signDevJwt`/`verifyDevJwt`/`parseCookie`/`buildCookieHeader`/
+ * `clearCookieHeader`/`DEFAULT_DEV_SECRET`/`JWT_HEADER`/`EMAIL_HEADER` that
+ * `hono/cloudflare-access.ts` also consumes — so a session created here is accepted there
+ * without any duplicated verification logic (proved end-to-end in
+ * `test/node/vite/handshake.test.ts`).
+ */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Connect, Plugin } from "vite";
 import {

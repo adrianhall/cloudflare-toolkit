@@ -1,23 +1,21 @@
-// Structured transport for the logging subpath. Ported from adrianhall/cloudflare-logger's
-// `src/transports/structured.ts` (same author, MIT — see docs/SPECv2.md §10; source repo is
-// read-only and not modified by this port).
-//
-// `createStructuredTransport()` emits records as structured payloads intended for Cloudflare
-// Workers Logs. Workers Logs automatically extracts and indexes fields from JSON object logs, so
-// this transport defaults to object logging (`stringify: false`) rather than string logging.
-//
-// Payload shape: `{ time, level, message, ...context }`
-// Reserved keys (`time`, `level`, `message`) from the record take precedence over identically
-// named context keys.
-//
-// Level-to-method mapping:
-//   trace, debug → console.debug
-//   info          → console.log
-//   warn          → console.warn
-//   error, fatal  → console.error
-//
-// Dogfooding (docs/SPECv2.md §8 rule 8): the `options?.stringify ?? false` fallback below is the
-// toolkit's own `valueOrDefault` guard instead of an ad hoc `??`.
+/**
+ * @file A transport that emits records as structured payloads intended for Cloudflare Workers
+ * Logs.
+ *
+ * Workers Logs automatically extracts and indexes fields from JSON object logs, so
+ * `createStructuredTransport()` defaults to object logging (`stringify: false`) rather than
+ * string logging.
+ *
+ * Payload shape: `{ time, level, message, ...context }`
+ * Reserved keys (`time`, `level`, `message`) from the record take precedence over identically
+ * named context keys.
+ *
+ * Level-to-method mapping:
+ *   trace, debug → console.debug
+ *   info          → console.log
+ *   warn          → console.warn
+ *   error, fatal  → console.error
+ */
 import { getConsoleMethod } from "../internal/console.js";
 import type { ConsoleLike, ConsoleMethodName } from "../internal/console.js";
 import { safeStringify } from "../internal/safe-json.js";

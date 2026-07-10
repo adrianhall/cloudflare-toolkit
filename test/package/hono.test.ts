@@ -1,10 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/hono` (docs/SPECv2.md
-// §5.1, §5.5, §7.2). Imports the built package by name/subpath resolution against `dist/`, not a
-// relative path — see guards.test.ts for why.
-//
-// `ProblemDetailsErrorHandlerOptions`/`NotFoundHandlerOptions`/`CloudflareLoggerOptions`/
-// `CloudflareAccessOptions`/`AuthVariables`/`CloudflareToolkitVariables`/`LoggerVariables` are
-// `export type`-only and have no runtime representation, so they are not asserted here.
 import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 // Deliberately imported from a plain `hono/http-exception` path, NOT through this package — this
@@ -50,7 +43,7 @@ describe("hono smoke test against the built dist/", () => {
     app.onError(hono.problemDetailsErrorHandler());
     app.get("/", () => {
       // Constructed from the plain `hono/http-exception` import above, not re-exported by this
-      // package — exercising the exact failure mode the maintainer flagged on issue #10.
+      // package — exercising the `instanceof` mismatch that would occur if `hono` were bundled.
       throw new HTTPException(403, { message: "Forbidden" });
     });
     const res = await app.request("/");

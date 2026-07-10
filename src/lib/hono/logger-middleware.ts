@@ -1,15 +1,13 @@
-// cloudflareLogger (docs/SPECv2.md §5.5, §5.9) — Hono middleware that injects a structured
-// logger, backed by `@adrianhall/cloudflare-toolkit/logging`'s core (§5.1), into the request
-// pipeline for other middleware/handlers to use.
-//
-// Adapted from adrianhall/cloudflare-logger's `loggingMiddleware` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port), but deliberately
-// narrowed to match what docs/SPECv2.md §5.5 actually describes for `cloudflareLogger`: "injects
-// a structured logger into the pipeline ... that other middleware and APIs can use." Unlike
-// upstream, this middleware does not perform automatic request/response trace logging,
-// correlation-id derivation, header redaction, or response-body preview capture — it only
-// resolves a `Logger` via `resolveLoggerConfig`/`createLogger` (`../logging/*`) and sets it as
-// the `LOGGER` context variable (`LoggerVariables`, ./types.ts) for downstream code to read.
+/**
+ * @file `cloudflareLogger` — Hono middleware that injects a structured logger, backed by
+ * `@adrianhall/cloudflare-toolkit/logging`'s core, into the request pipeline for other
+ * middleware/handlers to use.
+ *
+ * This middleware does not perform automatic request/response trace logging, correlation-id
+ * derivation, header redaction, or response-body preview capture — it only resolves a `Logger`
+ * via `resolveLoggerConfig`/`createLogger` (`../logging/*`) and sets it as the `LOGGER` context
+ * variable (`LoggerVariables`, ./types.ts) for downstream code to read.
+ */
 import type { Context, MiddlewareHandler } from "hono";
 import { createLogger } from "../logging/logger.js";
 import { resolveLoggerConfig } from "../logging/resolve.js";
@@ -60,9 +58,9 @@ function resolveEnvironment(options: CloudflareLoggerOptions, c: Context): Envir
  * through it.
  *
  * The logger's level and transport are resolved via `resolveLoggerConfig(environment, "worker")`
- * (`@adrianhall/cloudflare-toolkit/logging`, docs/SPECv2.md §5.1) unless overridden by
- * `options.level`/`options.transport`. This middleware is independently wireable — it has no
- * dependency on `cloudflareAccess` (docs/SPECv2.md §5.5).
+ * (`@adrianhall/cloudflare-toolkit/logging`) unless overridden by `options.level`/
+ * `options.transport`. This middleware is independently wireable — it has no dependency on
+ * `cloudflareAccess`.
  *
  * @param options - Options controlling the environment, level, and transport used to build the
  * logger.

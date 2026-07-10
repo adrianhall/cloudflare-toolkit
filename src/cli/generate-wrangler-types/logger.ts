@@ -1,16 +1,12 @@
-// Private stderr logger for the `generate-wrangler-types` CLI (docs/SPECv2.md §5.7, §5.9). Ported
-// from adrianhall/cloudflare-scripts's shared `src/lib/logger/{types,logger,sink}.ts` (same
-// author, MIT — see docs/SPECv2.md §10; source repo is read-only and not modified by this port),
-// consolidated into a single file here since — unlike `cloudflare-scripts`, which shares this
-// logger across four CLIs — `generate-wrangler-types` is the only CLI this toolkit ships (§4
-// Non-Goals), so there is no other consumer to share the module with.
-//
-// Not exported from any barrel (`index.ts`) under any subpath — this logger is an internal
-// implementation detail of this one CLI, not part of the toolkit's public API surface (§5.1).
-//
-// All output is written to `stderr`. Color is applied when `process.stderr.isTTY === true`;
-// otherwise output is plain text. Log line format: `<ISO-UTC-ms> [<level>] <message>`.
-
+/**
+ * @file A private stderr logger for the `generate-wrangler-types` CLI. Not exported from any
+ * barrel — this logger is an internal implementation detail of this one CLI, not part of the
+ * toolkit's public API surface, and is intentionally a separate, simpler abstraction from the
+ * `logging` subpath's `Logger`/`Transport` contract.
+ *
+ * All output is written to `stderr`. Color is applied when `process.stderr.isTTY === true`;
+ * otherwise output is plain text. Log line format: `<ISO-UTC-ms> [<level>] <message>`.
+ */
 import chalk from "chalk";
 
 /**

@@ -1,9 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/levels.test.ts (same author; source
-// repo is read-only per docs/SPECv2.md §10, not modified by this port).
-//
-// `LOG_LEVELS`/`levelValue` are internal implementation details, not exported from
-// `src/lib/logging/index.ts` — tested here by importing the module directly rather than through
-// the public barrel.
 import { describe, expect, it } from "vitest";
 import * as sut from "../../../src/lib/logging/levels.js";
 

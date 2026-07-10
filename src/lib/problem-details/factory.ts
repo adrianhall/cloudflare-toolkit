@@ -1,5 +1,6 @@
-// Vendored/ported from adrianhall/hono-problem-details (MIT), a fork of paveg/hono-problem-details
-// (MIT) — see THIRD-PARTY-NOTICES.md.
+/**
+ * @file The `problemDetails()` factory function for creating a {@link ProblemDetailsError}.
+ */
 import { ProblemDetailsError } from "./error.js";
 import type { ProblemDetailsInput } from "./types.js";
 

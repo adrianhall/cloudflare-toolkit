@@ -1,12 +1,10 @@
-// Shared types for the auth-internal module (docs/SPECv2.md §5.9, §9). Ported from
-// adrianhall/cloudflare-auth's `src/types.ts` (same author, MIT — see docs/SPECv2.md §10; source
-// repo is read-only and not modified by this port) — only the slice needed by `jwt.ts`/
-// `policy.ts` is carried over. `Logger`, `CloudflareAccessSettings`, and `DeveloperAuthSettings`
-// are intentionally NOT ported here: they belong to the `hono/cloudflare-access.ts` (#13) and
-// `vite/plugin.ts` (#14) issues that consume this module, not to the module itself.
-//
-// This module has no public barrel export (docs/SPECv2.md §5.9) — it is consumed only via
-// relative imports from `hono/` and `vite/` in later issues.
+/**
+ * @file Shared types for the auth-internal module: the developer-JWT payload shape, path
+ * policies, and policy-match results used by `jwt.ts`/`policy.ts`.
+ *
+ * This module has no public barrel export — it is consumed only via relative imports from
+ * `hono/` and `vite/`.
+ */
 
 /**
  * Subset of the Cloudflare Access JWT payload that `signDevJwt` (`./jwt.js`) cares about when
@@ -49,7 +47,7 @@ export interface PathPolicy {
   authenticate: boolean;
   /**
    * Controls the response when an unauthenticated request hits this path in a consuming
-   * dev-emulation layer (e.g. `cloudflareAccessPlugin`, #14):
+   * dev-emulation layer (e.g. `cloudflareAccessPlugin`):
    *
    * - `true` *(default)* — redirect to a login form. Appropriate for page routes where the
    *   browser should navigate to a login UI.

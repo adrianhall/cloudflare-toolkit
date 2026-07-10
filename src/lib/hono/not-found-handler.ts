@@ -1,14 +1,14 @@
-// notFoundHandler (docs/SPECv2.md §5.5) — toolkit-authored, no vendored equivalent exists in
-// hono-problem-details: `app.notFound()` is a separate Hono hook from `app.onError()`, so there's
-// nothing analogous to port.
-//
-// This mimics the RFC 9457 shape that throwing `notFound()` (`@adrianhall/cloudflare-toolkit/errors`)
-// through `problemDetailsErrorHandler` would produce, and deliberately reuses the same
-// `../problem-details/*` helpers `problemDetailsErrorHandler` uses so the two independently-wired
-// hooks agree on `type`/`title` conventions (`typePrefix`, `autoInstance` — docs/SPECv2.md §7.4)
-// without needing a combined/coordinator middleware (§5.5). Because this handler builds its
-// `Response` directly rather than throwing, `app.onError()` is never involved for a 404 produced
-// this way — that's what prevents the double-wrap risk flagged in §7.4.
+/**
+ * @file `notFoundHandler` — a Hono `app.notFound` handler that returns an RFC 9457 Problem
+ * Details `404` response, matching the shape that throwing `notFound()`
+ * (`@adrianhall/cloudflare-toolkit/errors`) through `problemDetailsErrorHandler` would produce.
+ *
+ * Reuses the same `../problem-details/*` helpers `problemDetailsErrorHandler` uses, so the two
+ * independently-wired hooks (`app.notFound()` and `app.onError()`) agree on `type`/`title`
+ * conventions (`typePrefix`, `autoInstance`). Because this handler builds its `Response` directly
+ * rather than throwing, `app.onError()` is never involved for a 404 produced this way, which
+ * avoids double-wrapping the response.
+ */
 import type { Context, NotFoundHandler as HonoNotFoundHandler } from "hono";
 import { statusToPhrase, statusToSlug } from "../problem-details/status.js";
 import type { ProblemDetails } from "../problem-details/types.js";
@@ -27,7 +27,7 @@ export interface NotFoundHandlerOptions {
   /**
    * When `true`, populate `instance` from the request path (`c.req.path`).
    *
-   * Default: `false`, matching `problemDetailsErrorHandler`'s own default (docs/SPECv2.md §7.4).
+   * Default: `false`, matching `problemDetailsErrorHandler`'s own default.
    */
   autoInstance?: boolean;
 }
@@ -46,8 +46,8 @@ function buildType(options: NotFoundHandlerOptions): string {
 /**
  * Create an `app.notFound` handler that returns an RFC 9457 Problem Details `404` response. This
  * mimics what throwing `notFound()` (`@adrianhall/cloudflare-toolkit/errors`) through
- * {@link problemDetailsErrorHandler} would produce, without requiring a request to actually throw
- * — `app.notFound()` is wired independently of `app.onError()` (docs/SPECv2.md §5.5).
+ * {@link problemDetailsErrorHandler} would produce, without requiring a request to actually
+ * throw — `app.notFound()` is wired independently of `app.onError()`.
  *
  * @param options - Options controlling the `type` URI and whether `instance` is auto-populated.
  * @returns A Hono `NotFoundHandler`.

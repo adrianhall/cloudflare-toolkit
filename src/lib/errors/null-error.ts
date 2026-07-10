@@ -1,10 +1,6 @@
-// NullError (docs/SPECv2.md §5.2, §5.3): thrown by the guards subpath's `throwIfNull`/`sqlCount`
-// (a later issue) when a value that should never be `null`/`undefined` turns out to be — "this
-// should never happen, that's a bug, not a 0/empty result". It's a specialized
-// `internalServerError()`-shaped `ProblemDetailsError`, deliberately not a distinct case callers
-// need to catch: it flows through standard Hono error handling (the vendored
-// `problemDetailsErrorHandler`, §5.4/§5.5, a later issue) exactly like any other
-// `ProblemDetailsError`.
+/**
+ * @file A specialized internal-server-error class for an unexpected `null`/`undefined` value.
+ */
 import { ProblemDetailsError } from "../problem-details/error.js";
 
 /**

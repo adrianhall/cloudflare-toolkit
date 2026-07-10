@@ -1,15 +1,8 @@
-// HTML template for the Vite dev-server login page (docs/SPECv2.md §5.6, §5.9).
-//
-// Ported from adrianhall/cloudflare-auth's `src/vite-login-page.ts` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port), unchanged: a pure
-// HTML-string builder with no dependency on `auth-internal` or any runtime module, so nothing
-// here needed adapting for this toolkit.
-//
-// Upstream's *other* login-page renderer — the Hono-side `login-page.ts` used by
-// `developer-authentication.ts` — is intentionally NOT ported at all (docs/SPECv2.md §5.6):
-// local-dev authentication now lives entirely at this Vite dev-server layer via
-// `cloudflareAccessPlugin` (./plugin.ts), so there is no sibling Hono-side login form to compare
-// this one against.
+/**
+ * @file The HTML template for the Vite dev-server login page rendered by `cloudflareAccessPlugin`
+ * (./plugin.ts). A pure HTML-string builder with no dependency on `auth-internal` or any other
+ * runtime module.
+ */
 
 /** A selectable identity rendered on the dev login form. */
 export interface DevLoginUser {

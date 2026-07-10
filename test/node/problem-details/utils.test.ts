@@ -1,7 +1,3 @@
-// Adapted from adrianhall/hono-problem-details's tests/utils.test.ts (MIT) — see
-// THIRD-PARTY-NOTICES.md. Imports the module directly rather than the barrel: these helpers are
-// intentionally internal (not part of the public export surface, docs/SPECv2.md §5.1/§5.4), so
-// this is the "extract + unit-test the module directly" case from §7.3, not a coverage workaround.
 import { describe, expect, it } from "vitest";
 import {
   buildProblemResponse,

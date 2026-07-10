@@ -1,17 +1,16 @@
-// Internal console method fallback helpers for the logging subpath. Ported from
-// adrianhall/cloudflare-logger's `src/internal/console.ts` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port).
-//
-// Transports use specific `console` methods (`debug`, `info`, `warn`, `error`, `log`) to route
-// records to the appropriate DevTools channel or log level in the host environment. Some
-// environments (notably older Workers runtimes and custom test harnesses) may not expose every
-// console method.
-//
-// `getConsoleMethod()` returns the requested console method when available and falls back to
-// `console.log` otherwise, preventing a missing-method crash from surfacing into application
-// code.
-//
-// Not exported from `src/lib/logging/index.ts`.
+/**
+ * @file Internal console-method fallback helpers for the logging subpath. Not exported from
+ * `src/lib/logging/index.ts`.
+ *
+ * Transports use specific `console` methods (`debug`, `info`, `warn`, `error`, `log`) to route
+ * records to the appropriate DevTools channel or log level in the host environment. Some
+ * environments (notably older Workers runtimes and custom test harnesses) may not expose every
+ * console method.
+ *
+ * `getConsoleMethod()` returns the requested console method when available and falls back to
+ * `console.log` otherwise, preventing a missing-method crash from surfacing into application
+ * code.
+ */
 
 /** The subset of `console` method names used by built-in transports. */
 export type ConsoleMethodName = "debug" | "info" | "log" | "warn" | "error";

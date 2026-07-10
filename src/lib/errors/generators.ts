@@ -1,16 +1,18 @@
-// HTTP error generators (docs/SPECv2.md §5.3): one function per row of the generator table.
-// Every generator uniformly has the signature `(input?: Omit<ProblemDetailsInput, "status">) =>
-// ProblemDetailsError` — each fixes its own `status` and forwards `detail`/`type`/`instance`/
-// `extensions` untouched via `problemDetails()`; `title` auto-derives from `status`
-// (`normalizeProblemDetails`, ../problem-details/utils.ts) unless the caller explicitly overrides
-// it. These are plain functions, not framework-specific: throwing one inside a plain function, a
-// Durable Object method, or a Hono handler all work identically — only the vendored
-// `problemDetailsErrorHandler` (`@adrianhall/cloudflare-toolkit/hono`, a later issue) turns the
-// throw into an HTTP response.
-//
-// `429 Too Many Requests` is deliberately not included (a Cloudflare Workers platform concern,
-// not this toolkit's). `304 Not Modified`, `409 Conflict`, and `412 Precondition Failed` are also
-// deliberately not included in v1 — see docs/SPECv2.md §4/§5.3.
+/**
+ * @file One HTTP error generator per supported status code. Every generator has the signature
+ * `(input?: Omit<ProblemDetailsInput, "status">) => ProblemDetailsError` — each fixes its own
+ * `status` and forwards `detail`/`type`/`instance`/`extensions` untouched to `problemDetails()`;
+ * `title` auto-derives from `status` unless the caller explicitly overrides it.
+ *
+ * These are plain functions, not framework-specific — throwing one inside a plain function, a
+ * Durable Object method, or a Hono handler all work identically. Pairing one with
+ * `problemDetailsErrorHandler` (`@adrianhall/cloudflare-toolkit/hono`) turns the throw into an
+ * HTTP response.
+ *
+ * `429 Too Many Requests` is intentionally not included (a platform concern, not an
+ * application-level one). `304 Not Modified`, `409 Conflict`, and `412 Precondition Failed` are
+ * also not included.
+ */
 import { problemDetails } from "../problem-details/factory.js";
 import type { ProblemDetailsError } from "../problem-details/error.js";
 import type { ProblemDetailsInput } from "../problem-details/types.js";

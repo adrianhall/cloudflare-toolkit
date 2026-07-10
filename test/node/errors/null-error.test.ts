@@ -1,8 +1,3 @@
-// Tests for NullError (docs/SPECv2.md §5.2, §5.3). Asserts it behaves like an
-// `internalServerError()`-shaped ProblemDetailsError (same status/shape) so it's handled
-// uniformly by `problemDetailsErrorHandler` later, without callers needing to catch/special-case
-// it. Imports from the public barrel, matching how a consumer would use
-// `@adrianhall/cloudflare-toolkit/errors`.
 import { describe, expect, it } from "vitest";
 import { NullError, internalServerError } from "../../../src/lib/errors/index.js";
 import { ProblemDetailsError } from "../../../src/lib/problem-details/index.js";

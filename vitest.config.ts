@@ -1,16 +1,15 @@
 /**
  * @file Root Vitest configuration.
  *
- * Runtime-specific settings live alongside the tests they govern so each
- * runtime assumption is explicit (docs/SPECv2.md §7.2):
+ * Runtime-specific settings live alongside the tests they govern so each runtime assumption is
+ * explicit:
  *
  *   test/node/vitest.config.ts     — plain Node (pure logic, Node-safe code)
  *   test/workers/vitest.config.ts  — workerd via @cloudflare/vitest-pool-workers
  *   test/package/vitest.config.ts  — plain Node (built `dist/` import/export checks)
  *
- * Coverage uses Istanbul rather than V8 because workerd does not expose the
- * V8 coverage profiler; Istanbul instruments at transpile time and works in
- * every runtime uniformly (docs/SPECv2.md §7.1).
+ * Coverage uses Istanbul rather than V8 because workerd does not expose the V8 coverage
+ * profiler; Istanbul instruments at transpile time and works in every runtime uniformly.
  */
 import { defineConfig } from "vitest/config";
 

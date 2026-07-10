@@ -1,9 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/logging` (docs/SPECv2.md
-// §5.1, §7.2). Imports the built package by name/subpath resolution against `dist/`, not a
-// relative path — see guards.test.ts for why.
-//
-// The type-only exports (`Logger`, `LogLevel`, `Transport`, etc. — docs/SPECv2.md §5.1) have no
-// runtime representation and are not asserted here.
 import { describe, expect, it } from "vitest";
 import * as logging from "@adrianhall/cloudflare-toolkit/logging";
 

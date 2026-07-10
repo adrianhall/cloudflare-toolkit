@@ -1,12 +1,3 @@
-// Tests for cloudflareAccessPlugin / createAccessDevMiddleware (docs/SPECv2.md §5.6, §7.2,
-// issue #14). Adapted from adrianhall/cloudflare-auth's `tests/vite.test.ts` (same author, MIT
-// — see docs/SPECv2.md §10; source repo is read-only and not modified by this port), adjusted
-// only for the new import paths (`../auth-internal/jwt.js` instead of upstream's local
-// `../jwt.js`).
-//
-// Runs under plain Node (docs/SPECv2.md §7.2), mocking the Vite connect-middleware layer
-// directly with `IncomingMessage`/`ServerResponse`-shaped objects — the same technique
-// `cloudflare-auth` already uses — rather than booting a real Vite dev server.
 import { describe, it, expect, vi } from "vitest";
 import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";

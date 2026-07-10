@@ -1,10 +1,3 @@
-// Tests for renderViteLoginPage (docs/SPECv2.md §5.6, §7.2, issue #14). Written fresh for this
-// toolkit — upstream `cloudflare-auth` only exercised this renderer via an axe-core
-// accessibility scan (jsdom + axe, not part of this toolkit's test stack), not plain content
-// assertions, so there is no equivalent unit test file to port. These tests cover every branch
-// in `src/lib/vite/login-page.ts`: the single-email vs. selectable-users form, the
-// present/absent error banner, the first-user-checked/others-unchecked radio state, and
-// HTML-escaping of untrusted input.
 import { describe, expect, it } from "vitest";
 import { renderViteLoginPage } from "../../../src/lib/vite/login-page.js";
 

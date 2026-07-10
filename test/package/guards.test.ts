@@ -1,8 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/guards` (docs/SPECv2.md
-// §5.1, §7.2). Imports the built package by name/subpath resolution (Node's self-referencing
-// package feature resolves this against `package.json#exports` -> `dist/guards/index.js`), not
-// a relative path into `src/` or `dist/` — this is what actually exercises `tsup`'s entry point
-// and the `exports` map, catching a misconfiguration in either before publish.
 import { describe, expect, it } from "vitest";
 import * as guards from "@adrianhall/cloudflare-toolkit/guards";
 

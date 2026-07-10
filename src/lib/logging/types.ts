@@ -1,11 +1,10 @@
-// Core public types for the logging subpath (docs/SPECv2.md §5.1, §5.9). Ported from
-// adrianhall/cloudflare-logger's `src/types.ts` (same author, MIT — see docs/SPECv2.md §10;
-// source repo is read-only and not modified by this port). React-specific types are not carried
-// over (docs/SPECv2.md §4).
-//
-// These types form the stable public contract for the logging core. Numeric level values are
-// fixed once released; the string `LogLevel` union is the primary API surface for TypeScript
-// consumers.
+/**
+ * @file Core public types for the logging subpath.
+ *
+ * These types form the stable public contract for the logging core. Numeric level values are
+ * fixed once released; the string `LogLevel` union is the primary API surface for TypeScript
+ * consumers.
+ */
 
 /**
  * The six severity levels supported by the logger, ordered from lowest to highest: `trace <

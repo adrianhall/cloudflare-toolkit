@@ -1,8 +1,3 @@
-// Tests for throwIfNull (docs/SPECv2.md §5.2). Asserts both the runtime behavior (throws
-// NullError for null/undefined, does not throw for defined values) and that it is a genuine
-// TypeScript assertion function that narrows the value's static type — not just a boolean-
-// returning type guard. Imports from the public barrel, matching how a consumer would use
-// `@adrianhall/cloudflare-toolkit/guards`.
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { throwIfNull } from "../../../src/lib/guards/index.js";
 import { NullError } from "../../../src/lib/errors/index.js";

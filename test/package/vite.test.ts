@@ -1,9 +1,3 @@
-// Package-level export validation for `@adrianhall/cloudflare-toolkit/vite` (docs/SPECv2.md
-// §5.1, §5.6, §7.2, issue #14). Imports the built package by name/subpath resolution against
-// `dist/`, not a relative path — see guards.test.ts for why.
-//
-// `CloudflareAccessPluginOptions` is `export type`-only and has no runtime representation, so it
-// is not asserted here.
 import { describe, expect, it } from "vitest";
 import * as vitePkg from "@adrianhall/cloudflare-toolkit/vite";
 

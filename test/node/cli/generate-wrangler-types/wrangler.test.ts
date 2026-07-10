@@ -1,10 +1,3 @@
-// Tests for the `generate-wrangler-types` Wrangler runner (docs/SPECv2.md §5.7, §7.2, §7.4).
-// Ported from adrianhall/cloudflare-scripts's `src/cli/generate-types/__tests__/wrangler.test.ts`
-// (same author, MIT — see docs/SPECv2.md §10) — only the import path changed, plus one added
-// case (real ENOENT via the "error" event) so the port needs no `istanbul ignore` annotation for
-// that branch (docs/SPECv2.md §7.3, §8 rule 10 — zero ignore annotations at initial release).
-// Uses a stub {@link ExecRunner} to verify argument construction and result propagation without
-// spawning a real process.
 import { describe, expect, it } from "vitest";
 import type { WranglerResult } from "../../../../src/cli/generate-wrangler-types/types.js";
 import type { ExecRunner } from "../../../../src/cli/generate-wrangler-types/wrangler.js";

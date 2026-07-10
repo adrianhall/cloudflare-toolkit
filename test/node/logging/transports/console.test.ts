@@ -1,9 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/transports/console.test.ts (same author;
-// source repo is read-only per docs/SPECv2.md §10, not modified by this port).
-//
-// `createConsoleTransport` is imported from the public barrel, matching how a consumer would
-// use `@adrianhall/cloudflare-toolkit/logging`. `extractTime` is not exported from the barrel,
-// so it is imported directly from its source module.
 import { describe, expect, it, vi } from "vitest";
 import { createConsoleTransport } from "../../../../src/lib/logging/index.js";
 import { extractTime } from "../../../../src/lib/logging/transports/console.js";

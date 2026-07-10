@@ -1,14 +1,3 @@
-// Integration tests for the `generate-wrangler-types` CLI pipeline (docs/SPECv2.md §5.7, §7.2,
-// §7.4). Ported from adrianhall/cloudflare-scripts's
-// `src/cli/generate-types/__tests__/run.test.ts` (same author, MIT — see docs/SPECv2.md §10) —
-// only the import paths and the `GenerateTypesDeps` → `GenerateWranglerTypesDeps` type rename
-// changed; every test case and assertion is unchanged, including the freshness-check skip path
-// (docs/SPECv2.md §7.4's explicit callout that this path is easy to accidentally break).
-//
-// Tests are organized by exit code. All external I/O is supplied through stub implementations
-// of {@link FileSystem} and {@link WranglerRunner} — no real files are read, written, or
-// processes spawned.
-
 import { describe, expect, it, vi } from "vitest";
 import type { LogLevel, LogSink } from "../../../../src/cli/generate-wrangler-types/logger.js";
 import type { GenerateWranglerTypesDeps } from "../../../../src/cli/generate-wrangler-types/run.js";

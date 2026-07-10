@@ -1,7 +1,3 @@
-// Tests for the JWT helpers (docs/SPECv2.md §5.9, issue #12). Ported from
-// adrianhall/cloudflare-auth's `tests/jwt.test.ts` (same author, MIT — see docs/SPECv2.md §10;
-// source repo is read-only and not modified by this port), adjusted for the new import paths and
-// with the `ensureHttps` cases moved to `jwks.test.ts` alongside the rest of that module's tests.
 import { describe, it, expect, vi } from "vitest";
 import { SignJWT, generateKeyPair, exportJWK, createLocalJWKSet } from "jose";
 import {

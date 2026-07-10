@@ -1,5 +1,9 @@
-// Errors barrel (docs/SPECv2.md §5.1, §5.3, §5.9): HTTP error generators + NullError.
-// Depends only on `problem-details` — never the reverse.
+/**
+ * @file Public entry point for the `errors` subpath: HTTP error generators, plus the
+ * `NullError`/`InvalidShapeError` guard-failure types.
+ *
+ * Depends only on `problem-details` — never the reverse.
+ */
 export {
   badRequest,
   forbidden,

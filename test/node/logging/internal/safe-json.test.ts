@@ -1,8 +1,3 @@
-// Adapted from adrianhall/cloudflare-logger's test/node/internal/safe-json.test.ts (same author;
-// source repo is read-only per docs/SPECv2.md §10, not modified by this port).
-//
-// Both exports are internal helpers, not exported from `src/lib/logging/index.ts` — tested here
-// by importing the module directly rather than through the public barrel.
 import { describe, expect, it } from "vitest";
 import * as sut from "../../../../src/lib/logging/internal/safe-json.js";
 

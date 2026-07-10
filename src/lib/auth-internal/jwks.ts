@@ -1,12 +1,11 @@
-// Remote JWKS management for Cloudflare Access JWT verification (docs/SPECv2.md §5.9, §9).
-// Ported from adrianhall/cloudflare-auth's `src/jwks.ts` (same author, MIT — see docs/SPECv2.md
-// §10; source repo is read-only and not modified by this port), unchanged: only Web-standard
-// APIs (`jose`, `URL`, `Map`) are used, so this stays both Worker-safe (for `hono/`) and
-// Node-safe (for `vite/`) without modification.
-//
-// Extracted into its own module so that tests can mock `getRemoteJwks` and supply a local key
-// set instead of hitting the real Cloudflare Access certs endpoint.
-
+/**
+ * @file Remote JWKS management for Cloudflare Access JWT verification.
+ *
+ * Only Web-standard APIs (`jose`, `URL`, `Map`) are used, so this module is both Worker-safe
+ * (for `hono/`) and Node-safe (for `vite/`). Kept in its own module so tests can mock
+ * `getRemoteJwks` and supply a local key set instead of hitting the real Cloudflare Access certs
+ * endpoint.
+ */
 import { createRemoteJWKSet } from "jose";
 
 /** Remote JWKS cache keyed by team-domain URL. */

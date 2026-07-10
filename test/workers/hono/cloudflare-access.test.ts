@@ -1,20 +1,3 @@
-// Tests for cloudflareAccess (docs/SPECv2.md §5.5, §7.4, §9, issue #13). Adapted from
-// adrianhall/cloudflare-auth's `tests/cloudflare-access.test.ts` (same author, MIT — see
-// docs/SPECv2.md §10; source repo is read-only and not modified by this port), adjusted for the
-// new import paths and this toolkit's own `Logger` contract (`../logging/types.js`) instead of
-// upstream's bespoke 4-method logger interface.
-//
-// Runs under workerd (@cloudflare/vitest-pool-workers, docs/SPECv2.md §7.2) against a bare
-// `Hono` instance wired exactly as a real consumer would — `app.use(cloudflareAccess(options))`
-// — exercising real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them.
-//
-// Team-domain tests that must exercise the *real* JWKS-verification code path (rather than the
-// "no team domain configured" shortcut) use a domain under the `.invalid` TLD — reserved by
-// RFC 2606 to always fail to resolve — instead of a real-looking `*.cloudflareaccess.com` domain
-// like upstream's own test suite used. This still proves the fail-closed invariant runs through
-// the genuine `verifyAccessJwt`/JWKS branch (a team domain IS configured, so there is no
-// "missing CLOUDFLARE_TEAM_DOMAIN" shortcut), while keeping the failure deterministic and
-// independent of Cloudflare's live production infrastructure.
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { cloudflareAccess } from "../../../src/lib/hono/cloudflare-access.js";
