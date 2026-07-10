@@ -42,6 +42,9 @@
       "import": "./dist/testing/index.js"
     }
   },
+  "bin": {
+    "generate-wrangler-types": "./dist/cli/generate-wrangler-types/index.js"
+  },
   "files": [
     "dist",
     "LICENSE",
@@ -61,6 +64,7 @@
     }
   },
   "dependencies": {
+    "chalk": "^5.6.2",
     "commander": "^15.0.0",
     "jose": "^6.2.3"
   },
