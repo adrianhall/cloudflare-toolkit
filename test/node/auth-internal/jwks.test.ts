@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ensureHttps, getRemoteJwks } from "../../../src/lib/auth-internal/jwks.js";
+import {
+  ensureHttps,
+  getRemoteJwks,
+  MAX_JWKS_CACHE_ENTRIES
+} from "../../../src/lib/auth-internal/jwks.js";
 
 describe("ensureHttps", () => {
   it("returns the URL unchanged when it already starts with https://", () => {
@@ -10,8 +14,16 @@ describe("ensureHttps", () => {
     expect(ensureHttps("example.com")).toBe("https://example.com");
   });
 
-  it("prepends https:// to an http:// URL (does not replace)", () => {
-    expect(ensureHttps("http://example.com")).toBe("https://http://example.com");
+  it("throws when given an explicit http:// URL instead of double-prefixing it", () => {
+    expect(() => ensureHttps("http://example.com")).toThrow(
+      'Expected an https:// URL, got: "http://example.com"'
+    );
+  });
+
+  it("throws for a non-http(s) explicit scheme (e.g. ftp://)", () => {
+    expect(() => ensureHttps("ftp://example.com")).toThrow(
+      'Expected an https:// URL, got: "ftp://example.com"'
+    );
   });
 
   it("handles an empty string", () => {
@@ -42,5 +54,51 @@ describe("getRemoteJwks", () => {
     const domainOne = getRemoteJwks("jwks-cache-test-d.cloudflareaccess.com");
     const domainTwo = getRemoteJwks("jwks-cache-test-e.cloudflareaccess.com");
     expect(domainTwo).not.toBe(domainOne);
+  });
+
+  describe("SECURITY: team-domain host allowlist (SEC-009/CODE-004)", () => {
+    it("rejects a domain that is not a *.cloudflareaccess.com host", () => {
+      expect(() => getRemoteJwks("example.com")).toThrow(
+        'Invalid Cloudflare Access team domain: "example.com"'
+      );
+    });
+
+    it("rejects the bare cloudflareaccess.com host with no team label", () => {
+      expect(() => getRemoteJwks("cloudflareaccess.com")).toThrow(
+        'Invalid Cloudflare Access team domain: "cloudflareaccess.com"'
+      );
+    });
+
+    it("rejects a suffix-spoofing attempt appended after the real cloudflareaccess.com host", () => {
+      expect(() => getRemoteJwks("my-team.cloudflareaccess.com.attacker.example")).toThrow(
+        'Invalid Cloudflare Access team domain: "my-team.cloudflareaccess.com.attacker.example"'
+      );
+    });
+
+    it("rejects a userinfo-embedding trick (legit host as userinfo, attacker host as the real host)", () => {
+      expect(() => getRemoteJwks("legit-team.cloudflareaccess.com@evil.example")).toThrow(
+        'Invalid Cloudflare Access team domain: "legit-team.cloudflareaccess.com@evil.example"'
+      );
+    });
+  });
+
+  describe("bounded cache (unbounded-memory-growth hardening)", () => {
+    it("evicts the oldest entry once the cache exceeds its maximum size", () => {
+      const domains = Array.from(
+        { length: MAX_JWKS_CACHE_ENTRIES + 1 },
+        (_, i) => `jwks-cache-bound-test-${i}.cloudflareaccess.com`
+      );
+
+      const instances = domains.map((domain) => getRemoteJwks(domain));
+
+      // The oldest entry (index 0) was evicted to make room for the (MAX + 1)th insertion, so
+      // requesting it again must produce a *new* instance rather than the original.
+      const oldestAgain = getRemoteJwks(domains[0]!);
+      expect(oldestAgain).not.toBe(instances[0]);
+
+      // The most recently inserted entry must still be cached (not evicted).
+      const newestAgain = getRemoteJwks(domains[domains.length - 1]!);
+      expect(newestAgain).toBe(instances[instances.length - 1]);
+    });
   });
 });

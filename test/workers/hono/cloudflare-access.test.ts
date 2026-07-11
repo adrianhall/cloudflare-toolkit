@@ -13,10 +13,17 @@ import { createLogger } from "../../../src/lib/logging/logger.js";
 
 const BASE = "http://localhost";
 
-/** Team domain guaranteed to never resolve (RFC 2606) — forces the real JWKS branch to fail. */
+/**
+ * Team domain guaranteed to never resolve (RFC 2606) — forces the real JWKS branch to fail.
+ * Since `getRemoteJwks` (SEC-009/CODE-004) now validates the team domain against a
+ * `*.cloudflareaccess.com` allowlist before ever attempting a network fetch, this non-conforming
+ * value is rejected by that validation rather than by a live DNS/network failure — same
+ * observable outcome (a failed verification, caught by `verifyAccessJwt` and surfaced as a 401)
+ * without depending on real network access in these tests.
+ */
 const UNREACHABLE_TEAM_DOMAIN = "cloudflare-toolkit-test.invalid";
 
-/** Minimal env stub with a genuinely-configured (but unreachable) team domain. */
+/** Minimal env stub with a genuinely-configured (but non-conforming/rejected) team domain. */
 const MOCK_ENV = { CLOUDFLARE_TEAM_DOMAIN: UNREACHABLE_TEAM_DOMAIN };
 
 type AccessEnv = { Bindings: typeof MOCK_ENV; Variables: AuthVariables };
@@ -43,14 +50,14 @@ describe("cloudflareAccess", () => {
   // §9's explicit security invariant: dev tokens are fail-closed by default.
   // -----------------------------------------------------------------------
   describe("SECURITY: dev tokens are fail-closed by default", () => {
-    it("rejects a DEFAULT_DEV_SECRET-signed token when enableDevTokens is unset, even with a real (but unreachable) team domain configured", async () => {
+    it("rejects a DEFAULT_DEV_SECRET-signed token when enableDevTokens is unset, even with a real (but non-conforming) team domain configured", async () => {
       // Attacker mints a token with the published public secret and sends it as the Access
       // assertion header. `enableDevTokens` is not set, so `cloudflareAccess` must never even
       // attempt HS256 verification — only the real Cloudflare Access JWKS path runs. A team
       // domain IS configured (MOCK_ENV), so there is no "missing CLOUDFLARE_TEAM_DOMAIN"
-      // shortcut being relied on here; the JWKS fetch genuinely runs and genuinely fails because
-      // the domain does not exist, producing the same 401 a real deployment would see for an
-      // unrecognized token.
+      // shortcut being relied on here; the JWKS path genuinely runs and genuinely fails (now at
+      // team-domain validation rather than a live network fetch — see UNREACHABLE_TEAM_DOMAIN
+      // above), producing the same 401 a real deployment would see for an unrecognized token.
       const forged = await signDevJwt("attacker@evil.example", { secret: DEFAULT_DEV_SECRET });
       const app = createApp();
 
@@ -362,9 +369,9 @@ describe("cloudflareAccess", () => {
   // -----------------------------------------------------------------------
   describe("team domain and audience", () => {
     it("uses options.teamDomain over c.env.CLOUDFLARE_TEAM_DOMAIN when both are present", async () => {
-      // No matching key exists at this domain either, but this proves the explicit option is
-      // read (and not silently ignored) by using a *different* unreachable-but-configured
-      // domain than the one in MOCK_ENV.
+      // This domain is rejected by team-domain validation too, but that proves the explicit
+      // option is read (and not silently ignored) by using a *different* non-conforming-but-
+      // configured domain than the one in MOCK_ENV.
       const app = createApp({ teamDomain: "another.cloudflare-toolkit-test.invalid" });
 
       const res = await fetchWithEnv(app, `${BASE}/api/test`, {
