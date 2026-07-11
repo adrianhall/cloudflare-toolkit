@@ -177,7 +177,7 @@ async function verifyToken(
     return null;
   }
 
-  return verifyAccessJwt(token, teamDomain, options.audience);
+  return verifyAccessJwt(token, teamDomain, options.audience, options.logger);
 }
 
 /**
