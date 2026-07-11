@@ -68,9 +68,9 @@ npm run test:coverage  # all Vitest projects + 100% coverage
 - `npm run check` must report **zero errors**. It runs `check:types` (`tsc --noEmit`),
   `check:lint` (`eslint .`, scoped to `src/**/*.ts`), `check:format` (`prettier --check .`, which
   **does** cover this file and every other Markdown file in the repo), and `check:pack`
-  (`npm pack --ignore-scripts --dry-run`) via `run-s`. Unlike `cloudflare-logger`, there is no
-  `check:dist` gate — `dist/` is `.gitignore`d in this repo (built and published by CI, never
-  committed), so there is nothing for a dist-freshness check to compare against.
+  (`npm pack --ignore-scripts --dry-run`) via `run-s`. There is no `check:dist` gate — `dist/` is
+  `.gitignore`d in this repo (built and published by CI, never committed), so there is nothing for
+  a dist-freshness check to compare against.
 - `npm run test:coverage` runs `vitest run --coverage` across the three Vitest projects
   (`test/node`, `test/workers`, `test/package` — see Project structure below) and must report
   **100% coverage** on statements, branches, functions, and lines. The thresholds are enforced in
@@ -87,13 +87,12 @@ re-stages the result, then blocks the commit if `check:types` or `check:lint` fa
 **not** run tests or a build — `npm run check` (types/lint/format/pack) plus
 `npm run test:coverage` together are the CI merge gate, not the commit-time hook. The hook is
 activated automatically via the `prepare` script on `npm install` (this repo publishes to the npm
-registry rather than distributing via a git tag, so — unlike `cloudflare-logger` — a `prepare`
-script does not burden consumers).
+registry rather than distributing via a git tag, so a `prepare` script does not burden consumers).
 
 ## How to reach 100% coverage
 
 When coverage drops below 100%, analyze the uncovered line and resolve it in this priority order
-(copied from `cloudflare-logger/AGENTS.md`, binding here too — `docs/SPECv2.md` §7.3):
+(binding per `docs/SPECv2.md` §7.3):
 
 1. **Write a test.** If the gap is trivial to fill, or it is a path a real user can reach, add a
    test that exercises it. This is the default and strongly preferred outcome.
@@ -113,8 +112,7 @@ When coverage drops below 100%, analyze the uncovered line and resolve it in thi
    self-granted exception) before merging it, per `docs/SPECv2.md` §8 rule 10.
 
 There are currently **zero** `istanbul ignore` annotations anywhere in `src/`. Keep it that way
-unless absolutely necessary — the target is zero at initial release, same starting bar
-`cloudflare-logger` holds today.
+unless absolutely necessary — the target is zero at initial release and going forward.
 
 Note: `src/**/index.ts` files (barrels) and `src/**/*.d.ts` are excluded from coverage. Everything
 else under `src/` is measured.
