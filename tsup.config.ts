@@ -65,14 +65,16 @@ export default defineConfig({
   // either way, and risking the same `instanceof`-mismatch class of bug as `HTTPException`
   // above should any entry ever branch on one of `jose`'s own error classes.
   //
-  // `commander`/`chalk` (both real `dependencies`) are external for a simpler reason than either
-  // of the above: they're only ever imported by the `cli/generate-wrangler-types/index` entry,
-  // npm already installs them for the consumer regardless (they're declared `dependencies`, not
-  // bundled-in extras), and leaving them un-external would have tsup inline a full private copy
-  // into the CLI's own `dist/cli/generate-wrangler-types/index.js` for no benefit — a spike build
-  // of a small `commander`-using CLI came out at ~107 KB/3,385 lines with `commander` inlined vs.
-  // a handful of lines with it marked `external`, while still keeping the entry's shebang intact.
-  external: ["hono", "vite", "jose", "commander", "chalk"],
+  // `commander`/`chalk`/`cross-spawn` (all real `dependencies`) are external for a simpler reason
+  // than either of the above: they're only ever imported by the `cli/generate-wrangler-types/index`
+  // entry, npm already installs them for the consumer regardless (they're declared
+  // `dependencies`, not bundled-in extras), and leaving them un-external would have tsup inline a
+  // full private copy into the CLI's own `dist/cli/generate-wrangler-types/index.js` for no
+  // benefit — a spike build of a small `commander`-using CLI came out at ~107 KB/3,385 lines with
+  // `commander` inlined vs. a handful of lines with it marked `external`, while still keeping the
+  // entry's shebang intact. `cross-spawn` (added to fix SEC-002 — command injection via
+  // unescaped `shell: true` spawn) follows the same reasoning.
+  external: ["hono", "vite", "jose", "commander", "chalk", "cross-spawn"],
   // Sourcemaps are enabled toolkit-wide, including for the vendored `problem-details` subpath.
   sourcemap: true,
   clean: true,
