@@ -80,7 +80,16 @@ export default defineConfig({
       "/guides/": [
         {
           text: "Guides",
-          items: [{ text: "Overview", link: "/guides/" }]
+          items: [
+            { text: "Overview", link: "/guides/" },
+            { text: "Authentication", link: "/guides/authentication" },
+            { text: "Logging", link: "/guides/logging" },
+            { text: "Error Handling", link: "/guides/error-handling" },
+            { text: "Defensive Guards", link: "/guides/defensive-guards" },
+            { text: "generate-wrangler-types CLI", link: "/guides/cli" },
+            { text: "Testing", link: "/guides/testing" },
+            { text: "Vite + Vitest configuration", link: "/guides/vite-vitest" }
+          ]
         }
       ],
       "/reference/": [

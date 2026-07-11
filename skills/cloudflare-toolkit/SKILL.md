@@ -680,6 +680,11 @@ unexpected internal error.
 
 ## Vite + Vitest configuration for a Hono/Workers project
 
+This section is deliberately mirrored — not linked-to-instead-of — by the docs site's own
+[Vite + Vitest configuration guide](https://adrianhall.github.io/cloudflare-toolkit/guides/vite-vitest):
+one copy of this worked example for a coding agent reading this file, one for a human reading the
+docs site. If you change the pattern below, update both (see `AGENTS.md`'s architectural rules).
+
 This is a common source of misconfiguration in Hono/Wrangler apps. Consult Cloudflare's own docs
 first — they cover the underlying `@cloudflare/vite-plugin` and
 `@cloudflare/vitest-pool-workers` APIs this toolkit builds on:
