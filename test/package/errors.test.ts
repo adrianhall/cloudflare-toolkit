@@ -9,6 +9,7 @@ const GENERATORS: [name: string, status: number][] = [
   ["notFound", 404],
   ["methodNotAllowed", 405],
   ["gone", 410],
+  ["contentTooLarge", 413],
   ["unsupportedMediaType", 415],
   ["unprocessableContent", 422],
   ["internalServerError", 500],

@@ -87,6 +87,16 @@ export function gone(input?: HttpErrorInput): ProblemDetailsError {
 }
 
 /**
+ * Create a `413 Content Too Large` {@link ProblemDetailsError}.
+ *
+ * @param input - Optional problem details fields (`detail`, `type`, `instance`, `extensions`).
+ * @returns A `413`-status {@link ProblemDetailsError} ready to `throw`.
+ */
+export function contentTooLarge(input?: HttpErrorInput): ProblemDetailsError {
+  return problemDetails({ ...input, status: 413 });
+}
+
+/**
  * Create a `415 Unsupported Media Type` {@link ProblemDetailsError}.
  *
  * @param input - Optional problem details fields (`detail`, `type`, `instance`, `extensions`).
