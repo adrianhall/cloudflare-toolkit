@@ -132,7 +132,12 @@ export async function verifyDevJwt(
 /**
  * Verify a JWT against Cloudflare Access's remote JWKS endpoint.
  *
- * When `audience` is provided the `aud` claim is also verified.
+ * When `audience` is provided the `aud` claim is also verified. **When `audience` is omitted,
+ * `aud` is not checked at all** — because every Cloudflare Access application in an account
+ * shares the same team JWKS, this means a token minted for *any other Access application in the
+ * same team* is accepted here too (cross-application token replay). Callers that expose this
+ * through a public option (e.g. `hono/cloudflare-access.ts`'s `cloudflareAccess`) should warn
+ * loudly when a caller omits `audience` outside of a clearly-local-development configuration.
  */
 export async function verifyAccessJwt(
   token: string,

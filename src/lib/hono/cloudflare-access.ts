@@ -73,7 +73,16 @@ export interface CloudflareAccessOptions {
   readonly teamDomain?: string;
   /**
    * Application Audience Tag. When provided, the middleware verifies the JWT `aud` claim
-   * contains this value. When omitted, audience validation is skipped.
+   * contains this value.
+   *
+   * **When omitted, audience validation is skipped** — the `aud` claim is not checked at all.
+   * Every Cloudflare Access application in the same team shares the same JWKS, so without an
+   * `aud` check, a JWT that is valid for *any other Access application in the team* is accepted
+   * here too (cross-application token replay).
+   *
+   * Unless {@link CloudflareAccessOptions.enableDevTokens} is `true` (local development),
+   * omitting `audience` logs a one-time warning at construction time — see
+   * {@link cloudflareAccess}'s security remarks.
    */
   readonly audience?: string;
   /**
@@ -183,6 +192,14 @@ async function verifyToken(
  * Worker never silently trusts a forgeable HS256 token signed with the public
  * `DEFAULT_DEV_SECRET`. Enable it only in local development.
  *
+ * **Audience validation is opt-in, not fail-closed**: omitting
+ * {@link CloudflareAccessOptions.audience} skips the `aud` check and allows cross-application
+ * token replay within the same Cloudflare Access team (see that option's docs). To surface this
+ * without breaking existing deployments, {@link cloudflareAccess} logs a one-time warning at
+ * construction time whenever `audience` is omitted **and** `enableDevTokens` is not `true` —
+ * i.e. in the default, production-shaped configuration. The warning is intentionally silent
+ * when `enableDevTokens` is `true`, since that already signals a local-development posture.
+ *
  * @remarks Security-critical: this fail-closed default must be preserved exactly — see the
  * "fail-closed" describe block in `test/workers/hono/cloudflare-access.test.ts`.
  * @param options - Options controlling path policies, the default action for unmatched paths,
@@ -220,6 +237,19 @@ export function cloudflareAccess(
     log.warn(
       "enableDevTokens is true but no devSecret was provided; verifying HS256 dev tokens "
         + "with the public DEFAULT_DEV_SECRET. This is only safe in local development."
+    );
+  }
+
+  // Loud, one-time warning: no audience was configured, so the JWT `aud` claim is never
+  // checked — any token valid for another Access application in the same team is accepted here
+  // too (cross-application token replay). Silent when enableDevTokens is true, since that
+  // already signals a local-development posture where this gap is a non-issue.
+  if (!enableDevTokens && audience === undefined) {
+    log.warn(
+      "No audience was provided; the JWT 'aud' claim will not be validated. Any Cloudflare "
+        + "Access application in the same team can mint a token accepted here (cross-application "
+        + "token replay). Set the 'audience' option to this app's Audience Tag, or set "
+        + "enableDevTokens to silence this warning in local development."
     );
   }
 

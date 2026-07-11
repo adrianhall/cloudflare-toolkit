@@ -606,6 +606,13 @@ disagree with each other on a given point.
 - `cloudflareAccess`'s `enableDevTokens` fail-closed default must be preserved exactly (tested in
   §7.4) — this is the single highest-consequence security property in the merged codebase; a
   regression here means a deployed Worker trusts a forgeable HS256 token.
+- `cloudflareAccess`'s `audience` option is opt-in, not fail-closed: omitting it skips `aud`
+  validation entirely and allows cross-application Access token replay within the same team
+  (every app in a team shares the same JWKS). Rather than making `audience` required (a breaking
+  change), `cloudflareAccess` logs a one-time warning at construction time whenever `audience` is
+  omitted **and** `enableDevTokens` is not `true` — i.e. in the default, production-shaped
+  configuration — and stays silent when `enableDevTokens` signals a local-development posture.
+  This warning must be preserved (SEC-001).
 - `includeStack` on `problemDetailsErrorHandler` must default to `false`. Since `problemDetailsErrorHandler`
   is now a **direct re-export** of the vendored handler (§5.4/§5.5) with no toolkit-authored wrapper
   at all, there is no code path that could silently flip this default — the only place it changes

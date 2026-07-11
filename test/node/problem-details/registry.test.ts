@@ -72,6 +72,20 @@ describe("createProblemTypeRegistry", () => {
     });
   });
 
+  it("get() returns a fresh object on every call, not a shared reference", () => {
+    expect(registry.get("ORDER_CONFLICT")).not.toBe(registry.get("ORDER_CONFLICT"));
+  });
+
+  it("mutating the object returned by get() does not affect the registry", () => {
+    const def = registry.get("ORDER_CONFLICT");
+    // Bypass the readonly typing to simulate a consumer mutating the returned value at runtime
+    // (e.g. plain JS, or a TS caller that casts around the readonly guard).
+    (def as { title: string }).title = "Mutated Title";
+
+    expect(registry.get("ORDER_CONFLICT").title).toBe("Order Conflict");
+    expect(registry.create("ORDER_CONFLICT").problemDetails.title).toBe("Order Conflict");
+  });
+
   it("types() returns all registered type keys", () => {
     const keys = registry.types();
     expect(keys).toEqual(["ORDER_CONFLICT", "RATE_LIMITED", "NOT_FOUND"]);
