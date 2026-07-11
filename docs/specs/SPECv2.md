@@ -639,3 +639,59 @@ later.
 | 3   | Documentation-site location & deploy cadence | `docs/` subfolder, own `package.json`; built and published by the `build-docs` CI step as part of the release workflow (triggered by a successful npm publish), so the published docs always match the published release | §3, §6.1           |
 | 4   | `@cloudflare/workers-types` pinning strategy | Pin exactly (no `^`); bump deliberately                                                                                                                                                                                  | §2.3               |
 | 5   | `@types/node` scope                          | No action needed — confirmed                                                                                                                                                                                             | §2.3               |
+
+## 12. Known and Accepted Issues
+
+Findings surfaced by architecture or code review that were evaluated and explicitly **not**
+fixed, because remediation would introduce more risk or complexity than the finding itself. This
+section is a living record, distinct from §11 (Open Questions) above, which tracks now-resolved
+questions from spec authoring — entries here remain permanently "open" in the sense that a future
+architecture review should re-evaluate them, not treat them as settled forever. Each entry should
+capture: the originating finding ID and issue link, the affected file(s)/line(s), a concise
+statement of the issue, and the explicit reasoning for accepting it as-is.
+
+### 12.1 ARCH-002: Duplicate `safeStringify` implementations (problem-details vs. logging)
+
+**Source:** [Issue #61](https://github.com/adrianhall/cloudflare-toolkit/issues/61), severity low,
+`Architecture` label.
+
+**Files:**
+
+- `src/lib/problem-details/utils.ts:92` —
+  `safeStringify(body: unknown): { json: string; fallback: boolean }`
+- `src/lib/logging/internal/safe-json.ts:63` — `safeStringify(value: unknown): string`
+
+**Finding:** Two independent, internal, unexported `safeStringify` implementations exist under the
+same "`JSON.stringify` with a fallback for non-serializable values" umbrella, but with divergent
+contracts:
+
+- `problem-details/utils.ts`'s version wraps a single `JSON.stringify` call and, on **any** thrown
+  error (circular reference, `BigInt`, or otherwise), discards the entire payload and returns a
+  fixed, generic RFC 9457 body (`type` `about:blank`, `status` `500`, `title`
+  `Internal Server Error`) plus a `fallback: true` flag that `buildProblemResponse` uses to force
+  the response status to 500.
+- `logging/internal/safe-json.ts`'s version uses a custom `JSON.stringify` replacer to substitute
+  individual non-serializable _values_ in place (`bigint` → `"<n>n"`, circular references →
+  `"[Circular]"`, `symbol` → `"Symbol(description)"`, `function` → `"[Function name]"`), only
+  falling back to a fixed `"[FormattingError]"` string in the rarer case where `JSON.stringify`
+  still throws despite the replacer (e.g. a throwing getter).
+
+**Why accepted as-is (not unified into one shared implementation):**
+
+1. **Different origin.** `problem-details/utils.ts`'s `safeStringify` is part of the vendored port
+   of `adrianhall/hono-problem-details` (§5.4; see `THIRD-PARTY-NOTICES.md`) — tracked against an
+   upstream source, not toolkit-authored. `logging/internal/safe-json.ts` is toolkit-authored.
+   Merging the two would blur that vendoring boundary and complicate future upstream diffs.
+2. **Genuinely incompatible failure semantics, not just different names.** An HTTP error response
+   needs an all-or-nothing outcome — a partially-serialized `problem+json` body is worse than a
+   generic fallback, and `buildProblemResponse` actively uses the "did we fall back?" flag to force
+   the response status to 500. A structured log record needs best-effort partial serialization —
+   losing an entire log line because one field had a circular reference is worse than replacing
+   just that one field.
+3. **Small, contained, already individually tested.** Both functions are internal, unexported, and
+   covered by dedicated unit tests (`test/node/problem-details/utils.test.ts`,
+   `test/node/logging/internal/safe-json.test.ts`) — the duplication is not spreading or drifting
+   silently.
+
+**Revisit if:** a third consumer needs a `safeStringify` variant, or upstream
+`hono-problem-details` changes its own fallback contract in a way that removes reason (1) above.
