@@ -36,7 +36,7 @@ describe("levelValue()", () => {
     );
     for (let i = 1; i < ordered.length; i++) {
       // Non-null assertion safe because the array is statically constructed.
-      expect(ordered[i]!).toBeGreaterThan(ordered[i - 1]!);
+      expect(ordered[i]).toBeGreaterThan(ordered[i - 1]);
     }
   });
 });

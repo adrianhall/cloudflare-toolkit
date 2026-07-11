@@ -93,7 +93,7 @@ describe("createProblemTypeRegistry", () => {
 
   it("create() returns correct type", () => {
     const error = registry.create("ORDER_CONFLICT");
-    expectTypeOf(error).toMatchTypeOf<ProblemDetailsError>();
+    expectTypeOf(error).toExtend<ProblemDetailsError>();
   });
 
   it("empty registry returns empty types array", () => {

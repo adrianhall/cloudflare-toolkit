@@ -227,7 +227,7 @@ describe("login submit", () => {
 
     expect(result.nextCalled).toBe(false);
     expect(res.statusCode).toBe(302);
-    expect(res._headers["location"]).toBe("/home");
+    expect(res._headers.location).toBe("/home");
     const cookie = res._headers["set-cookie"];
     expect(cookie).toContain(`${COOKIE_NAME}=`);
     expect(cookie).toContain("HttpOnly");
@@ -337,7 +337,7 @@ describe("login submit", () => {
     });
     const res = makeRes();
     await invoke({}, req, res);
-    expect(res._headers["location"]).toBe("/");
+    expect(res._headers.location).toBe("/");
   });
 
   // SEC-005 (https://github.com/adrianhall/cloudflare-toolkit/issues/50): an unsafe `redirect`
@@ -358,7 +358,7 @@ describe("login submit", () => {
     await invoke({}, req, res);
 
     expect(res.statusCode).toBe(302);
-    expect(res._headers["location"]).toBe("/");
+    expect(res._headers.location).toBe("/");
   });
 
   it("falls back to / and does not echo an unsafe redirect when re-rendering the form on a validation error", async () => {
@@ -424,7 +424,7 @@ describe("logout", () => {
 
     expect(result.nextCalled).toBe(false);
     expect(res.statusCode).toBe(302);
-    expect(res._headers["location"]).toBe("/");
+    expect(res._headers.location).toBe("/");
     expect(res._headers["set-cookie"]).toContain("Max-Age=0");
   });
 });
@@ -510,7 +510,7 @@ describe("authenticated request", () => {
     const result = await invoke({}, req, res);
     expect(result.nextCalled).toBe(false);
     expect(res.statusCode).toBe(302);
-    expect(res._headers["location"]).toContain("/cdn-cgi/access/login");
+    expect(res._headers.location).toContain("/cdn-cgi/access/login");
   });
 });
 
@@ -547,7 +547,7 @@ describe("gating unauthenticated requests", () => {
     const res = makeRes();
     await invoke({ policies }, req, res);
     expect(res.statusCode).toBe(302);
-    expect(res._headers["location"]).toBe("/cdn-cgi/access/login?redirect=%2Fdashboard");
+    expect(res._headers.location).toBe("/cdn-cgi/access/login?redirect=%2Fdashboard");
   });
 
   it("redirects protected navigations detected via Accept: text/html", async () => {
@@ -602,7 +602,7 @@ describe("gating unauthenticated requests", () => {
     const req = makeReq({ url: "/secret", headers: { "sec-fetch-mode": "navigate" } });
     const res = makeRes();
     await invoke({ loginPath: "/login" }, req, res);
-    expect(res._headers["location"]).toBe("/login?redirect=%2Fsecret");
+    expect(res._headers.location).toBe("/login?redirect=%2Fsecret");
   });
 
   it("does not treat a protected GET as a navigation when neither Sec-Fetch-Mode nor Accept is present", async () => {

@@ -26,7 +26,10 @@ const UNREACHABLE_TEAM_DOMAIN = "cloudflare-toolkit-test.invalid";
 /** Minimal env stub with a genuinely-configured (but non-conforming/rejected) team domain. */
 const MOCK_ENV = { CLOUDFLARE_TEAM_DOMAIN: UNREACHABLE_TEAM_DOMAIN };
 
-type AccessEnv = { Bindings: typeof MOCK_ENV; Variables: AuthVariables };
+interface AccessEnv {
+  Bindings: typeof MOCK_ENV;
+  Variables: AuthVariables;
+}
 
 function createApp(options?: Parameters<typeof cloudflareAccess>[0]) {
   const app = new Hono<AccessEnv>();
@@ -67,7 +70,7 @@ describe("cloudflareAccess", () => {
 
       expect(res.status).toBe(401);
       expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
-      const body = (await res.json()) as { title: string; detail: string };
+      const body = await res.json<{ title: string; detail: string }>();
       expect(body.title).toBe("Unauthorized");
       expect(body.detail).toContain("Invalid or expired");
     });
@@ -94,7 +97,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string | null; sub: string | null };
+      const body = await res.json<{ email: string | null; sub: string | null }>();
       expect(body.email).toBeNull();
       expect(body.sub).toBeNull();
     });
@@ -108,7 +111,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string; sub: string };
+      const body = await res.json<{ email: string; sub: string }>();
       expect(body.email).toBe("dev@example.com");
       expect(body.sub).toBe("dev-uuid");
     });
@@ -127,7 +130,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string; sub: string };
+      const body = await res.json<{ email: string; sub: string }>();
       expect(body.email).toBe("alice@example.com");
       expect(body.sub).toBe("alice-uuid");
     });
@@ -141,7 +144,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string; sub: string };
+      const body = await res.json<{ email: string }>();
       expect(body.email).toBe("bob@example.com");
     });
 
@@ -155,7 +158,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string; sub: string };
+      const body = await res.json<{ email: string }>();
       expect(body.email).toBe("header@example.com");
     });
 
@@ -169,7 +172,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string; sub: string };
+      const body = await res.json<{ email: string }>();
       expect(body.email).toBe("custom@example.com");
     });
 
@@ -206,7 +209,7 @@ describe("cloudflareAccess", () => {
 
       expect(res.status).toBe(401);
       expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
-      const body = (await res.json()) as { title: string; detail: string };
+      const body = await res.json<{ title: string; detail: string }>();
       expect(body.title).toBe("Unauthorized");
       expect(body.detail).toContain("Authentication required");
     });
@@ -217,7 +220,12 @@ describe("cloudflareAccess", () => {
 
       expect(res.status).toBe(401);
       expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
-      const body = await res.json();
+      const body = await res.json<{
+        type: string;
+        status: number;
+        title: string;
+        detail: string;
+      }>();
       expect(body).toStrictEqual({
         type: "about:blank",
         status: 401,
@@ -234,7 +242,7 @@ describe("cloudflareAccess", () => {
 
       expect(res.status).toBe(401);
       expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
-      const body = (await res.json()) as { title: string; detail: string };
+      const body = await res.json<{ title: string; detail: string }>();
       expect(body.title).toBe("Unauthorized");
       expect(body.detail).toContain("Invalid or expired");
     });
@@ -298,7 +306,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string };
+      const body = await res.json<{ email: string }>();
       expect(body.email).toBe("alice@example.com");
     });
 
@@ -323,7 +331,7 @@ describe("cloudflareAccess", () => {
 
       const res = await fetchWithEnv(app, `${BASE}/api/test`);
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string | null; sub: string | null };
+      const body = await res.json<{ email: string | null; sub: string | null }>();
       expect(body.email).toBeNull();
       expect(body.sub).toBeNull();
     });
@@ -337,7 +345,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string };
+      const body = await res.json<{ email: string }>();
       expect(body.email).toBe("opt@example.com");
     });
 
@@ -349,7 +357,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { email: string | null };
+      const body = await res.json<{ email: string | null }>();
       expect(body.email).toBeNull();
     });
 

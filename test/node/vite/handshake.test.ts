@@ -72,7 +72,7 @@ describe("vite plugin → cloudflareAccess() handshake", () => {
     const res = await createWorker().fetch(workerReq, MOCK_ENV);
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { email: string; sub: string };
+    const body = await res.json<{ email: string; sub: string }>();
     expect(body.email).toBe("alice@example.com");
     expect(body.sub).toBe("alice-uuid");
   });

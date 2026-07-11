@@ -66,7 +66,10 @@ describe("testing barrel — cookie helper shape", () => {
 // rejected when it isn't (the fail-closed invariant, proven through this public surface).
 // ---------------------------------------------------------------------------
 describe("testing barrel + cloudflareAccess acceptance criteria", () => {
-  type AccessEnv = { Bindings: Record<string, never>; Variables: AuthVariables };
+  interface AccessEnv {
+    Bindings: Record<string, never>;
+    Variables: AuthVariables;
+  }
 
   function createApp() {
     const app = new Hono<AccessEnv>();
@@ -85,7 +88,7 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
     );
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { email: string; sub: string };
+    const body = await res.json<{ email: string; sub: string }>();
     expect(body).toEqual({ email: "dev@example.com", sub: "dev-uuid" });
   });
 
@@ -100,7 +103,7 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
     );
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { email: string };
+    const body = await res.json<{ email: string }>();
     expect(body.email).toBe("cookie-dev@example.com");
   });
 
