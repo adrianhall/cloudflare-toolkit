@@ -3,3 +3,10 @@ dist/
 coverage/
 .wrangler/
 *.tsbuildinfo
+
+# docs/ site build artifacts (docs/package.json is a separate dependency tree — see AGENTS.md).
+# docs/.vitepress/dist is already covered by the "dist/" pattern above. This pattern contains an
+# internal "/" so, per gitignore semantics, it is rooted relative to this file's directory (repo
+# root) and would NOT match a nested "docs/.vitepress/cache/" without the "docs/" prefix below.
+docs/.vitepress/cache/
+docs/reference/

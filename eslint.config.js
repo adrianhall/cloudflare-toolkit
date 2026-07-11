@@ -10,7 +10,11 @@ import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
 
 export default tseslint.config(
-  { ignores: ["coverage/", "dist/", "node_modules/", ".husky/"] },
+  // docs/ has its own separate package.json/dependency tree (AGENTS.md) and is not linted by
+  // the root config — without this, the bare "*.config.{js,mjs,ts}" files glob below would
+  // match docs/.vitepress/config.ts at depth and lint it against a ruleset it was never
+  // written for.
+  { ignores: ["coverage/", "dist/", "node_modules/", ".husky/", "docs/"] },
 
   {
     files: ["src/**/*.ts"],
