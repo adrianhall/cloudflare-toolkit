@@ -1,0 +1,44 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "tsconfig": "../tsconfig.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryPoints": [
+    "../src/index.ts",
+    "../src/lib/guards/index.ts",
+    "../src/lib/errors/index.ts",
+    "../src/lib/problem-details/index.ts",
+    "../src/lib/logging/index.ts",
+    "../src/lib/hono/index.ts",
+    "../src/lib/vite/index.ts",
+    "../src/lib/testing/index.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "out": "./reference",
+  "readme": "none",
+  "hidePageTitle": false,
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "githubPages": false,
+  // Every module barrel uses a `@file` block comment (this toolkit's own JSDoc convention).
+  // TypeDoc warns "Encountered an unknown block tag @file" for it since `@file` isn't in its
+  // default recognized block-tag list — cosmetic only (0 build errors either way). Extending
+  // TypeDoc's default blockTags list requires a JS/ESM config file (`[...OptionDefaults
+  // .blockTags, "@file"]`), which isn't worth the added moving part for a warning with no
+  // functional effect; revisit if TypeDoc ever escalates this to an error.
+  // "index" (not the plugin default "README") so directory pages map to clean VitePress
+  // folder routes (e.g. /reference/lib/hono/ -> lib/hono/index.md), per
+  // https://typedoc-plugin-markdown.org/docs/options/file#entryfilename.
+  "entryFileName": "index",
+  // Entry points are only the 8 public subpath barrels (src/index.ts + src/lib/*/index.ts) —
+  // deliberately NOT src/cli/generate-wrangler-types (a bin, not a documented import subpath;
+  // see SPECv2.md §5.1). Because of that narrower root-name set, the ambient `node` triple-slash
+  // reference living in that CLI's entry file (which is what lets the root project's own
+  // `tsc --noEmit`, which type-checks the whole `src/**/*.ts` glob, see Node globals in
+  // Node-only files like `vite/plugin.ts`) never gets pulled into TypeDoc's narrower program.
+  // Re-adding "node" here (alongside the root tsconfig's own `@cloudflare/workers-types`)
+  // restores those same globals for TypeDoc's program without touching the root tsconfig.
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "node"]
+  }
+}

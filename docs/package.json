@@ -1,0 +1,22 @@
+{
+  "name": "@adrianhall/cloudflare-toolkit-docs",
+  "version": "0.0.0",
+  "description": "Documentation site for @adrianhall/cloudflare-toolkit (VitePress + TypeDoc). Not published to npm.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "scripts": {
+    "docs": "typedoc",
+    "dev": "npm run docs && vitepress dev",
+    "build": "npm run docs && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.12.0",
+    "vitepress": "^1.6.4"
+  }
+}

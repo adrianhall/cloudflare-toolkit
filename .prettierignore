@@ -5,3 +5,7 @@ node_modules/
 package-lock.json
 *.tgz
 **/worker-configuration.d.ts
+
+# docs/ site build artifacts — generated, never committed (see .gitignore).
+docs/.vitepress/cache/
+docs/reference/
