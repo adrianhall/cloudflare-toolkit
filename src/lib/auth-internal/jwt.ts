@@ -28,6 +28,19 @@ export const DEFAULT_DEV_SECRET = "cloudflare-access-dev-secret-do-not-use-in-pr
 /** Algorithm used for developer-signed JWTs. */
 const DEV_ALG = "HS256";
 
+/**
+ * Algorithm Cloudflare Access uses to sign real application tokens (confirmed by Cloudflare's
+ * own application-token documentation: the JWT header is always `{"alg":"RS256",...}`, signed
+ * with an RSA private key). Pinned explicitly on the JWKS `jwtVerify` call in
+ * {@link verifyAccessJwt} (SEC-004/CODE-003) rather than left unconstrained — `jose` already
+ * refuses to HMAC-verify against an asymmetric JWK, so this is defense-in-depth, not a fix for a
+ * currently-exploitable gap, and it mirrors {@link DEV_ALG} being pinned on the dev-token path.
+ * Not exposed as a public override: unlike `audience` (a per-deployment Access Application
+ * value), the signing algorithm is a Cloudflare Access platform constant, and widening it would
+ * reopen the exact `alg`-confusion class this pin closes.
+ */
+const ACCESS_ALG = "RS256";
+
 /** Name of the cookie that stores the JWT. */
 export const COOKIE_NAME = "CF_Authorization";
 
@@ -175,6 +188,11 @@ function classifyVerificationFailure(err: unknown): "network" | "invalid" {
 /**
  * Verify a JWT against Cloudflare Access's remote JWKS endpoint.
  *
+ * Only {@link ACCESS_ALG} (`"RS256"`) is accepted (SEC-004/CODE-003) — this matches what
+ * Cloudflare Access actually issues and closes off `alg`-confusion attacks (e.g. a crafted
+ * `alg: "HS256"` header) as a matter of explicit policy rather than relying solely on `jose`'s
+ * own asymmetric-JWK/HMAC mismatch behavior.
+ *
  * The `iss` (Issuer) claim is always verified against the normalized `teamDomain` (e.g.
  * `"https://my-team.cloudflareaccess.com"`, via {@link normalizeTeamDomain}) — SEC-003. This is
  * defense-in-depth: the JWKS itself is already team-scoped (fetched from
@@ -216,6 +234,7 @@ export async function verifyAccessJwt(
   try {
     const jwks = getRemoteJwks(teamDomain);
     const { payload } = await jwtVerify(token, jwks, {
+      algorithms: [ACCESS_ALG],
       audience: audience ?? undefined,
       issuer: normalizeTeamDomain(teamDomain)
     });

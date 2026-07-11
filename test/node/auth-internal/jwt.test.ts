@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { generateKeyPairSync } from "node:crypto";
 import { SignJWT, generateKeyPair, exportJWK, createLocalJWKSet } from "jose";
 import {
   signDevJwt,
@@ -364,6 +365,70 @@ describe("JWT utilities", () => {
       });
     });
 
+    // -----------------------------------------------------------------------
+    // SEC-004/CODE-003: `algorithms` allowlist must reject a non-RS256-signed token even when
+    // the underlying key material would otherwise validate the signature.
+    // -----------------------------------------------------------------------
+
+    describe("algorithm allowlist (SEC-004/CODE-003)", () => {
+      it("returns null for a token signed with a non-RS256 algorithm, even though the signature is cryptographically valid against the JWKS", async () => {
+        // Use node:crypto's generateKeyPairSync (a generic RSA KeyObject) rather than jose's
+        // generateKeyPair: jose's WebCrypto-backed keys bind a single algorithm at generation
+        // time (e.g. an RS256 CryptoKey refuses to sign as PS256/RS384), which makes it
+        // impossible to produce a "signature would otherwise validate" token any other way. A
+        // plain RSA KeyObject has no such binding, so the same key pair can genuinely sign as
+        // PS256 and still validate against the RSA public JWK in the JWKS below.
+        const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+        const publicJwk = await exportJWK(publicKey);
+        // Deliberately omit `alg` on the JWK entry so JWKS key resolution matches purely on
+        // `kty`/`kid`, isolating this test to the `algorithms` allowlist in `verifyAccessJwt`
+        // rather than a JWK-level `alg` mismatch that `createLocalJWKSet` would otherwise catch.
+
+        const localJwks = createLocalJWKSet({ keys: [publicJwk] }) as ReturnType<
+          typeof getRemoteJwks
+        >;
+        vi.mocked(getRemoteJwks).mockReturnValue(localJwks);
+
+        const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
+          .setProtectedHeader({ alg: "PS256" })
+          .setIssuer(EXPECTED_ISSUER)
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com");
+        expect(result).toBeNull();
+      });
+
+      it("logs a warn with cause 'invalid' when the token's alg is not in the allowlist", async () => {
+        const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+        const publicJwk = await exportJWK(publicKey);
+
+        const localJwks = createLocalJWKSet({ keys: [publicJwk] }) as ReturnType<
+          typeof getRemoteJwks
+        >;
+        vi.mocked(getRemoteJwks).mockReturnValue(localJwks);
+
+        const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
+          .setProtectedHeader({ alg: "PS256" })
+          .setIssuer(EXPECTED_ISSUER)
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
+
+        const capture = createCaptureTransport();
+        const logger = createLogger({ transport: capture, level: "trace" });
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com", undefined, logger);
+
+        expect(result).toBeNull();
+        const warnings = capture.find("warn");
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]!.context.cause).toBe("invalid");
+        expect(warnings[0]!.context.err).toMatchObject({ name: "JOSEAlgNotAllowed" });
+      });
+    });
+
     it("returns null when the signature does not match the JWKS (wrong signature)", async () => {
       // Sign with one key pair, provide a different public key to JWKS.
       const { privateKey } = await generateKeyPair("RS256");
@@ -435,7 +500,16 @@ describe("JWT utilities", () => {
           throw new TypeError("fetch failed");
         }) as unknown as ReturnType<typeof getRemoteJwks>);
 
-        const token = await signDevJwt("alice@example.com");
+        // Must be RS256-headed (not a dev-signed HS256 token) so the SEC-004/CODE-003 algorithm
+        // allowlist doesn't short-circuit with JOSEAlgNotAllowed before the mocked, throwing
+        // key-lookup function above is ever invoked — the actual signature is irrelevant since
+        // verification never reaches it.
+        const { privateKey } = await generateKeyPair("RS256");
+        const token = await new SignJWT({ email: "alice@example.com", sub: "u1" })
+          .setProtectedHeader({ alg: "RS256" })
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
 
         const capture = createCaptureTransport();
         const logger = createLogger({ transport: capture, level: "trace" });
