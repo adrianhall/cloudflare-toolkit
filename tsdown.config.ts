@@ -32,22 +32,14 @@ export default defineConfig({
     "cli/generate-wrangler-types/index": "src/cli/generate-wrangler-types/index.ts"
   },
   format: "esm",
-  // Keeps dist/ output as .js/.d.ts instead of tsdown's node-platform default of .mjs/.d.mts —
-  // see docs/specs/SPECv2.md §12.7.
   fixedExtension: false,
-  // Hard-fails the build if any node_modules package ends up bundled instead of externalized —
-  // see docs/specs/SPECv2.md §12.6.
   deps: {
     onlyBundle: []
   },
-  // Preserves the hono-problem-details sourcemap fix — see docs/specs/SPECv2.md §5.4.
   sourcemap: true,
   clean: true,
-  // Substituted for --version output in the generate-wrangler-types CLI
-  // (src/cli/generate-wrangler-types/run.ts).
   define: {
     CLI_VERSION: JSON.stringify(version)
   },
-  // No compilerOptions workaround needed (tsup required one) — see docs/specs/SPECv2.md §12.7.
   dts: true
 });
