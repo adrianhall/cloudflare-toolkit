@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
 // Deliberately imported from a plain `hono/http-exception` path, NOT through this package — this
-// is what actually proves `hono` is external in the built `dist/hono/index.js` (tsup.config.ts).
+// is what actually proves `hono` is external in the built `dist/hono/index.js` (tsdown.config.ts).
 // If `hono` were bundled instead, this `HTTPException` (the consumer's own copy) would fail an
 // `instanceof` check against the one baked into our bundle, and this test would fail.
 import { HTTPException } from "hono/http-exception";
