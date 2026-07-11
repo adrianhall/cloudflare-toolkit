@@ -457,6 +457,13 @@ context.
 - `teamDomain?` / `audience?` — Cloudflare Access team domain and Application Audience Tag. When
   omitted, `teamDomain` is read from `c.env.CLOUDFLARE_TEAM_DOMAIN` at request time, and `aud`
   validation is skipped entirely if `audience` is not supplied.
+
+  **Always set `audience` outside local development.** Every Access application in a team shares
+  the same JWKS, so without an `aud` check a token minted for _any other Access application in
+  the same team_ is accepted here too (cross-application token replay). Unless
+  `enableDevTokens` is `true`, omitting `audience` logs a one-time warning at construction time
+  for exactly this reason.
+
 - `enableDevTokens?: boolean` — **defaults to `false` (fail-closed)**. When `false`, only real
   Cloudflare Access JWKS verification is attempted; a developer-signed HS256 token is rejected
   even in a deployed Worker. Gate this on a build-time-`false`-in-production signal:
