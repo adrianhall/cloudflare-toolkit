@@ -173,6 +173,7 @@ from a plain function, a Durable Object method, or a Hono handler identically â€
 | `notFound(input?)`             | 404    |
 | `methodNotAllowed(input?)`     | 405    |
 | `gone(input?)`                 | 410    |
+| `contentTooLarge(input?)`      | 413    |
 | `unsupportedMediaType(input?)` | 415    |
 | `unprocessableContent(input?)` | 422    |
 | `internalServerError(input?)`  | 500    |
