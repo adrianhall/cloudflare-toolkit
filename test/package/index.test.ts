@@ -78,9 +78,9 @@ describe("dist/index.js — root barrel exports", () => {
 
 describe("dist/index.js — cross-entry identity (chunk-splitting sanity check)", () => {
   // Every symbol below is re-exported by the root barrel from a source module that its own
-  // dedicated subpath entry (e.g. `./errors`) also exports. tsup's default ESM code-splitting
+  // dedicated subpath entry (e.g. `./errors`) also exports. tsdown's default ESM code-splitting
   // extracts that shared source into one common chunk that both the root and the subpath entry
-  // import (see tsup.config.ts), so the exact same class/function reference must come back from
+  // import (see tsdown.config.ts), so the exact same class/function reference must come back from
   // both import paths — not two independently-bundled duplicates.
   it("guards re-exports are reference-identical to the ./guards entry", () => {
     expect(root.sqlCount).toBe(guards.sqlCount);

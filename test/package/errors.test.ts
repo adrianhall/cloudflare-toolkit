@@ -48,7 +48,7 @@ describe("error generators smoke test against the built dist/", () => {
 
 describe("NullError/InvalidShapeError — cross-subpath identity", () => {
   // Both classes are `ProblemDetailsError` subclasses declared in a module that `./errors`
-  // depends on. tsup's default ESM code-splitting extracts that shared code into one chunk that
+  // depends on. tsdown's default ESM code-splitting extracts that shared code into one chunk that
   // both the `./errors` and `./problem-details` built entries import,
   // so a single `NullError`/`InvalidShapeError` thrown here must still satisfy `instanceof
   // ProblemDetailsError` when `ProblemDetailsError` is imported from the *other* built entry
