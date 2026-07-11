@@ -9,5 +9,6 @@
 export { ProblemDetailsError } from "./error.js";
 export { problemDetails } from "./factory.js";
 export { createProblemTypeRegistry } from "./registry.js";
+export type { CreateOptions, ProblemTypeDefinition, ProblemTypeRegistry } from "./registry.js";
 export { statusToPhrase, statusToSlug } from "./status.js";
 export type { ProblemDetails, ProblemDetailsInput } from "./types.js";

@@ -7,3 +7,8 @@
  */
 export { cloudflareAccessPlugin } from "./plugin.js";
 export type { CloudflareAccessPluginOptions } from "./plugin.js";
+// `auth-internal` has no public barrel of its own (per its own file comment) — this re-exports
+// just the `PathPolicy` type so `CloudflareAccessPluginOptions.policies` has a linkable API
+// Reference page, not the rest of that module's surface.
+export type { PathPolicy } from "../auth-internal/types.js";
+export type { DevLoginUser } from "./login-page.js";

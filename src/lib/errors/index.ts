@@ -18,5 +18,6 @@ export {
   unprocessableContent,
   unsupportedMediaType
 } from "./generators.js";
+export type { HttpErrorInput } from "./generators.js";
 export { InvalidShapeError } from "./invalid-shape-error.js";
 export { NullError } from "./null-error.js";

@@ -20,6 +20,14 @@
   "excludePrivate": true,
   "excludeProtected": true,
   "githubPages": false,
+  // `ConsoleLike` (src/lib/logging/internal/console.ts) is a test-injection seam for the
+  // `_console` default-`console` parameter on the logging transports — never meant to be passed
+  // by a real consumer, so it's deliberately not exported from the `logging` barrel. Without this
+  // entry, TypeDoc would otherwise warn "ConsoleLike ... referenced but not included in the
+  // documentation" for every transport that references it. `@internal` alone does not suppress
+  // this: `excludeInternal` only drops a reflection's own page, not a still-public function's
+  // reference to that now-excluded type. See issue #100.
+  "intentionallyNotExported": ["src/lib/logging/internal/console.ts:ConsoleLike"],
   // Every module barrel uses a `@file` block comment (this toolkit's own JSDoc convention).
   // TypeDoc warns "Encountered an unknown block tag @file" for it since `@file` isn't in its
   // default recognized block-tag list — cosmetic only (0 build errors either way). Extending
