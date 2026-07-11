@@ -191,6 +191,24 @@ describe("createConsoleTransport()", () => {
       const line = logCalls[0]?.[0] as string;
       expect(line).toContain("server started");
     });
+
+    it("escapes newlines in the message to prevent log-line forging (SEC-007)", () => {
+      const { c, logCalls } = makeConsoleSpy();
+      const transport = createConsoleTransport({ colors: false, timestamp: false }, c);
+      transport.log(makeRecord({ message: "real line\nFAKE  INFO  injected line" }));
+      const line = logCalls[0]?.[0] as string;
+      expect(line).not.toContain("\n");
+      expect(line).toContain("real line\\nFAKE  INFO  injected line");
+    });
+
+    it("escapes ANSI escape sequences in the message to prevent terminal injection (SEC-007)", () => {
+      const { c, logCalls } = makeConsoleSpy();
+      const transport = createConsoleTransport({ colors: false, timestamp: false }, c);
+      transport.log(makeRecord({ message: "\x1b[31minjected red text\x1b[0m" }));
+      const line = logCalls[0]?.[0] as string;
+      expect(ANSI_PATTERN.test(line)).toBe(false);
+      expect(line).toContain("\\x1b[31minjected red text\\x1b[0m");
+    });
   });
 
   describe("context formatting", () => {
