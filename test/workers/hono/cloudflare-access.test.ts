@@ -497,6 +497,32 @@ describe("cloudflareAccess", () => {
       ).toBe(true);
     });
 
+    it("logs the underlying network error when the real (unreachable) JWKS lookup fails (CODE-002)", async () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "trace" });
+      const app = createApp({ logger });
+
+      // A well-formed token that is not trusted as a dev token (enableDevTokens is unset) forces
+      // the real Cloudflare Access JWKS path to run against MOCK_ENV's unreachable team domain,
+      // producing a genuine network/DNS failure rather than a mocked one.
+      const token = await signDevJwt("alice@example.com");
+      const res = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: token }
+      });
+
+      expect(res.status).toBe(401);
+      const warnings = capture.find("warn");
+      const diagnostic = warnings.find(
+        (r) => r.message === "Cloudflare Access JWT verification failed"
+      );
+      expect(diagnostic).toBeDefined();
+      expect(diagnostic!.context.cause).toBe("network");
+      expect(diagnostic!.context.teamDomain).toBe(UNREACHABLE_TEAM_DOMAIN);
+      expect(diagnostic!.context.err).toBeDefined();
+      // The existing generic, unconditional warning still fires too.
+      expect(warnings.some((r) => r.message === "JWT verification failed")).toBe(true);
+    });
+
     it("defaults to a silent logger when no logger option is provided (no throw, no output assertions possible)", async () => {
       const app = createApp();
       const res = await fetchWithEnv(app, `${BASE}/api/test`);

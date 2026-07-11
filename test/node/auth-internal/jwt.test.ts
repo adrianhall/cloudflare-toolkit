@@ -11,6 +11,8 @@ import {
   DEFAULT_DEV_SECRET,
   COOKIE_NAME
 } from "../../../src/lib/auth-internal/jwt.js";
+import { createCaptureTransport } from "../../../src/lib/logging/transports/capture.js";
+import { createLogger } from "../../../src/lib/logging/logger.js";
 
 /** Matches the canonical UUID shape used for default dev subjects. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -303,6 +305,75 @@ describe("JWT utilities", () => {
     it("returns null for a malformed token", async () => {
       const result = await verifyAccessJwt("not-a-jwt", "test.cloudflareaccess.com");
       expect(result).toBeNull();
+    });
+
+    // -----------------------------------------------------------------------
+    // CODE-002: diagnostic logging on the optional `logger` parameter
+    // -----------------------------------------------------------------------
+
+    describe("diagnostic logging (CODE-002)", () => {
+      it("logs a warn with cause 'invalid' when the token's signature does not match the JWKS", async () => {
+        // Sign with one key pair, provide a different public key to JWKS — a genuine
+        // token-validity failure, not a JWKS transport problem.
+        const { privateKey } = await generateKeyPair("RS256");
+        const { publicKey: otherPublic } = await generateKeyPair("RS256");
+        const otherJwk = await exportJWK(otherPublic);
+        otherJwk.alg = "RS256";
+
+        const localJwks = createLocalJWKSet({ keys: [otherJwk] }) as ReturnType<
+          typeof getRemoteJwks
+        >;
+        vi.mocked(getRemoteJwks).mockReturnValue(localJwks);
+
+        const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
+          .setProtectedHeader({ alg: "RS256" })
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
+
+        const capture = createCaptureTransport();
+        const logger = createLogger({ transport: capture, level: "trace" });
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com", undefined, logger);
+
+        expect(result).toBeNull();
+        const warnings = capture.find("warn");
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]!.message).toBe("Cloudflare Access JWT verification failed");
+        expect(warnings[0]!.context.cause).toBe("invalid");
+        expect(warnings[0]!.context.teamDomain).toBe("test.cloudflareaccess.com");
+        expect(warnings[0]!.context.err).toMatchObject({ name: "JWSSignatureVerificationFailed" });
+      });
+
+      it("logs a warn with cause 'network' when the JWKS lookup throws a non-JOSE (e.g. fetch/DNS) error", async () => {
+        // Simulates a transient JWKS transport failure (bad team domain, DNS blip, certs
+        // endpoint down): the key-lookup function itself throws before any cryptographic
+        // verification of the token could occur.
+        vi.mocked(getRemoteJwks).mockReturnValue((async () => {
+          throw new TypeError("fetch failed");
+        }) as unknown as ReturnType<typeof getRemoteJwks>);
+
+        const token = await signDevJwt("alice@example.com");
+
+        const capture = createCaptureTransport();
+        const logger = createLogger({ transport: capture, level: "trace" });
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com", undefined, logger);
+
+        expect(result).toBeNull();
+        const warnings = capture.find("warn");
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]!.context.cause).toBe("network");
+        expect(warnings[0]!.context.err).toMatchObject({
+          name: "TypeError",
+          message: "fetch failed"
+        });
+      });
+
+      it("does not throw when logger is omitted (unchanged prior behavior)", async () => {
+        const result = await verifyAccessJwt("not-a-jwt", "test.cloudflareaccess.com");
+        expect(result).toBeNull();
+      });
     });
   });
 });

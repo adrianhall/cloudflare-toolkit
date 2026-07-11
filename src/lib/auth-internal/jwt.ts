@@ -7,10 +7,11 @@
  * (`crypto.randomUUID`, `TextEncoder`) otherwise, so this module is both Worker-safe (for
  * `hono/cloudflare-access.ts`) and Node-safe (for `vite/plugin.ts`).
  */
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import type { JWTPayload } from "jose";
 import type { AccessJwtPayload } from "./types.js";
 import { getRemoteJwks } from "./jwks.js";
+import type { Logger } from "../logging/types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -130,6 +131,48 @@ export async function verifyDevJwt(
 }
 
 /**
+ * `jose` error classes that only occur once a JWKS was successfully fetched and a real
+ * cryptographic/claims verification attempt against the token was made — i.e. the token itself
+ * is what failed, not the JWKS transport.
+ *
+ * `JWKSNoMatchingKey` is included because `createRemoteJWKSet` already retries a JWKS reload
+ * once (subject to a cooldown) before finally throwing it — a final throw means the token's
+ * `kid` genuinely doesn't match even after a fresh key fetch, not merely a stale local cache.
+ */
+const TOKEN_VALIDATION_ERRORS = [
+  joseErrors.JWSSignatureVerificationFailed,
+  joseErrors.JWTExpired,
+  joseErrors.JWTClaimValidationFailed,
+  joseErrors.JOSEAlgNotAllowed,
+  joseErrors.JWTInvalid,
+  joseErrors.JWSInvalid,
+  joseErrors.JWKSNoMatchingKey
+] as const;
+
+/**
+ * Classify a caught `verifyAccessJwt` failure as `"invalid"` (the token itself failed
+ * cryptographic or claims validation) or `"network"` (a JWKS transport/config/infra problem),
+ * for the `cause` field attached to the diagnostic log record.
+ *
+ * Conservatively biased toward `"network"`: only the specific {@link TOKEN_VALIDATION_ERRORS}
+ * classes are treated as `"invalid"`. Everything else — plain fetch/DNS errors (not a
+ * `JOSEError` at all, since `getRemoteJwks`'s underlying fetch failures propagate unwrapped),
+ * `JWKSTimeout`, and JWKS-structure errors such as `JWKSInvalid`/`JWKSMultipleMatchingKeys` — is
+ * classified as `"network"`, because misclassifying a real outage as "just an invalid token" is
+ * the exact debuggability gap this diagnostic exists to close.
+ *
+ * @param err - The value caught from the `jwtVerify`/`getRemoteJwks` call.
+ * @returns `"invalid"` when `err` is one of {@link TOKEN_VALIDATION_ERRORS}; `"network"`
+ *   otherwise.
+ */
+function classifyVerificationFailure(err: unknown): "network" | "invalid" {
+  const isTokenValidationError = TOKEN_VALIDATION_ERRORS.some(
+    (ErrorClass) => err instanceof ErrorClass
+  );
+  return isTokenValidationError ? "invalid" : "network";
+}
+
+/**
  * Verify a JWT against Cloudflare Access's remote JWKS endpoint.
  *
  * When `audience` is provided the `aud` claim is also verified. **When `audience` is omitted,
@@ -138,11 +181,28 @@ export async function verifyDevJwt(
  * same team* is accepted here too (cross-application token replay). Callers that expose this
  * through a public option (e.g. `hono/cloudflare-access.ts`'s `cloudflareAccess`) should warn
  * loudly when a caller omits `audience` outside of a clearly-local-development configuration.
+ *
+ * A transient JWKS network/infra failure (bad team domain, DNS blip, certs endpoint down) is
+ * otherwise indistinguishable from a genuinely invalid token — both fall through to the same
+ * `catch` and the same `null` return, and without a `logger` nothing is recorded. When `logger`
+ * is provided, the caught error is recorded at `warn` (matching the generic
+ * `"JWT verification failed"` warning callers such as `cloudflareAccess` already emit) together
+ * with the raw `err` and a best-effort `cause: "network" | "invalid"` classification (see
+ * {@link classifyVerificationFailure}), so operators can distinguish an outage from a rejected
+ * token without changing the fail-closed `null` return contract.
+ *
+ * @param token - The compact JWS to verify.
+ * @param teamDomain - The Cloudflare Access team domain used to fetch the public JWKS.
+ * @param audience - Application Audience Tag to verify the `aud` claim against. When omitted,
+ *   `aud` is not checked at all — see the security remarks above.
+ * @param logger - Optional structured logger. When omitted, verification failures are still
+ *   returned as `null` but nothing is logged (unchanged prior behavior).
  */
 export async function verifyAccessJwt(
   token: string,
   teamDomain: string,
-  audience?: string
+  audience?: string,
+  logger?: Logger
 ): Promise<VerifiedToken | null> {
   try {
     const jwks = getRemoteJwks(teamDomain);
@@ -150,7 +210,12 @@ export async function verifyAccessJwt(
       audience: audience ?? undefined
     });
     return extractClaims(payload);
-  } catch {
+  } catch (err) {
+    logger?.warn("Cloudflare Access JWT verification failed", {
+      err,
+      teamDomain,
+      cause: classifyVerificationFailure(err)
+    });
     return null;
   }
 }
