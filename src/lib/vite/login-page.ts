@@ -68,7 +68,7 @@ export function renderViteLoginPage(
       padding:.625rem .75rem;border:1px solid #71717a;border-radius:8px;
       margin-bottom:.5rem;cursor:pointer;
     }
-    .user-option:focus-within{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
+    .user-option:focus-within{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.4)}
     .user-option input{margin:0}
     .user-option .meta{display:flex;flex-direction:column}
     .user-option .name{font-weight:500}
@@ -78,7 +78,7 @@ export function renderViteLoginPage(
       border-radius:8px;font-size:1rem;outline:none;
       transition:border-color .15s;
     }
-    input[type="email"]:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
+    input[type="email"]:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.4)}
     button{
       margin-top:1rem;width:100%;padding:.625rem;border:none;
       border-radius:8px;background:#1d4ed8;color:#fff;
