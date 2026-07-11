@@ -18,6 +18,14 @@ describe("renderViteLoginPage", () => {
     expect(html).toContain('value="/dashboard"');
   });
 
+  it("wraps the card content in a <main> landmark", () => {
+    const html = renderViteLoginPage("/cdn-cgi/access/login", "/dashboard");
+
+    expect(html).toContain('<main class="card">');
+    expect(html).toContain("</main>");
+    expect(html).not.toContain('<div class="card">');
+  });
+
   it("does not render an error banner when no error is given", () => {
     const html = renderViteLoginPage("/cdn-cgi/access/login", "/");
     expect(html).not.toContain('class="error"');
