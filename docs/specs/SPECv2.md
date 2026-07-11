@@ -608,7 +608,10 @@ disagree with each other on a given point.
 
 - `cloudflareAccess`'s `enableDevTokens` fail-closed default must be preserved exactly (tested in
   §7.4) — this is the single highest-consequence security property in the merged codebase; a
-  regression here means a deployed Worker trusts a forgeable HS256 token.
+  regression here means a deployed Worker trusts a forgeable HS256 token. See §12.4 (SEC-006) for
+  why a runtime hard-gate beyond this fail-closed default was evaluated and rejected, and §12.5 for
+  why `cloudflareAccess`'s silent-by-default logger (which would otherwise carry this warning) was
+  also accepted as-is rather than changed.
 - `cloudflareAccess`'s `audience` option is opt-in, not fail-closed: omitting it skips `aud`
   validation entirely and allows cross-application Access token replay within the same team
   (every app in a team shares the same JWKS). Rather than making `audience` required (a breaking
@@ -825,3 +828,100 @@ and understand why they remain separate.
 need colored `stderr` output — at that point, factoring the CLI logger into a small shared
 "CLI logging" helper (still distinct from the `Transport` contract) becomes worth the cost of a
 third file depending on it.
+
+### 12.4 SEC-006: `enableDevTokens` runtime hard-gate evaluated and rejected
+
+**Source:** [Issue #51](https://github.com/adrianhall/cloudflare-toolkit/issues/51), severity low,
+`Security` + `security-production` labels.
+
+**Files:**
+
+- `src/lib/hono/cloudflare-access.ts` — the `enableDevTokens`/`devSecret` options and
+  `cloudflareAccess()`'s `verifyToken()` dev-token fast path.
+- `src/lib/auth-internal/jwt.ts:26` — `DEFAULT_DEV_SECRET`.
+
+**Finding:** `DEFAULT_DEV_SECRET` is a published, public HMAC constant used to sign and verify
+developer-issued JWTs. If a consumer ever sets `enableDevTokens: true` in a deployed Worker (e.g. a
+mis-evaluated build-time flag or an env-driven toggle) without also overriding `devSecret`, an
+attacker who knows the published constant can forge an HS256 token that `cloudflareAccess`'s
+dev-token fast path accepts, bypassing Cloudflare Access entirely. `enableDevTokens` already
+defaults to `false` (fail-closed), and a one-time `log.warn` already fires whenever the public
+default secret is in use with dev tokens enabled, so this is a documented footgun rather than an
+active defect. The review recommended "hard-gating `enableDevTokens` behind a check that refuses to
+enable when a production signal is detected."
+
+**Why accepted as-is (no runtime hard-gate added):**
+
+1. **No non-spoofable "production" signal exists inside a Worker request handler.**
+   `wrangler dev`/Miniflare execute the identical `workerd` runtime as a deployed Worker — there is
+   no reserved global, binding, or header the toolkit can universally rely on to distinguish the
+   two across every consumer's setup. Anything derived from request data (e.g. a `Host: localhost`
+   check) is attacker-controlled and can simply be spoofed by the same attacker the gate is meant
+   to stop.
+2. **The one genuinely reliable signal is already the documented mitigation.**
+   `import.meta.env.DEV` (or an equivalent bundler `define`) is eliminated to a static `false` in a
+   production bundle — this is exactly the pattern already shown in `enableDevTokens`'s own JSDoc
+   example, and it is not spoofable at runtime the way any Worker-side heuristic would be.
+3. **A heuristic gate would create false confidence, which is worse than no gate.** Shipping
+   something that looks like a hard block but can be defeated by an attacker-controlled header
+   would misrepresent the actual security guarantee — the same "remediation risk exceeds finding
+   risk" reasoning already applied to ARCH-002/ARCH-003 above (§12.1, §12.2).
+
+**Revisit if:** the Workers runtime ships an unspoofable, deployment-scoped signal (e.g. a binding
+reserved by Cloudflare itself, not settable via consumer code/env) that reliably distinguishes
+local/preview execution from a production deployment.
+
+### 12.5 SEC-006 (related): `cloudflareAccess`'s silent-by-default logger swallows its own security warnings
+
+**Source:** Discovered while investigating [Issue #51](https://github.com/adrianhall/cloudflare-toolkit/issues/51)
+(SEC-006); not independently filed.
+
+**Files:**
+
+- `src/lib/hono/cloudflare-access.ts:122-125` — `createDefaultLogger()`, used whenever a consumer
+  omits `options.logger`.
+
+**Finding:** `createDefaultLogger()` builds a logger backed by `createSilentTransport()`. Because
+this is the fallback used whenever a consumer does not explicitly pass `options.logger` — almost
+certainly the common case for a Worker that has not separately wired `cloudflareLogger` and shared
+its logger into `cloudflareAccess` — every diagnostic `cloudflareAccess` emits, including the two
+security-relevant one-time warnings ("verifying HS256 dev tokens with the public
+`DEFAULT_DEV_SECRET`", SEC-006 above, and "no audience configured", SEC-001, §9), is silently
+dropped by default. This sits in tension with SEC-006's "keep the warning" recommendation: the
+warning exists in code but is inert unless the consumer opts in to a logger. It's also a departure
+from the sibling `cloudflare-auth` repository, whose equivalent default logger writes to `console`;
+and from this toolkit's own `cloudflareLogger` middleware, whose default (`resolveLoggerConfig`,
+`../logging/resolve.js`) resolves to a `warn`-level `createStructuredTransport()` in production
+rather than silence. A stale test already flags the resulting behavior:
+`test/workers/hono/cloudflare-access.test.ts` — _"defaults to a silent logger when no logger option
+is provided (no throw, no output assertions possible)."_
+
+**Why accepted as-is (default kept silent rather than switched to a visible transport):**
+
+1. **The fail-closed guarantee does not depend on the warning being observed.** `enableDevTokens`
+   defaulting to `false`, and JWKS-only verification running unconditionally when it is `false`, is
+   what actually prevents exploitation (§9, §12.4) — the warning is a diagnostic aid layered on top
+   of that guarantee, not a control the guarantee depends on. Silence reduces defense-in-depth
+   observability; it does not reopen the vulnerability the fail-closed default already closes.
+2. **A supported, already-documented path to visibility exists.** §5.5 is explicit that every
+   piece of `/hono` middleware — including `cloudflareLogger` and `cloudflareAccess` — is wired
+   independently by the consumer, with no combined/coordinator middleware. A consumer who wants
+   `cloudflareAccess`'s diagnostics to be observable already has the supported mechanism: construct
+   one logger (e.g. via `cloudflareLogger`'s `resolveLoggerConfig`-backed default, or a hand-rolled
+   one) and pass it to both `cloudflareLogger({ ... })` and `cloudflareAccess({ logger, ... })`
+   explicitly. Changing the implicit default does not add a capability that is otherwise missing.
+3. **Switching the default is a behavior change with its own blast radius, not a documentation-scale
+   fix.** Every existing consumer that has not supplied `options.logger` — and every test in this
+   repo that constructs `cloudflareAccess()` without one (`test/node/testing/index.test.ts`,
+   `test/node/vite/handshake.test.ts`, `test/package/hono.test.ts`, `test/package/testing.test.ts`)
+   — would start seeing unsolicited `console`/structured output on every request, including on
+   normal 401s from unauthenticated traffic. That is a legitimate improvement to weigh, but it is a
+   deliberate, testable default-behavior change (and would need the stale test above rewritten, per
+   §12.1's "remediation risk vs. finding risk" framing) — a bigger and differently-scoped change
+   than this low-severity finding's own recommendation asked for.
+
+**Revisit if:** a future change deliberately decides `cloudflareAccess` should be secure-by-default
+in its _observability_ posture (not just its authorization posture) — e.g. as part of a documented
+minor/major version change — at which point switching `createDefaultLogger()` to
+`createLogger(resolveLoggerConfig(undefined, "worker"))` (matching `cloudflareLogger`'s own
+production default) and updating the stale test noted above would be the concrete next step.
