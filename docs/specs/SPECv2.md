@@ -46,17 +46,19 @@ never bundles them.
 Declared in `package.json#dependencies` — installed regardless of which subpath a consumer
 actually imports.
 
-| Package                                                | Version   | Why                                                                                                                                                                   |
-| ------------------------------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`jose`](https://www.npmjs.com/package/jose)           | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it      |
-| [`commander`](https://www.npmjs.com/package/commander) | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                              |
-| [`chalk`](https://www.npmjs.com/package/chalk)         | `^5.6.2`  | Colorized stderr log output for `generate-wrangler-types`'s internal CLI logger (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it |
+| Package                                                    | Version   | Why                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`jose`](https://www.npmjs.com/package/jose)               | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                                 |
+| [`commander`](https://www.npmjs.com/package/commander)     | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                                                                                                                                                                                         |
+| [`chalk`](https://www.npmjs.com/package/chalk)             | `^5.6.2`  | Colorized stderr log output for `generate-wrangler-types`'s internal CLI logger (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                                                                                                                                                            |
+| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn) | `^7.0.6`  | Safely spawns `npx wrangler types` for `generate-wrangler-types` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly (`wrangler.ts`, `defaultExecRunner`) |
 
 Only `generate-wrangler-types` (a `bin`, not an import subpath — §5.7) pulls in `commander`/
-`chalk`; nothing under `package.json#exports` depends on either, so tree-shaking a consumer's own
-bundle of one of the importable subpaths never pays for the CLI's dependencies. The vendored
-`hono-problem-details` primitives (§5.4) are pure TypeScript with no dependencies of their own,
-and everything else (`guards`, `errors`, the `logging` core) is self-contained.
+`chalk`/`cross-spawn`; nothing under `package.json#exports` depends on any of them, so
+tree-shaking a consumer's own bundle of one of the importable subpaths never pays for the CLI's
+dependencies. The vendored `hono-problem-details` primitives (§5.4) are pure TypeScript with no
+dependencies of their own, and everything else (`guards`, `errors`, the `logging` core) is
+self-contained.
 
 ### 2.3 DevDependencies (build, lint, test tooling)
 
@@ -77,6 +79,7 @@ and everything else (`guards`, `errors`, the `logging` core) is self-contained.
 | [`tsup`](https://www.npmjs.com/package/tsup)                                                       | `^8.5.1`                       | Bundles `src/` into `dist/` (ESM-only, §3) immediately before publish                                                |
 | [`@changesets/cli`](https://www.npmjs.com/package/@changesets/cli)                                 | `^2.31.0`                      | Versioning/changelog generation, wired into the release workflow (§3)                                                |
 | [`@types/node`](https://www.npmjs.com/package/@types/node)                                         | `^26.1.1`                      | Types for the Node-only surfaces: `vite/*` (§5.6) and `cli/*` (§5.7)                                                 |
+| [`@types/cross-spawn`](https://www.npmjs.com/package/@types/cross-spawn)                           | `^6.0.6`                       | Type declarations for the `cross-spawn` dependency above — `cross-spawn` itself ships no `.d.ts`                     |
 
 `@cloudflare/vite-plugin` and `@hono/cloudflare-access` are **not** devDependencies of this repo —
 see §5.6 and §5.5 respectively for why each is referenced without being installed here.
