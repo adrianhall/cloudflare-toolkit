@@ -774,3 +774,54 @@ downloading and running it (via `npm pack`) against this module's actual contrac
 **Revisit if:** the package's maintainer adds a `try`/`catch`-safe mode or a
 `bigint`/`symbol`/`function` replacer hook (their README invites "pull request welcome" for a
 replacer option) that closes gaps 1–3 above without requiring a pre-pass on the toolkit's side.
+
+### 12.3 ARCH-003 (Issue #62): Second `Logger`/`LogLevel`/`LogSink` abstraction in `generate-wrangler-types`
+
+**Source:** [Issue #62](https://github.com/adrianhall/cloudflare-toolkit/issues/62), severity low,
+`Architecture` + `dev-only` labels.
+
+**Files:**
+
+- `src/cli/generate-wrangler-types/logger.ts:12-47` — CLI-only `LogLevel` (4 levels: `debug`,
+  `info`, `warn`, `error`), `LogSink`, and `Logger` types, plus `createLogger()`.
+- `src/lib/logging/types.ts:15,98` — the flagship `LogLevel` (6 levels: `trace`, `debug`, `info`,
+  `warn`, `error`, `fatal`) and `Logger` types, plus the `Transport`-based `createLogger()` in
+  `src/lib/logging/logger.ts`.
+
+**Finding:** A second `Logger`/`LogLevel`/`LogSink` abstraction — 4 levels, colored `stderr`
+output — exists parallel to the library's flagship `logging` subpath `Logger`/`Transport`
+contract — 6 levels, structured, transport-delivered. The type names (`Logger`, `LogLevel`)
+collide, so a reader searching the codebase for "the" `Logger` type can land on either one with no
+indication a second exists.
+
+**Why accepted as-is (not unified into one shared implementation):**
+
+1. **Different bounded context.** The CLI logger exists solely to print colored, leveled,
+   human-readable progress/error output to a developer's terminal for the `generate-wrangler-types`
+   `bin` entry point — a Node-only, synchronous, TTY-aware concern. The flagship `logging`
+   subpath's `Transport`-based `Logger` is the structured, runtime-agnostic (Worker/browser/Node)
+   core the rest of the toolkit (`hono/cloudflare-access.ts`, `vite/plugin.ts`, and consumer
+   Workers) builds on. A `Transport` implementation that writes chalk-colored lines to `stderr`
+   would be the wrong shape for that contract, and forcing the CLI onto `Transport` would add
+   structured-record construction and transport plumbing for a feature that only ever needs
+   "print this line, in this color, to stderr."
+2. **Verbatim, intentionally-unmodified port.** The CLI logger is a direct port from
+   `cloudflare-scripts` (see the file's own header), where it already existed as this exact shape.
+   Reworking it onto the flagship `Transport` contract during the port would have been an
+   unrelated, unrequested redesign.
+3. **Zero deployed-Worker impact.** Per the `dev-only` label, this logger is exclusively consumed
+   by the `generate-wrangler-types` CLI and never ships inside, or executes as part of, a deployed
+   Worker — the duplication is confined to build/dev tooling, not the runtime surface the rest of
+   `docs/specs/SPECv2.md` governs.
+
+**Resolution:** Rather than unify the two abstractions, discoverability was addressed directly
+with a cross-reference note in each file's `@file` header: `src/lib/logging/types.ts` now points
+at `src/cli/generate-wrangler-types/logger.ts` (and this section) explaining the CLI logger is not
+a `Transport` consumer, and the CLI logger's header now names the flagship file path explicitly.
+Both headers cite this §12.3 entry so a reader who finds either logger first can find the other
+and understand why they remain separate.
+
+**Revisit if:** a second Node-only CLI `bin` entry point is added to this toolkit and would also
+need colored `stderr` output — at that point, factoring the CLI logger into a small shared
+"CLI logging" helper (still distinct from the `Transport` contract) becomes worth the cost of a
+third file depending on it.
