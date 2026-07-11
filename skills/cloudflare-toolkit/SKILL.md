@@ -864,8 +864,8 @@ app.onError(problemDetailsErrorHandler());
 
 ## Out of scope
 
-This skill does not include a migration guide from `cloudflare-auth`, `cloudflare-logger`,
-`cloudflare-scripts`, or `hono-problem-details` (the four repositories this toolkit's
-functionality was ported from) — that mapping is deliberately not maintained here. If you're
-migrating an existing consumer of one of those packages, read this skill's per-subpath sections
-above alongside that package's own docs and adjust your imports manually.
+This skill does not include a migration guide from other Cloudflare Access, structured-logging,
+or wrangler-tooling libraries you may have previously used — that mapping is deliberately not
+maintained here. If you're migrating an existing consumer of a different Cloudflare
+Access/logging/CLI package, read this skill's per-subpath sections above alongside that
+package's own docs and adjust your imports manually.
