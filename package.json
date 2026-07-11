@@ -1,6 +1,6 @@
 {
   "name": "@adrianhall/cloudflare-toolkit",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform",
   "keywords": [
     "cloudflare",
@@ -21,6 +21,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adrianhall/cloudflare-toolkit.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "type": "module",
   "license": "MIT",
@@ -124,5 +127,11 @@
     "pretest:coverage": "npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "sharp@0.34.5": true,
+    "workerd@1.20260708.1": true
   }
 }
