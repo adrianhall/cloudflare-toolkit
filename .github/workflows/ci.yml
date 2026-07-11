@@ -52,9 +52,76 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
+  # Detects whether this push/PR touched docs/**, so the docs-check job below only does real
+  # work for docs-affecting changes. Deliberately a job-level `if:` on a job that always
+  # triggers, rather than a workflow-level `on.pull_request.paths` filter on a separate workflow:
+  # GitHub leaves checks from a path-filtered *workflow* permanently "Pending" (blocking merge)
+  # for any PR that never triggers it, whereas a job that runs and reports `skipped` satisfies a
+  # required check normally. That's what lets docs-check feed into the single `ci-pass` gate
+  # below without ever blocking a PR that doesn't touch docs/.
+  docs-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # dorny/paths-filter reads the PR's changed-files list via the API
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check for docs/** changes
+        id: filter
+        uses: dorny/paths-filter@v4.0.2
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+
+  # PR-time verification for the VitePress docs site (AGENTS.md, docs/specs/SPECv2.md §2.4/§6.1)
+  # — distinct from the release-triggered `build-docs` job in release.yml, which publishes the
+  # site only after a real npm publish. This job instead builds the site whenever docs/** changes
+  # (see docs-changes above), so a broken change (dead link, unresolved image) is caught in
+  # review rather than only surfacing after publish.
+  docs-check:
+    needs: docs-changes
+    if: needs.docs-changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      # TypeDoc's entry points live under ../src (§2.4), and type-check against imports like
+      # `hono`, `vite`, and `@cloudflare/workers-types` that only exist in the ROOT dependency
+      # tree — not docs/'s own separate one below. Without this, `npm run docs` fails with dozens
+      # of "Cannot find module" errors. Matches release.yml's `build-docs` job, which installs
+      # both dependency trees for the same reason.
+      - name: Install root dependencies
+        run: npm ci
+
+      # docs/ has its own package.json/lockfile (a separate dependency tree, see AGENTS.md) —
+      # installed independently of the root dependencies above.
+      - name: Install docs dependencies
+        run: npm ci
+        working-directory: docs
+
+      # Runs the TypeDoc generation step first, then `vitepress build` (docs/package.json's own
+      # "build" script, via the root "docs:build" alias). VitePress fails this build on dead links
+      # by default (`ignoreDeadLinks` is not set in docs/.vitepress/config.ts) and on unresolved
+      # relative image references (Vite's own asset resolution fails to bundle a missing local
+      # image), so no separate link/image checker is needed on top of this.
+      - name: Build docs (TypeDoc + VitePress)
+        run: npm run docs:build
+
   ci-pass:
     runs-on: ubuntu-latest
-    needs: [check, test]
+    needs: [check, test, docs-changes, docs-check]
     if: always()
     steps:
       - name: Fail if any dependency job failed or was cancelled
