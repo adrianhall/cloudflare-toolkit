@@ -4,9 +4,9 @@
 import { ProblemDetailsError } from "./error.js";
 
 interface ProblemTypeDefinition {
-  type: string;
-  status: number;
-  title: string;
+  readonly type: string;
+  readonly status: number;
+  readonly title: string;
 }
 
 interface CreateOptions<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -21,8 +21,12 @@ interface ProblemTypeRegistry<K extends string> {
     key: K,
     options?: CreateOptions<T>
   ) => ProblemDetailsError;
-  /** Get the base definition (type, status, title) for a registered key. */
-  get: (key: K) => ProblemTypeDefinition;
+  /**
+   * Get the base definition (type, status, title) for a registered key.
+   * Returns a defensive shallow copy on every call, so mutating the result never affects the
+   * registry's internal definitions.
+   */
+  get: (key: K) => Readonly<ProblemTypeDefinition>;
   /** List all registered problem type keys. */
   types: () => K[];
 }
@@ -50,7 +54,7 @@ export function createProblemTypeRegistry<K extends string>(
 ): ProblemTypeRegistry<K> {
   return {
     create: (key, options) => new ProblemDetailsError({ ...definitions[key], ...options }),
-    get: (key) => definitions[key],
+    get: (key) => ({ ...definitions[key] }),
     types: () => Object.keys(definitions) as K[]
   };
 }

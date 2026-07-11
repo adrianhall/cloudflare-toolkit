@@ -217,6 +217,7 @@ Each status code in the [HTTP Status Code 300-599](https://developer.mozilla.org
 | `notFound(input?)`             | 404    |
 | `methodNotAllowed(input?)`     | 405    |
 | `gone(input?)`                 | 410    |
+| `contentTooLarge(input?)`      | 413    |
 | `unsupportedMediaType(input?)` | 415    |
 | `unprocessableContent(input?)` | 422    |
 | `internalServerError(input?)`  | 500    |
@@ -226,6 +227,12 @@ Each status code in the [HTTP Status Code 300-599](https://developer.mozilla.org
 `429 Too Many Requests` is deliberately **not** included — rate limiting is a Cloudflare Workers platform concern, not this toolkit's.
 
 `304 Not Modified`, `409 Conflict`, and `412 Precondition Failed` are also deliberately **not** included in v1 — these are RFC 9110 conditional-request status codes whose useful shape (a 304 with no body, a 409/412 optionally carrying the conflicting resource and its ETag) is a Data Access Patterns concern (§4), not a generic error-generator concern. Rather than guess at that shape now, v1 ships nothing for these three; the future Data Access Patterns work will introduce them once it's clear what they actually need to carry.
+
+`contentTooLarge` (413) was added after v1 to support capping request-body reads outside a Hono
+context — specifically the Vite dev-login plugin's `readFormBody` (§5.6), which previously
+buffered its `application/x-www-form-urlencoded` POST body with no size limit
+([CODE-008](https://github.com/adrianhall/cloudflare-toolkit/issues/59)). It follows the exact
+same generator shape as every other entry in this table.
 
 Every generator uniformly has the signature: `(input?: Omit<ProblemDetailsInput, "status">) => ProblemDetailsError`. Each generator sets `status`/`title` and forwards `detail`/`type`/`instance`/`extensions` untouched. These are **not** framework-specific — throwing one inside a plain function, a Durable Object method, or a Hono handler all work identically; only the Hono `onError` hook (`problemDetailsErrorHandler`, §5.5) is what turns the throw into an HTTP response. Because every generator now produces a plain `ProblemDetailsError`, the vendored `problemDetailsErrorHandler` (§5.4) handles all of them without any toolkit-specific wrapper logic — see §5.5.
 
@@ -599,6 +606,13 @@ disagree with each other on a given point.
 - `cloudflareAccess`'s `enableDevTokens` fail-closed default must be preserved exactly (tested in
   §7.4) — this is the single highest-consequence security property in the merged codebase; a
   regression here means a deployed Worker trusts a forgeable HS256 token.
+- `cloudflareAccess`'s `audience` option is opt-in, not fail-closed: omitting it skips `aud`
+  validation entirely and allows cross-application Access token replay within the same team
+  (every app in a team shares the same JWKS). Rather than making `audience` required (a breaking
+  change), `cloudflareAccess` logs a one-time warning at construction time whenever `audience` is
+  omitted **and** `enableDevTokens` is not `true` — i.e. in the default, production-shaped
+  configuration — and stays silent when `enableDevTokens` signals a local-development posture.
+  This warning must be preserved (SEC-001).
 - `includeStack` on `problemDetailsErrorHandler` must default to `false`. Since `problemDetailsErrorHandler`
   is now a **direct re-export** of the vendored handler (§5.4/§5.5) with no toolkit-authored wrapper
   at all, there is no code path that could silently flip this default — the only place it changes
