@@ -91,7 +91,37 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    These checks must run with zero warnings or errors. Fix the warnings or errors before continuing. Only bypass these checks if the issue text explicitly tells you they are bypassable.
 
-8. Review changes.
+8. Determine whether a changeset is required.
+
+   Per `CONTRIBUTING.md`'s "Adding a changeset" section, decide based on the actual diff produced in steps 6–7 — not just the issue title or description — whether this PR touches **published surface area**: the root export or any of the `guards`/`errors`/`problem-details`/`logging`/`hono`/`vite`/`testing` subpaths, or the `generate-wrangler-types` CLI. An issue that sounds docs- or test-only can still touch a public export's JSDoc or behavior and need one; an issue that edits `package.json` devDependencies, CI config, or internal tooling (no consumer-visible change) does not.
+
+   If a changeset **is** required, add one before opening the PR:
+
+   ```sh
+   npx changeset
+   ```
+
+   This prompts interactively for the bump type (patch/minor/major) and a summary. If running non-interactively (e.g. from a sub-agent, or any context without a TTY), write the file directly under `.changeset/` instead, matching the format the CLI itself produces — YAML frontmatter naming the package and semver bump type, followed by a short, user-facing summary of the change:
+
+   ```markdown
+   ---
+   "@adrianhall/cloudflare-toolkit": patch
+   ---
+
+   <one-line, user-facing summary of what changed and why it matters to consumers>
+   ```
+
+   Choose `patch`/`minor`/`major` per standard semver for the actual change being shipped, then verify it was picked up correctly:
+
+   ```sh
+   npx changeset status
+   ```
+
+   Commit the resulting `.changeset/*.md` file along with the rest of the change in step 10.
+
+   If no changeset is required, do not create one — but state the reasoning in the completion response (step-by-step against the "published surface area" definition above) rather than silently skipping this step.
+
+9. Review changes.
 
    Inspect, from within the worktree:
 
@@ -100,20 +130,20 @@ If that value is blank, stop and ask the user for an issue number before doing a
    git diff
    ```
 
-   Confirm only intended files changed. Check for secrets, generated files, account-specific IDs, and accidental edits to unrelated work.
+   Confirm only intended files changed, including exactly one new `.changeset/*.md` file if step 8 determined one was needed (and none if it determined one wasn't). Check for secrets, generated files, account-specific IDs, and accidental edits to unrelated work.
 
-9. Commit.
+10. Commit.
 
-   Use a conventional commit message scoped to the issue from within the worktree, for example:
+    Use a conventional commit message scoped to the issue from within the worktree, for example:
 
-   ```sh
-   git add INTENDED_FILES
-   git commit -m "(#$1) feat: implement issue summary"
-   ```
+    ```sh
+    git add INTENDED_FILES
+    git commit -m "(#$1) feat: implement issue summary"
+    ```
 
-   Do not amend existing commits unless explicitly asked.
+    Do not amend existing commits unless explicitly asked.
 
-10. Push.
+11. Push.
 
     Push the branch, from within the worktree:
 
@@ -121,7 +151,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
     git push -u origin issues/$1
     ```
 
-11. Open a PR.
+12. Open a PR.
 
     Create a pull request with `gh`, from within the worktree:
 
@@ -129,7 +159,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
     gh pr create --repo adrianhall/cloudflare-toolkit --fill --base main --head issues/$1
     ```
 
-    The PR body must include the issue link, summary, tests run, and any known limitations.
+    The PR body must include the issue link, summary, tests run, any known limitations, and whether a changeset was added (or, if not, the one-line reasoning from step 8 for why one wasn't needed).
 
 ## Worktree Cleanup
 
@@ -141,6 +171,7 @@ When done, report:
 
 - Issue number, branch name, worktree path, and PR URL.
 - Summary of implementation.
+- Whether a changeset was added, and the reasoning either way.
 - Tests and checks run, and their results.
 - CI run URL and outcome.
 - Any skipped verification with reasons.
