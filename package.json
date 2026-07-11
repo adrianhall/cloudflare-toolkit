@@ -93,6 +93,7 @@
     "jose": "^6.2.3"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@cloudflare/vitest-pool-workers": "^0.18.3",
     "@cloudflare/workers-types": "5.20260708.1",
     "@types/cross-spawn": "^6.0.6",
@@ -114,6 +115,7 @@
   },
   "scripts": {
     "build": "tsdown",
+    "changeset": "changeset",
     "check": "run-s check:types check:lint check:format check:pack",
     "check:format": "prettier --check .",
     "check:lint": "eslint .",
@@ -125,8 +127,10 @@
     "prepare": "husky",
     "pretest": "npm run build",
     "pretest:coverage": "npm run build",
+    "release": "npm run build && changeset publish",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "version-packages": "changeset version && prettier --write ."
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
