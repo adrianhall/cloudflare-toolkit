@@ -6,7 +6,7 @@
  *
  * The split is deliberate, not an oversight: this is a Node-only CLI concern (colored, leveled
  * `stderr` output for a `bin` entry point) rather than the flagship Worker/browser structured
- * logging core, and it is a verbatim port from `cloudflare-scripts`. See
+ * logging core, ported verbatim from this toolkit's predecessor CLI tooling. See
  * `docs/specs/SPECv2.md` §12.3 (ARCH-003) for the full rationale.
  *
  * All output is written to `stderr`. Color is applied when `process.stderr.isTTY === true`;
