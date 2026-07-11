@@ -1,5 +1,5 @@
 /**
- * @file tsup build configuration.
+ * @file tsdown build configuration.
  *
  * One entry per subpath: root, `guards`, `errors`, `problem-details`, `logging`, `hono`, `vite`,
  * `testing` — plus one entry for the `generate-wrangler-types` bin, which is not part of
@@ -13,19 +13,20 @@
  * `cli/generate-wrangler-types/index` mirrors `src/cli/generate-wrangler-types/index.ts` the
  * same way, matching `package.json#bin`'s own `./dist/cli/generate-wrangler-types/index.js`.
  *
- * tsup enables ESM code-splitting by default, which is required here, not optional: `guards`
- * depends on `errors` (for `NullError`), and `logging` depends on `guards` (for
- * `valueOrDefault`). Splitting extracts that shared code into a common chunk that every entry
- * imports, so a class like `NullError` has exactly one identity across every built entry point;
- * disabling splitting would silently duplicate these classes per bundle and break `instanceof`
- * checks for real consumers.
+ * tsdown (Rolldown-based, like tsup) enables ESM code-splitting by default, which is required
+ * here, not optional: `guards` depends on `errors` (for `NullError`), and `logging` depends on
+ * `guards` (for `valueOrDefault`). Splitting extracts that shared code into a common chunk that
+ * every entry imports, so a class like `NullError` has exactly one identity across every built
+ * entry point; disabling splitting would silently duplicate these classes per bundle and break
+ * `instanceof` checks for real consumers. Confirmed empirically after migrating from tsup
+ * (`test/package/index.test.ts`'s cross-entry identity assertions) — see #89.
  *
  * `CLI_VERSION` is a build-time constant referenced by `src/cli/generate-wrangler-types/run.ts`
  * (`declare const CLI_VERSION: string`) for Commander's `--version` output — substituted here
  * from the package's own `version` field.
  */
 import { readFileSync } from "node:fs";
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 const { version } = JSON.parse(readFileSync("./package.json", "utf-8")) as {
   version: string;
@@ -43,11 +44,18 @@ export default defineConfig({
     "testing/index": "src/lib/testing/index.ts",
     "cli/generate-wrangler-types/index": "src/cli/generate-wrangler-types/index.ts"
   },
-  format: ["esm"],
+  format: "esm",
+  // tsdown defaults `fixedExtension` to `true` when `platform` is `node` (the default platform),
+  // which forces every output file to `.mjs`/`.d.mts` regardless of `package.json#type`. This
+  // repo is `"type": "module"`, so plain `.js`/`.d.ts` extensions are already unambiguously ESM
+  // — and `package.json#exports`/`#bin`/`#main`/`#types` all reference `.js`/`.d.ts` paths.
+  // Explicitly disabling this keeps the built `dist/` shape identical to tsup's (which always
+  // used `.js`/`.d.ts`) rather than requiring a matching `package.json` rewrite.
+  fixedExtension: false,
   // `hono` and `vite` are both peerDependencies and must never be bundled:
   //
   // - `hono`: `hono/index.ts` imports the runtime `HTTPException` class from
-  //   `hono/http-exception` (`error-handler.ts`). Without this, tsup would inline its own
+  //   `hono/http-exception` (`error-handler.ts`). Without this, tsdown would inline its own
   //   private copy of that class into `dist/hono/index.js`, and a consumer's own
   //   `new HTTPException(...)` (from *their* installed `hono`) would come back `false` for
   //   `instanceof HTTPException` against our bundled copy — silently breaking
@@ -68,27 +76,35 @@ export default defineConfig({
   // `commander`/`chalk`/`cross-spawn` (all real `dependencies`) are external for a simpler reason
   // than either of the above: they're only ever imported by the `cli/generate-wrangler-types/index`
   // entry, npm already installs them for the consumer regardless (they're declared
-  // `dependencies`, not bundled-in extras), and leaving them un-external would have tsup inline a
-  // full private copy into the CLI's own `dist/cli/generate-wrangler-types/index.js` for no
+  // `dependencies`, not bundled-in extras), and leaving them un-external would have tsdown inline
+  // a full private copy into the CLI's own `dist/cli/generate-wrangler-types/index.js` for no
   // benefit — a spike build of a small `commander`-using CLI came out at ~107 KB/3,385 lines with
-  // `commander` inlined vs. a handful of lines with it marked `external`, while still keeping the
+  // `commander` inlined vs. a handful of lines with it marked external, while still keeping the
   // entry's shebang intact. `cross-spawn` (added to fix SEC-002 — command injection via
   // unescaped `shell: true` spawn) follows the same reasoning.
-  external: ["hono", "vite", "jose", "commander", "chalk", "cross-spawn"],
+  //
+  // tsdown already externalizes everything under `package.json`'s `dependencies`/
+  // `peerDependencies`/`optionalDependencies` by default (identical semantics to tsup's own
+  // default), so this list is redundant with that default today — kept anyway, mirroring the
+  // rationale above, purely for documentation/defensive clarity should any of these ever move to
+  // a different `package.json` dependency bucket. tsdown deprecates the top-level `external`
+  // option in favor of the `deps` namespace, hence `deps.neverBundle` rather than `external`
+  // here. Tracked for re-evaluation in #92.
+  deps: {
+    neverBundle: ["hono", "vite", "jose", "commander", "chalk", "cross-spawn"]
+  },
   // Sourcemaps are enabled toolkit-wide, including for the vendored `problem-details` subpath.
   sourcemap: true,
   clean: true,
   define: {
     CLI_VERSION: JSON.stringify(version)
   },
-  dts: {
-    compilerOptions: {
-      // tsup's dts build step (rollup-plugin-dts) unconditionally injects a `baseUrl` into the
-      // compiler options it hands to TypeScript. TypeScript 6.0.3 (pinned in package.json) now
-      // raises that as error TS5101 ("Option 'baseUrl' is deprecated...") unless 6.0-line
-      // deprecation diagnostics are silenced. Scoped to this dts build only; the project's own
-      // tsconfig.json (used by `check:types`) never sets `baseUrl` and is left untouched.
-      ignoreDeprecations: "6.0"
-    }
-  }
+  // tsup's dts build step (rollup-plugin-dts) unconditionally injected a `baseUrl` into the
+  // compiler options it handed to TypeScript, which TypeScript 6.0.3 (pinned in package.json)
+  // raised as error TS5101 ("Option 'baseUrl' is deprecated...") — worked around there with
+  // `dts: { compilerOptions: { ignoreDeprecations: "6.0" } }`. tsdown's declaration generation
+  // goes through `rolldown-plugin-dts`, a different code path, and does not inject `baseUrl`;
+  // confirmed empirically by building against this repo's pinned `typescript@^6.0.3` with no
+  // `compilerOptions` override at all and no TS5101. No workaround needed here.
+  dts: true
 });

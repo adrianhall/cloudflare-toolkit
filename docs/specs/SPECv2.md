@@ -76,7 +76,7 @@ self-contained.
 | [`wrangler`](https://www.npmjs.com/package/wrangler)                                               | `^4.109.0`                     | Needed to test `generate-wrangler-types` (§5.7) end-to-end, and used by `@cloudflare/vitest-pool-workers` internally |
 | [`husky`](https://www.npmjs.com/package/husky)                                                     | `^9.1.7`                       | Git hooks (§8, rules 5–6)                                                                                            |
 | [`npm-run-all2`](https://www.npmjs.com/package/npm-run-all2)                                       | `^9.0.2`                       | `run-s`/`run-p` for composed `npm run check` scripts (§8, rule 1)                                                    |
-| [`tsup`](https://www.npmjs.com/package/tsup)                                                       | `^8.5.1`                       | Bundles `src/` into `dist/` (ESM-only, §3) immediately before publish                                                |
+| [`tsdown`](https://www.npmjs.com/package/tsdown)                                                   | `^0.22.4`                      | Bundles `src/` into `dist/` (ESM-only, §3) immediately before publish                                                |
 | [`@changesets/cli`](https://www.npmjs.com/package/@changesets/cli)                                 | `^2.31.0`                      | Versioning/changelog generation, wired into the release workflow (§3)                                                |
 | [`@types/node`](https://www.npmjs.com/package/@types/node)                                         | `^26.1.1`                      | Types for the Node-only surfaces: `vite/*` (§5.6) and `cli/*` (§5.7)                                                 |
 | [`@types/cross-spawn`](https://www.npmjs.com/package/@types/cross-spawn)                           | `^6.0.6`                       | Type declarations for the `cross-spawn` dependency above — `cross-spawn` itself ships no `.d.ts`                     |
@@ -136,7 +136,7 @@ collision, not a theoretical one.
 - `dist/` is **not** committed to the repository. Unlike `cloudflare-auth`/`cloudflare-logger`
   (installed via `github:` refs, where a committed `dist/` is necessary because there's no build
   step at install time), this package is npm-native: CI builds `dist/` fresh via `prepack`/a
-  dedicated build job (`tsup`, §2.3) immediately before every publish.
+  dedicated build job (`tsdown`, §2.3) immediately before every publish.
 - Module format: **ESM-only** (`"type": "module"`, no CJS build). Every consumer of this toolkit
   is a Vite/Wrangler/Vitest project, all ESM-first, so there's no need to carry a dual ESM/CJS
   build forward — including for the vendored `hono-problem-details` code (§5.4), which ships dual
@@ -539,7 +539,7 @@ The toolkit's own repo needs an `AGENTS.md` (distinct from the installable skill
 | -------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/node`    | Plain Node                                                                                                       | `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects, same technique `cloudflare-auth` already uses), `cli/generate-wrangler-types/*` (injected `WranglerRunner`/`FileSystem` fakes, same technique `cloudflare-scripts` already uses) |
 | `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them                                                                                                        |
-| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` (not `src/`) for every subpath in §5.1 and asserts the expected named exports exist with the expected runtime type (`typeof x === "function"`, etc.) — catches `package.json#exports`/`tsup` entry-point misconfiguration before publish                                |
+| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` (not `src/`) for every subpath in §5.1 and asserts the expected named exports exist with the expected runtime type (`typeof x === "function"`, etc.) — catches `package.json#exports`/`tsdown` entry-point misconfiguration before publish                              |
 
 A `browser` project (present in `cloudflare-logger` for its `/react` subpath) is **not** included,
 since nothing in this package's scope runs in a browser. If a future subpath changes that, add the
