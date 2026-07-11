@@ -2,7 +2,12 @@
  * @file A private stderr logger for the `generate-wrangler-types` CLI. Not exported from any
  * barrel — this logger is an internal implementation detail of this one CLI, not part of the
  * toolkit's public API surface, and is intentionally a separate, simpler abstraction from the
- * `logging` subpath's `Logger`/`Transport` contract.
+ * `logging` subpath's `Logger`/`Transport` contract (`src/lib/logging/types.ts`).
+ *
+ * The split is deliberate, not an oversight: this is a Node-only CLI concern (colored, leveled
+ * `stderr` output for a `bin` entry point) rather than the flagship Worker/browser structured
+ * logging core, and it is a verbatim port from `cloudflare-scripts`. See
+ * `docs/specs/SPECv2.md` §12.3 (ARCH-003) for the full rationale.
  *
  * All output is written to `stderr`. Color is applied when `process.stderr.isTTY === true`;
  * otherwise output is plain text. Log line format: `<ISO-UTC-ms> [<level>] <message>`.
