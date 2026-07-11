@@ -182,6 +182,31 @@ describe("login form", () => {
     expect(res._body).toContain("bob@example.com");
     expect(res._body).toContain("custom-email");
   });
+
+  // SEC-005 (https://github.com/adrianhall/cloudflare-toolkit/issues/50): an unsafe `redirect`
+  // query param must never reach the rendered hidden field verbatim.
+  it.each([
+    ["https://evil.com", "an absolute URL"],
+    ["//evil.com", "a protocol-relative URL"],
+    ["/\\evil.com", "a backslash-variant scheme-relative URL"]
+  ])("falls back to / when the redirect param is %s (%s)", async (redirect) => {
+    const req = makeReq({
+      url: `/cdn-cgi/access/login?redirect=${encodeURIComponent(redirect)}`
+    });
+    const res = makeRes();
+    await invoke({}, req, res);
+
+    expect(res._body).toContain('value="/"');
+    expect(res._body).not.toContain(redirect);
+  });
+
+  it("keeps a safe root-relative redirect param unchanged", async () => {
+    const req = makeReq({ url: "/cdn-cgi/access/login?redirect=%2Fdashboard" });
+    const res = makeRes();
+    await invoke({}, req, res);
+
+    expect(res._body).toContain('value="/dashboard"');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -313,6 +338,43 @@ describe("login submit", () => {
     const res = makeRes();
     await invoke({}, req, res);
     expect(res._headers["location"]).toBe("/");
+  });
+
+  // SEC-005 (https://github.com/adrianhall/cloudflare-toolkit/issues/50): an unsafe `redirect`
+  // form field must never become the actual redirect Location header.
+  it.each([
+    ["https://evil.com", "an absolute URL"],
+    ["//evil.com", "a protocol-relative URL"],
+    ["/\\evil.com", "a backslash-variant scheme-relative URL"]
+  ])("redirects to / instead of %s (%s) after a successful login", async (redirect) => {
+    const body = new URLSearchParams({ email: "alice@example.com", redirect }).toString();
+    const req = makeReq({
+      url: "/cdn-cgi/access/login",
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const res = makeRes();
+    await invoke({}, req, res);
+
+    expect(res.statusCode).toBe(302);
+    expect(res._headers["location"]).toBe("/");
+  });
+
+  it("falls back to / and does not echo an unsafe redirect when re-rendering the form on a validation error", async () => {
+    const body = new URLSearchParams({ redirect: "https://evil.com" }).toString();
+    const req = makeReq({
+      url: "/cdn-cgi/access/login",
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const res = makeRes();
+    await invoke({}, req, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res._body).toContain('value="/"');
+    expect(res._body).not.toContain("https://evil.com");
   });
 
   it("propagates body-read errors to next(err)", async () => {

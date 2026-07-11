@@ -222,7 +222,7 @@ export function createAccessDevMiddleware(
   // -------------------------------------------------------------------------
 
   function serveLoginForm(req: IncomingMessage, res: ServerResponse): void {
-    const redirect = getQueryParam(req, "redirect") ?? "/";
+    const redirect = sanitizeRedirectTarget(getQueryParam(req, "redirect") ?? "/");
     sendHtml(res, 200, renderViteLoginPage(loginPath, redirect, users));
   }
 
@@ -240,7 +240,9 @@ export function createAccessDevMiddleware(
     const custom = typeof body["custom-email"] === "string" ? body["custom-email"].trim() : "";
     const selected = typeof body.email === "string" ? body.email.trim() : "";
     const email = custom || selected;
-    const redirect = typeof body.redirect === "string" && body.redirect ? body.redirect : "/";
+    const redirect = sanitizeRedirectTarget(
+      typeof body.redirect === "string" && body.redirect ? body.redirect : "/"
+    );
 
     if (!email) {
       sendHtml(
@@ -336,6 +338,23 @@ function getQueryParam(req: IncomingMessage, key: string): string | undefined {
   const path = req.url ?? "/";
   const url = new URL(path, "http://localhost");
   return url.searchParams.get(key) ?? undefined;
+}
+
+/**
+ * Restrict a client-supplied `redirect` target (the dev login form's query string / POST body
+ * field) to a same-origin, root-relative path — SEC-005
+ * (https://github.com/adrianhall/cloudflare-toolkit/issues/50).
+ *
+ * Only a value starting with a single `/` — not `//` or `/\`, both of which a browser can
+ * interpret as protocol-relative / scheme-relative and resolve against an attacker-controlled
+ * host — is considered safe. Anything else (an absolute URL, a protocol-relative URL, or any
+ * other unexpected value) falls back to `"/"`. Applied at both points a client-supplied
+ * `redirect` value is read (the login form's query string and the login submission's POST body)
+ * so the sanitized value is what flows into both the login form's hidden field and the actual
+ * redirect `Location` header.
+ */
+function sanitizeRedirectTarget(value: string): string {
+  return /^\/(?!\/|\\)/.test(value) ? value : "/";
 }
 
 function isViteInternal(pathname: string): boolean {
