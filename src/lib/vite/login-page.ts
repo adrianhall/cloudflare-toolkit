@@ -98,7 +98,7 @@ export function renderViteLoginPage(
   </style>
 </head>
 <body>
-  <div class="card">
+  <main class="card">
     <span class="badge">LOCAL DEV</span>
     <h1>Developer Login</h1>
     <p class="subtitle">Simulates Cloudflare Access in front of your Vite dev server.</p>
@@ -108,7 +108,7 @@ export function renderViteLoginPage(
       ${usersHtml}
       <button type="submit">Sign in</button>
     </form>
-  </div>
+  </main>
 </body>
 </html>`;
 }
