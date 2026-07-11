@@ -709,3 +709,65 @@ contracts:
 
 **Revisit if:** a third consumer needs a `safeStringify` variant, or upstream
 `hono-problem-details` changes its own fallback contract in a way that removes reason (1) above.
+
+### 12.2 ARCH-003: Evaluated and rejected `safe-stringify` (npm) as a replacement for `logging/internal/safe-json.ts`
+
+**Source:** [Issue #57](https://github.com/adrianhall/cloudflare-toolkit/issues/57), severity low,
+`Code Quality` label (originating finding `CODE-006` — `logging/internal/safe-json.ts`'s
+all-seen `Set` produced `"[Circular]"` false positives for shared/diamond references). While
+fixing `CODE-006`, consolidating onto the well-regarded npm package
+[`safe-stringify`](https://www.npmjs.com/package/safe-stringify) (Sindre Sorhus) was evaluated as
+an alternative to a toolkit-authored fix, given its direct relevance to §12.1's
+`safeStringify`-duplication discussion above.
+
+**File:** `src/lib/logging/internal/safe-json.ts:63` — `safeStringify(value: unknown): string`
+
+**Finding:** The npm package's core algorithm (a recursive walk with a `WeakMap`-based `seen`
+set that calls `seen.delete(value)` once a node's children finish processing) is the same
+correct "ancestor path, not all-seen objects" technique `CODE-006` recommended, and its own
+README explicitly calls out this exact bug class in other libraries ("many packages incorrectly
+replaced all duplicate objects, not just circular references") — good independent validation
+that the chosen fix direction (implemented in-house, see the `safeStringify` JSDoc) is the
+standard, correct one. However, the package was rejected as a **drop-in dependency** after
+downloading and running it (via `npm pack`) against this module's actual contract:
+
+| Input                                     | `logging/internal/safe-json.ts` (this repo)   | npm `safe-stringify` 1.3.0                                              |
+| ----------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------- |
+| Shared/diamond reference                  | Serializes in full at every location          | Serializes in full at every location (bug fixed, same)                  |
+| True circular reference                   | `"[Circular]"`                                | `"[Circular]"` (same)                                                   |
+| `bigint` anywhere in the value            | `"<n>n"` string                               | **Throws** `TypeError: Do not know how to serialize a BigInt`, uncaught |
+| A property getter that throws             | Returns `"[FormattingError]"`                 | **Throws** the getter's own error, uncaught                             |
+| `function` / `symbol` nested in an object | `"[Function name]"` / `"Symbol(description)"` | Silently dropped (native `JSON.stringify` omits both)                   |
+| `undefined` at the top level              | Returns the **string** `"undefined"`          | Returns the JS value `undefined` (not a string)                         |
+
+**Why rejected:**
+
+1. **Violates the one non-negotiable property of a logging helper: never throw.** A log call
+   must not alter or abort the caller's control flow. The npm package has no `try`/`catch`
+   anywhere in its implementation and no replacer hook (its own README: _"There is no replacer
+   option as I didn't need that"_), so a `BigInt` field or a throwing getter anywhere in a
+   logged value — both realistic in a Workers context (D1/KV row IDs and counters are
+   frequently `BigInt`; lazily-computed getters are common) — propagates an uncaught exception
+   out of `safeStringify` and into the logging call site.
+2. **Drops information this module's tests assert on.** `function` and `symbol` values are
+   silently omitted rather than rendered as the descriptive placeholders
+   (`"[Function name]"`, `"Symbol(description)"`) this module's contract and tests require.
+3. **Breaks the declared return type in one case.** `safeStringify(undefined)` returns the
+   actual JS `undefined` value, not a string, contradicting its own `(value: unknown, options?)
+=> string` signature and this module's `"undefined"`-string top-level contract.
+4. **Adopting it would not actually remove the custom logic it was meant to replace.** To
+   restore points 1–3, `bigint`/`symbol`/`function` values would need to be normalized in a
+   pre-pass before handing the value to the library — but that pre-pass would itself need to be
+   circular-reference-aware to avoid infinite recursion on a cyclic input, duplicating the exact
+   ancestor-tracking logic the dependency was meant to provide. Net effect: an added runtime
+   dependency (to a subpath documented as "Any runtime" — browsers included, per `AGENTS.md`'s
+   subpath table) while keeping nearly all of the current logic anyway.
+5. **Irrelevant to (and would regress) the other `safeStringify` from §12.1.**
+   `problem-details/utils.ts`'s version is deliberately all-or-nothing (§12.1 point 2): any
+   serialization failure, including a circular reference, must force the generic 500 fallback.
+   Swapping in a library that successfully serializes circular references (with `"[Circular]"`
+   markers) instead of throwing would silently defeat that intentional behavior.
+
+**Revisit if:** the package's maintainer adds a `try`/`catch`-safe mode or a
+`bigint`/`symbol`/`function` replacer hook (their README invites "pull request welcome" for a
+replacer option) that closes gaps 1–3 above without requiring a pre-pass on the toolkit's side.

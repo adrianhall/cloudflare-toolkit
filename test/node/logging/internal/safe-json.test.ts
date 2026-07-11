@@ -202,6 +202,58 @@ describe("safeStringify()", () => {
     expect(result[2]).toBe("[Circular]");
   });
 
+  it("does not treat a shared/diamond object reference as circular", () => {
+    const shared = { x: 1 };
+    const result = JSON.parse(sut.safeStringify({ a: shared, b: shared })) as Record<
+      string,
+      unknown
+    >;
+    expect(result["a"]).toStrictEqual({ x: 1 });
+    expect(result["b"]).toStrictEqual({ x: 1 });
+  });
+
+  it("does not treat a shared/diamond array reference as circular", () => {
+    const sharedArr = [1, 2];
+    const result = JSON.parse(sut.safeStringify({ a: sharedArr, b: sharedArr })) as Record<
+      string,
+      unknown
+    >;
+    expect(result["a"]).toStrictEqual([1, 2]);
+    expect(result["b"]).toStrictEqual([1, 2]);
+  });
+
+  it("does not treat a reference shared across three or more sibling keys as circular", () => {
+    const shared = { id: "shared" };
+    const result = JSON.parse(sut.safeStringify({ a: shared, b: shared, c: shared })) as Record<
+      string,
+      unknown
+    >;
+    expect(result["a"]).toStrictEqual({ id: "shared" });
+    expect(result["b"]).toStrictEqual({ id: "shared" });
+    expect(result["c"]).toStrictEqual({ id: "shared" });
+  });
+
+  it("still detects a true circular reference alongside an unrelated shared/diamond reference", () => {
+    const shared = { id: "shared" };
+    const root: Record<string, unknown> = { a: shared, b: shared };
+    root["self"] = root;
+    const result = JSON.parse(sut.safeStringify(root)) as Record<string, unknown>;
+    expect(result["a"]).toStrictEqual({ id: "shared" });
+    expect(result["b"]).toStrictEqual({ id: "shared" });
+    expect(result["self"]).toBe("[Circular]");
+  });
+
+  it("does not treat a reference reused after a prior sibling subtree finished as circular", () => {
+    // Regression for the ancestor-path fix: after fully serializing `a` (which uses `shared`
+    // as a nested value), `shared` must be evictable from the ancestor stack so that visiting
+    // sibling key `b` with the SAME reference does not see a stale "still on the stack" entry.
+    const shared = { x: 1 };
+    const a = { nested: shared };
+    const result = JSON.parse(sut.safeStringify({ a, b: shared })) as Record<string, unknown>;
+    expect(result["a"]).toStrictEqual({ nested: { x: 1 } });
+    expect(result["b"]).toStrictEqual({ x: 1 });
+  });
+
   it("returns '[FormattingError]' when a getter throws during serialization", () => {
     const obj = Object.defineProperty({}, "boom", {
       get() {
