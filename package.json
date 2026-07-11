@@ -2,6 +2,26 @@
   "name": "@adrianhall/cloudflare-toolkit",
   "version": "0.0.0",
   "description": "A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform",
+  "keywords": [
+    "cloudflare",
+    "cloudflare-workers",
+    "workers",
+    "wrangler",
+    "hono",
+    "vite",
+    "typescript",
+    "problem-details",
+    "logging",
+    "cloudflare-access"
+  ],
+  "homepage": "https://adrianhall.github.io/cloudflare-toolkit",
+  "bugs": {
+    "url": "https://github.com/adrianhall/cloudflare-toolkit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adrianhall/cloudflare-toolkit.git"
+  },
   "type": "module",
   "license": "MIT",
   "private": false,
