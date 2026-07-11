@@ -101,7 +101,7 @@
     "husky": "^9.1.7",
     "npm-run-all2": "^9.0.2",
     "prettier": "^3.9.5",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.22.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
     "vite": "^8.1.4",
@@ -109,7 +109,7 @@
     "wrangler": "^4.109.0"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "check": "run-s check:types check:lint check:format check:pack",
     "check:format": "prettier --check .",
     "check:lint": "eslint .",

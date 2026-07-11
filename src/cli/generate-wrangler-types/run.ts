@@ -18,7 +18,7 @@ import type { LogLevel, LogSink } from "./logger.js";
 import { createLogger } from "./logger.js";
 import type { FileSystem, WranglerRunner } from "./types.js";
 
-// CLI_VERSION is replaced at build time by tsup's `define` option (tsup.config.ts).
+// CLI_VERSION is replaced at build time by tsdown's `define` option (tsdown.config.ts).
 declare const CLI_VERSION: string;
 
 // ---------------------------------------------------------------------------
