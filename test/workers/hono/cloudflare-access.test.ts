@@ -59,8 +59,10 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(401);
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toContain("Invalid or expired");
+      expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+      const body = (await res.json()) as { title: string; detail: string };
+      expect(body.title).toBe("Unauthorized");
+      expect(body.detail).toContain("Invalid or expired");
     });
 
     it("rejects a forged token in the cookie when enableDevTokens is unset", async () => {
@@ -196,8 +198,25 @@ describe("cloudflareAccess", () => {
       const res = await fetchWithEnv(app, `${BASE}/api/test`);
 
       expect(res.status).toBe(401);
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toContain("Authentication required");
+      expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+      const body = (await res.json()) as { title: string; detail: string };
+      expect(body.title).toBe("Unauthorized");
+      expect(body.detail).toContain("Authentication required");
+    });
+
+    it("returns an RFC 9457 problem-details body for a 401, matching problemDetailsErrorHandler/notFoundHandler's shape", async () => {
+      const app = createApp();
+      const res = await fetchWithEnv(app, `${BASE}/api/test`);
+
+      expect(res.status).toBe(401);
+      expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+      const body = await res.json();
+      expect(body).toStrictEqual({
+        type: "about:blank",
+        status: 401,
+        title: "Unauthorized",
+        detail: "Authentication required"
+      });
     });
 
     it("returns 401 for a malformed JWT", async () => {
@@ -207,8 +226,10 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(401);
-      const body = (await res.json()) as { error: string };
-      expect(body.error).toContain("Invalid or expired");
+      expect(res.headers.get("Content-Type")).toBe("application/problem+json; charset=utf-8");
+      const body = (await res.json()) as { title: string; detail: string };
+      expect(body.title).toBe("Unauthorized");
+      expect(body.detail).toContain("Invalid or expired");
     });
 
     it("returns 401 when no team domain is configured and the token is not dev-signed", async () => {
