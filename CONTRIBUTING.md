@@ -46,8 +46,8 @@ Three Changesets-related scripts exist in `package.json`:
 - **`npm run release`** — runs `npm run build` followed by `changeset publish`, which **actually
   publishes to the npm registry** using whatever npm publish credentials are active on the
   machine that runs it. **Never run this locally unless you specifically intend to publish a real
-  release right now.** It exists so CI can invoke it once release automation lands (see below) —
-  it is not a routine command.
+  release right now.** This is the command CI's release workflow invokes on your behalf (see
+  "Release process" below) — it is not a routine command for a contributor to run.
 
 ## Release process
 
@@ -58,31 +58,20 @@ branch to be up to date before merging (strict status checks). The ruleset has *
 configured** (`current_user_can_bypass: "never"`), so this applies to everyone, including
 `adrianhall` — who is also presently the only collaborator with push access to this repository.
 The ruleset itself doesn't require an approving review (`required_approving_review_count: 0`);
-where an approval gate exists (see `release-gate` below), it's layered on top of, not a
-substitute for, this PR + `ci-pass` requirement.
+the `release-gate` approval gate described below is layered on top of, not a substitute for, this
+PR + `ci-pass` requirement.
 
-### Today (manual, until release automation lands)
+Versioning and publishing are automated by
+[`.github/workflows/release.yml`](./.github/workflows/release.yml): changeset-bearing PRs merge
+to `main` as normal, `changesets/action` (running in CI) opens or updates an automatic
+**"Version Packages" pull request**, and merging _that_ PR is the actual release trigger — it
+causes the next workflow run to build fresh and publish under npm **Trusted Publishing (OIDC)**,
+gated by a `release-gate` required-reviewer environment restricted to `adrianhall`. Don't merge
+the Version Packages PR casually "to keep things tidy"; merging it kicks off a real publish
+approval request.
 
-There is no CI automation for versioning/publishing yet (tracked in a follow-up issue). Until it
-lands, cutting a release is a manual, maintainer-only operation:
-
-1. Ensure every changeset you want included in the release is merged to `main`.
-2. From an up-to-date `main` checkout, run `npm run version-packages` to consume the pending
-   changesets, bump the version, and generate the `CHANGELOG.md` entries. Review the diff, then
-   open it as its own PR — it goes through the same PR + `ci-pass` flow as any other change.
-3. Once that PR merges, from an up-to-date `main` checkout with npm publish credentials
-   configured locally, run `npm run release` to build fresh and publish.
-
-### Once release automation lands
-
-Once the follow-up release-automation issue lands, the lifecycle becomes:
-
-1. Changeset-bearing PRs merge to `main` as normal.
-2. `changesets/action` (running in CI) opens or updates an automatic **"Version Packages" pull
-   request** — effectively step 2 above (`npm run version-packages`), but run and committed by
-   the bot instead of a person.
-3. Merging that "Version Packages" PR is the actual release trigger — not a routine merge. It
-   causes the next workflow run to run `npm run release` on your behalf (step 3 above, but run by
-   CI), gated by a `release-gate` required-reviewer environment restricted to `adrianhall`. Don't
-   merge it casually "to keep things tidy"; merging it kicks off a real publish approval request.
-   It's still subject to the PR + `ci-pass` requirement described above like any other PR.
+As a contributor, none of this requires anything from you beyond adding a changeset when one is
+needed (above). **If you're the one actually cutting a release** — reviewing/merging the Version
+Packages PR, approving the `release-gate` deployment, or troubleshooting the pipeline — see
+[`RELEASING.md`](./RELEASING.md) for the full step-by-step and the one-time npm/GitHub
+configuration the pipeline depends on.

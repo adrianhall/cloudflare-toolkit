@@ -1,0 +1,184 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# Distinct group name from ci.yml's own "ci-${{ github.ref }}" group so the two workflows never
+# collide with each other's concurrency queue.
+concurrency:
+  group: release-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Opens/updates the Changesets "Version Packages" PR. Deliberately never publishes and never
+  # requires the release-gate approval below — only the actual `npm publish` step should pause
+  # for manual review, not every ordinary changeset-bearing PR merge (see RELEASING.md).
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+    outputs:
+      should-publish: ${{ steps.publish-check.outputs.ready == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24 # pin to engines floor (node >= 24); ships npm 11
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create/update Version Packages PR
+        id: changesets
+        uses: changesets/action@v1.9.0
+        with:
+          version: npm run version-packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # main's ruleset requires a `ci-pass` status pinned to the GitHub Actions App
+      # (integration_id 15368) before any PR can merge. changesets/action pushes the Version
+      # Packages branch using GITHUB_TOKEN, which never triggers ci.yml's own `pull_request` run,
+      # so `ci-pass` would never appear on this PR without this step. GITHUB_TOKEN in this job is
+      # an installation token for that same App, so the synthetic status reported here satisfies
+      # the ruleset instead of being blocked by it (same pattern as hono-problem-details).
+      - name: Set ci-pass status on Version Packages PR
+        if: steps.changesets.outputs.pullRequestNumber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.changesets.outputs.pullRequestNumber }}
+        run: |
+          sleep 5
+          PR_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid -q .headRefOid)
+          gh api "repos/${{ github.repository }}/statuses/${PR_SHA}" \
+            -f state=success \
+            -f context=ci-pass \
+            -f description="Version Packages PR — source already verified on main"
+          # Retry if the SHA changed due to API eventual consistency.
+          sleep 5
+          NEW_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid -q .headRefOid)
+          if [ "$NEW_SHA" != "$PR_SHA" ]; then
+            gh api "repos/${{ github.repository }}/statuses/${NEW_SHA}" \
+              -f state=success \
+              -f context=ci-pass \
+              -f description="Version Packages PR — source already verified on main"
+          fi
+
+      # A push to main with no pending changesets happens both right after merging the Version
+      # Packages PR (a real release) and on any ordinary no-changeset PR merge (docs/chore/
+      # tooling). Comparing the local version against what's actually live on npm tells the two
+      # apart, so the `publish` job's release-gate approval only ever pauses for a genuine
+      # release, never for an unrelated merge.
+      - name: Check whether the current version is unpublished
+        id: publish-check
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: |
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(npm view @adrianhall/cloudflare-toolkit version 2>/dev/null || echo "")
+          echo "local version: $LOCAL_VERSION / published version: $PUBLISHED_VERSION"
+          if [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Publishes to npm using OIDC Trusted Publishing (no NPM_TOKEN anywhere). Gated by the
+  # `release-gate` environment (required reviewer restricted to the repo owner, deployments
+  # restricted to main) — configured once on GitHub, not by this workflow. See RELEASING.md.
+  publish:
+    needs: version
+    if: needs.version.outputs.should-publish == 'true'
+    runs-on: ubuntu-latest
+    environment: release-gate
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false # never cache in release builds
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No pending changesets remain at this point (see the `version` job), so this invocation
+      # skips straight to detecting the unpublished version and running the publish script
+      # (`npm run build && changeset publish`, via `npm run release`). Driving the publish
+      # through changesets/action (rather than running `npm run release` as a bare step) is what
+      # also pushes the git tag and creates the GitHub Release for the new version.
+      - name: Publish to npm (OIDC Trusted Publishing)
+        id: changesets
+        uses: changesets/action@v1.9.0
+        with:
+          publish: npm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Builds and deploys the documentation site — only after a successful, non-no-op publish
+  # (§6.1: published docs must always match what's actually on npm, never a `main` HEAD that
+  # hasn't shipped). `needs.publish.result == 'success'` alone is not enough: `publish` can
+  # succeed while being a harmless no-op (nothing new to publish), so `published` must also be
+  # checked explicitly.
+  build-docs:
+    needs: publish
+    if: needs.publish.result == 'success' && needs.publish.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      # docs/ has its own package.json/lockfile (a separate dependency tree, see AGENTS.md) —
+      # installed independently of the root dependencies above.
+      - name: Install docs dependencies
+        run: npm ci
+        working-directory: docs
+
+      # Runs the TypeDoc generation step first, then `vitepress build` (docs/package.json's own
+      # "build" script) — the generated API Reference would otherwise be empty.
+      - name: Build docs (TypeDoc + VitePress)
+        run: npm run docs:build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/.vitepress/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
