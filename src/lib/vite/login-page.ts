@@ -65,7 +65,7 @@ export function renderViteLoginPage(
     label{display:block;font-size:.875rem;font-weight:500;margin-bottom:.375rem}
     .user-option{
       display:flex;align-items:center;gap:.625rem;
-      padding:.625rem .75rem;border:1px solid #d4d4d8;border-radius:8px;
+      padding:.625rem .75rem;border:1px solid #71717a;border-radius:8px;
       margin-bottom:.5rem;cursor:pointer;
     }
     .user-option:focus-within{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
@@ -74,7 +74,7 @@ export function renderViteLoginPage(
     .user-option .name{font-weight:500}
     .user-option .email{color:#52525b;font-size:.8125rem}
     input[type="email"]{
-      width:100%;padding:.625rem .75rem;border:1px solid #d4d4d8;
+      width:100%;padding:.625rem .75rem;border:1px solid #71717a;
       border-radius:8px;font-size:1rem;outline:none;
       transition:border-color .15s;
     }
