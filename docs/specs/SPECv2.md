@@ -971,3 +971,51 @@ among them) both pass unchanged under the new config, confirming `hono`/`vite`/`
 `node_modules` package on purpose — at which point that package would be added to
 `deps.onlyBundle`'s array explicitly, with a comment explaining why, rather than reaching back for
 an unconditional `neverBundle`-style external list.
+
+### 12.7 `tsdown.config.ts`'s inline rationale comments relocated here
+
+**Source:** [Issue #98](https://github.com/adrianhall/cloudflare-toolkit/issues/98), severity low,
+`Code Quality`-flavored — the file's own comments had grown long enough (roughly 50 of the file's
+78 lines) to hide the actual entry list and option map they were meant to explain.
+
+**File:** `tsdown.config.ts`
+
+**Finding:** Three non-default build options each carried a multi-sentence rationale comment
+inline, on top of an already-long `@file` header duplicating detail available elsewhere in this
+spec (§3's ESM-only decision, §5.1's subpath/export table). The comments were not wrong, but their
+volume made the file harder to scan as a config file rather than a design doc.
+
+**Resolution:** `tsdown.config.ts` now carries a short `@file` header (build purpose, entry-point
+coverage, dependency externalization) plus a one-line pointer comment on each non-obvious option,
+with the full rationale moved here:
+
+1. **ESM code-splitting cannot be disabled.** tsdown (Rolldown-based, like tsup) enables ESM
+   code-splitting by default. `guards` depends on `errors` (for `NullError`), and `logging`
+   depends on `guards` (for `valueOrDefault`) — splitting extracts that shared code into one
+   common chunk every entry imports from, so a class like `NullError` has exactly one identity
+   across every built entry point. Disabling splitting would silently duplicate these classes per
+   bundle, breaking `instanceof` checks for real consumers. Confirmed empirically after migrating
+   from tsup — see `test/package/index.test.ts`'s cross-entry identity assertions and
+   [#89](https://github.com/adrianhall/cloudflare-toolkit/issues/89).
+2. **`fixedExtension: false`.** tsdown defaults `fixedExtension` to `true` when `platform` is
+   `node` (the default), forcing every output file to `.mjs`/`.d.mts` regardless of
+   `package.json#type`. This repo is `"type": "module"` (§3), so plain `.js`/`.d.ts` extensions
+   are already unambiguously ESM, and `package.json#exports`/`#bin`/`#main`/`#types` all reference
+   `.js`/`.d.ts` paths already. Disabling `fixedExtension` keeps the built `dist/` shape identical
+   to tsup's (which always used `.js`/`.d.ts`) instead of requiring a matching `package.json`
+   rewrite.
+3. **`dts: true` needs no `compilerOptions` workaround.** tsup's dts build step
+   (`rollup-plugin-dts`) unconditionally injected a `baseUrl` into the compiler options it handed
+   to TypeScript, which TypeScript 6.0.3 (§2.3) raised as error TS5101 (a deprecated-option error)
+   — worked around there with a `dts.compilerOptions.ignoreDeprecations` override. tsdown's
+   declaration generation goes through `rolldown-plugin-dts`, a different code path that does not
+   inject `baseUrl`; confirmed empirically by building against this repo's pinned
+   `typescript@^6.0.3` with no `compilerOptions` override at all and no TS5101.
+
+`sourcemap: true` and `deps.onlyBundle: []` are not repeated here — their rationale already lives
+at §5.4 and §12.6 respectively, and `tsdown.config.ts` points at those sections directly instead
+of duplicating them.
+
+**Revisit if:** tsdown changes its code-splitting, `fixedExtension`, or dts-generation defaults in
+a future major version — re-verify each numbered point above against the new behavior before
+trusting this entry.
