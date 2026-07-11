@@ -24,6 +24,7 @@ import type { PathPolicy } from "../auth-internal/types.js";
 import { createLogger } from "../logging/logger.js";
 import { createSilentTransport } from "../logging/transports/silent.js";
 import type { Logger } from "../logging/types.js";
+import { buildProblemResponse, normalizeProblemDetails } from "../problem-details/utils.js";
 import type { AuthVariables } from "./types.js";
 
 /**
@@ -124,6 +125,21 @@ function createDefaultLogger(): Logger {
 }
 
 /**
+ * Build a `401 Unauthorized` RFC 9457 `application/problem+json` response, matching the shape
+ * `problemDetailsErrorHandler` (`./error-handler.js`) and `notFoundHandler` (`./not-found-handler.js`)
+ * produce. Built directly via `../problem-details/utils.js` rather than by throwing
+ * `unauthorized()` (`@adrianhall/cloudflare-toolkit/errors`), so `cloudflareAccess` returns the
+ * correct shape even when a consumer hasn't wired `app.onError(problemDetailsErrorHandler())` —
+ * every piece of `/hono` middleware is wired independently (no combined/coordinator middleware).
+ *
+ * @param detail - Human-readable explanation for this specific 401 occurrence.
+ * @returns The resulting `Response`.
+ */
+function unauthorizedResponse(detail: string): Response {
+  return buildProblemResponse(normalizeProblemDetails({ status: 401, detail }));
+}
+
+/**
  * Attempt to verify a JWT.
  *
  * When `enableDevTokens` is `true`, the dev (HS256) secret is tried first as a fast in-process
@@ -175,6 +191,10 @@ async function verifyToken(
  * | `authenticate: false`  | Bypass — skip JWT validation entirely.       |
  * | `authenticate: true`   | Require — valid JWT or 401.                  |
  * | No matching policy      | Controlled by `defaultAction` (see below).   |
+ *
+ * Every `401` this middleware returns is an RFC 9457 `application/problem+json` response
+ * (`{ type, status, title, detail }`), matching `problemDetailsErrorHandler` and
+ * `notFoundHandler`'s conventions.
  *
  * **`defaultAction`** (applies when no policy matches):
  *
@@ -283,7 +303,7 @@ export function cloudflareAccess(
     if (!token) {
       if (authRequired) {
         log.warn("No JWT found in header or cookie");
-        return c.json({ error: "Authentication required" }, 401);
+        return unauthorizedResponse("Authentication required");
       }
       // Optional auth — no token, continue without user info.
       log.debug("No JWT - continuing (bypass)", { pathname });
@@ -313,7 +333,7 @@ export function cloudflareAccess(
     // -----------------------------------------------------------------
     if (authRequired) {
       log.warn("JWT verification failed");
-      return c.json({ error: "Invalid or expired token" }, 401);
+      return unauthorizedResponse("Invalid or expired token");
     }
 
     // Optional auth — bad token, continue without user info.
