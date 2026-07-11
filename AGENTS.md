@@ -144,7 +144,8 @@ src/
                                     # requires hono; depends on auth-internal + logging + problem-details
     vite/
       index.ts plugin.ts login-page.ts
-                                    # requires vite; Node-only; depends on auth-internal
+                                    # requires vite; Node-only; depends on auth-internal + errors +
+                                    # problem-details
     auth-internal/
       jwt.ts jwks.ts policy.ts types.ts
                                     # shared by hono/cloudflare-access.ts AND vite/plugin.ts — Worker-safe

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   badRequest,
+  contentTooLarge,
   forbidden,
   gone,
   internalServerError,
@@ -28,6 +29,7 @@ const GENERATORS: [
   ["notFound", notFound, 404, "Not Found"],
   ["methodNotAllowed", methodNotAllowed, 405, "Method Not Allowed"],
   ["gone", gone, 410, "Gone"],
+  ["contentTooLarge", contentTooLarge, 413, "Content Too Large"],
   ["unsupportedMediaType", unsupportedMediaType, 415, "Unsupported Media Type"],
   ["unprocessableContent", unprocessableContent, 422, "Unprocessable Content"],
   ["internalServerError", internalServerError, 500, "Internal Server Error"],

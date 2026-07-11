@@ -13,6 +13,11 @@
  * `hono/cloudflare-access.ts` also consumes — so a session created here is accepted there
  * without any duplicated verification logic (proved end-to-end in
  * `test/node/vite/handshake.test.ts`).
+ *
+ * Also depends on `../errors/generators.js` (`contentTooLarge`) and
+ * `../problem-details/error.js` (`ProblemDetailsError`) so an oversized login-form POST body
+ * (see `readFormBody`) is rejected with a standard `application/problem+json` response, the same
+ * shape every other error in this toolkit produces — CODE-008.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Connect, Plugin } from "vite";
@@ -28,6 +33,8 @@ import {
 } from "../auth-internal/jwt.js";
 import { matchPolicy } from "../auth-internal/policy.js";
 import type { PathPolicy } from "../auth-internal/types.js";
+import { contentTooLarge } from "../errors/generators.js";
+import { ProblemDetailsError } from "../problem-details/error.js";
 import { renderViteLoginPage, type DevLoginUser } from "./login-page.js";
 
 // ---------------------------------------------------------------------------
@@ -220,7 +227,16 @@ export function createAccessDevMiddleware(
   }
 
   async function handleLoginSubmit(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await readFormBody(req);
+    let body: Record<string, string>;
+    try {
+      body = await readFormBody(req);
+    } catch (err) {
+      if (err instanceof ProblemDetailsError) {
+        await sendProblemDetails(res, err);
+        return;
+      }
+      throw err;
+    }
     const custom = typeof body["custom-email"] === "string" ? body["custom-email"].trim() : "";
     const selected = typeof body.email === "string" ? body.email.trim() : "";
     const email = custom || selected;
@@ -356,11 +372,37 @@ function headerValue(req: IncomingMessage, name: string): string | undefined {
   return value ?? undefined;
 }
 
-/** Read and parse an `application/x-www-form-urlencoded` request body. */
+/**
+ * Maximum accumulated size, in bytes, accepted for the dev login form's
+ * `application/x-www-form-urlencoded` POST body by {@link readFormBody}. The form only ever
+ * posts a handful of small fields (`email`, `custom-email`, `redirect`), so 64 KiB is a generous
+ * safety cap against an unbounded read — not a real-world limit — see CODE-008.
+ */
+const MAX_FORM_BODY_BYTES = 64 * 1024;
+
+/**
+ * Read and parse an `application/x-www-form-urlencoded` request body, capped at
+ * {@link MAX_FORM_BODY_BYTES}. Rejects with a `413 Content Too Large`
+ * {@link ProblemDetailsError} (via `contentTooLarge`) once the cap is exceeded, after destroying
+ * the underlying stream so no further data is buffered.
+ */
 function readFormBody(req: IncomingMessage): Promise<Record<string, string>> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let receivedBytes = 0;
+    req.on("data", (chunk: Buffer) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > MAX_FORM_BODY_BYTES) {
+        req.destroy();
+        reject(
+          contentTooLarge({
+            detail: `The request body exceeded the maximum allowed size of ${MAX_FORM_BODY_BYTES} bytes.`
+          })
+        );
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("error", reject);
     req.on("end", () => {
       const raw = Buffer.concat(chunks).toString("utf8");
@@ -394,6 +436,19 @@ function redirectTo(res: ServerResponse, location: string): void {
   res.statusCode = 302;
   res.setHeader("Location", location);
   res.end();
+}
+
+/**
+ * Write a {@link ProblemDetailsError}'s standalone `application/problem+json` {@link Response}
+ * (`error.getResponse()`) onto a raw Node `ServerResponse`. This connect middleware has no Hono
+ * `Context` to hand the error to, so the Web `Response` it produces is adapted by hand here
+ * rather than reusing `problemDetailsErrorHandler` (`@adrianhall/cloudflare-toolkit/hono`).
+ */
+async function sendProblemDetails(res: ServerResponse, error: ProblemDetailsError): Promise<void> {
+  const response = error.getResponse();
+  res.statusCode = response.status;
+  response.headers.forEach((value, key) => res.setHeader(key, value));
+  res.end(await response.text());
 }
 
 function redirectToLogin(res: ServerResponse, loginPath: string, pathname: string): void {

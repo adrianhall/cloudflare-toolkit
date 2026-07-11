@@ -6,6 +6,7 @@
  */
 export {
   badRequest,
+  contentTooLarge,
   forbidden,
   gone,
   internalServerError,

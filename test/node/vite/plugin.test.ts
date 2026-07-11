@@ -327,6 +327,27 @@ describe("login submit", () => {
     expect(result.nextCalled).toBe(true);
     expect(result.nextErr).toBeInstanceOf(Error);
   });
+
+  it("returns a 413 problem+json response when the body exceeds the size cap (CODE-008)", async () => {
+    const big = "a".repeat(70 * 1024); // exceeds the 64 KiB cap in a single chunk
+    const body = new URLSearchParams({ "custom-email": big }).toString();
+    const req = makeReq({
+      url: "/cdn-cgi/access/login",
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const res = makeRes();
+    const result = await invoke({}, req, res);
+
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(413);
+    expect(res._headers["content-type"]).toContain("application/problem+json");
+    const problem = JSON.parse(res._body ?? "{}");
+    expect(problem.status).toBe(413);
+    expect(problem.title).toBe("Content Too Large");
+    expect(problem.detail).toContain("exceeded the maximum allowed size");
+  });
 });
 
 // ---------------------------------------------------------------------------
