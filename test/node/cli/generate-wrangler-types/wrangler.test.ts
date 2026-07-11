@@ -19,13 +19,13 @@ function makeCapturingExecRunner(): {
   calls: Array<{
     command: string;
     args: string[];
-    options: { cwd: string; shell: boolean };
+    options: { cwd: string };
   }>;
 } {
   const calls: Array<{
     command: string;
     args: string[];
-    options: { cwd: string; shell: boolean };
+    options: { cwd: string };
   }> = [];
   const runner: ExecRunner = async (command, args, options) => {
     calls.push({ command, args, options });
@@ -79,13 +79,28 @@ describe("createWranglerRunner", () => {
       expect(calls[0].options.cwd).toBe("/my/project/dir");
     });
 
-    it("sets shell: true for Windows compatibility", async () => {
+    // SEC-002: no `shell` option is ever passed to the exec runner — `defaultExecRunner` spawns
+    // via `cross-spawn`, which resolves Windows `.cmd` shims and quotes arguments internally
+    // instead of relying on an unescaped `shell: true` string.
+    it("never requests an unescaped shell from the exec runner", async () => {
       const { runner, calls } = makeCapturingExecRunner();
       const wrangler = createWranglerRunner(runner);
 
       await wrangler.runTypes("out.d.ts", [], "/project");
 
-      expect(calls[0].options.shell).toBe(true);
+      expect(calls[0].options).not.toHaveProperty("shell");
+    });
+
+    it("passes outputPath and extraArgs containing shell metacharacters through untouched", async () => {
+      // A value like this would be interpreted as separate shell commands / expansions if ever
+      // handed to a shell unescaped. It must arrive as a single, literal argv element.
+      const malicious = "x; rm -rf ~ && echo $(whoami) | tee /tmp/pwned `id` > out";
+      const { runner, calls } = makeCapturingExecRunner();
+      const wrangler = createWranglerRunner(runner);
+
+      await wrangler.runTypes(malicious, [malicious], "/project");
+
+      expect(calls[0].args).toEqual(["wrangler", "types", malicious, malicious]);
     });
   });
 
@@ -169,8 +184,7 @@ describe("createWranglerRunner", () => {
 describe("defaultExecRunner (real process integration)", () => {
   it("resolves with exit code 0 and captured stdout", async () => {
     const result = await defaultExecRunner("node", ["-e", "process.stdout.write('hello stdout')"], {
-      cwd: process.cwd(),
-      shell: false
+      cwd: process.cwd()
     });
 
     expect(result.exitCode).toBe(0);
@@ -182,7 +196,7 @@ describe("defaultExecRunner (real process integration)", () => {
     const result = await defaultExecRunner(
       "node",
       ["-e", "process.stderr.write('hello stderr'); process.exit(2)"],
-      { cwd: process.cwd(), shell: false }
+      { cwd: process.cwd() }
     );
 
     expect(result.exitCode).toBe(2);
@@ -193,7 +207,7 @@ describe("defaultExecRunner (real process integration)", () => {
     const result = await defaultExecRunner(
       "node",
       ["-e", "process.stdout.write('a'); process.stdout.write('b')"],
-      { cwd: process.cwd(), shell: false }
+      { cwd: process.cwd() }
     );
 
     expect(result.stdout).toBe("ab");
@@ -202,9 +216,29 @@ describe("defaultExecRunner (real process integration)", () => {
   it("rejects when the command cannot be spawned (real ENOENT)", async () => {
     await expect(
       defaultExecRunner("cloudflare-toolkit-definitely-not-a-real-binary", [], {
-        cwd: process.cwd(),
-        shell: false
+        cwd: process.cwd()
       })
     ).rejects.toThrow();
+  });
+
+  // -------------------------------------------------------------------------
+  // SEC-002 regression — no shell interpretation of arguments
+  // -------------------------------------------------------------------------
+
+  it("passes an argument containing shell metacharacters through as a single literal value, never interpreted by a shell", async () => {
+    // Each of these metacharacters would trigger command substitution, piping, redirection, or
+    // command chaining if this string were ever handed to a shell unescaped. The child process
+    // below echoes back its raw argv so we can assert the value arrived byte-for-byte intact —
+    // proof that no shell ever parsed it.
+    const malicious = "; echo pwned && $(whoami) | tee /tmp/cloudflare-toolkit-sec-002 `id` > out";
+
+    const result = await defaultExecRunner(
+      "node",
+      ["-e", "process.stdout.write(JSON.stringify(process.argv.slice(1)))", malicious],
+      { cwd: process.cwd() }
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual([malicious]);
   });
 });

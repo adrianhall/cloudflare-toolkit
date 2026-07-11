@@ -4,10 +4,20 @@
  * a stub without spawning a real process.
  *
  * The real implementation spawns `npx wrangler types <outputPath> [extraArgs]` in the given
- * working directory and captures stdout/stderr for logging. `shell: true` is required on Windows
- * where `npx` is a `.cmd` file.
+ * working directory and captures stdout/stderr for logging.
+ *
+ * `outputPath` (attacker-influenceable via `-o/--output`) and `extraArgs` (everything after a
+ * `--` separator, forwarded verbatim) are never passed to a shell for interpretation — see
+ * SEC-002 (https://github.com/adrianhall/cloudflare-toolkit/issues/47). Process spawning goes
+ * through `cross-spawn` instead of `node:child_process.spawn`'s own `shell: true` option: on
+ * POSIX it spawns the target binary directly with no shell involved at all, and on Windows it
+ * resolves the `npx`/`wrangler` shim's actual `.cmd` file and safely quotes each argument for
+ * `cmd.exe` itself, rather than handing it a single, unescaped, attacker-influenceable command
+ * line. A value like `--output "x;rm -rf ~"` is therefore passed through as one literal argv
+ * element, not interpreted as shell syntax.
  */
-import { spawn } from "node:child_process";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import spawn from "cross-spawn";
 import type { WranglerResult, WranglerRunner } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -21,7 +31,7 @@ import type { WranglerResult, WranglerRunner } from "./types.js";
 export type ExecRunner = (
   command: string,
   args: string[],
-  options: { cwd: string; shell: boolean }
+  options: { cwd: string }
 ) => Promise<WranglerResult>;
 
 // ---------------------------------------------------------------------------
@@ -29,32 +39,37 @@ export type ExecRunner = (
 // ---------------------------------------------------------------------------
 
 /**
- * The default {@link ExecRunner} that spawns a real child process.
+ * The default {@link ExecRunner} that spawns a real child process via `cross-spawn`.
  *
- * Captures stdout and stderr as strings. Uses `shell: true` for Windows compatibility (npx is a
- * .cmd file on Windows).
+ * Captures stdout and stderr as strings. `cross-spawn` resolves Windows `.cmd`/`.bat` shims
+ * (e.g. `npx.cmd`) and safely quotes arguments for `cmd.exe` when unavoidable, without ever
+ * handing `command`/`args` to a shell as an unescaped, concatenated string (SEC-002).
  *
  * Exported for direct testing of the real spawn path.
  *
  * @param command - The executable to spawn (always `"npx"` in practice).
  * @param args - Arguments passed to `command`.
- * @param options - Options forwarded to `node:child_process`'s `spawn`.
+ * @param options - Options forwarded to `cross-spawn`.
  * @param options.cwd - Working directory for the spawned process.
- * @param options.shell - Whether to run the command through a shell (required on Windows).
  * @returns The process result including exit code and captured output.
  * @throws If the process cannot be spawned (e.g. ENOENT).
  */
 export async function defaultExecRunner(
   command: string,
   args: string[],
-  options: { cwd: string; shell: boolean }
+  options: { cwd: string }
 ): Promise<WranglerResult> {
   return new Promise((resolve, reject) => {
+    // `cross-spawn`'s type declarations expose the generic `child_process.SpawnOptions`
+    // signature rather than Node's own stdio-tuple-narrowed overloads, so TypeScript sees
+    // `stdout`/`stderr` below as possibly `null`. The `["ignore", "pipe", "pipe"]` tuple
+    // guarantees both are real `Readable` streams at runtime — Node's own `spawn`
+    // implementation (which `cross-spawn` delegates to) never omits a stream for a `"pipe"`
+    // stdio element — so this cast restores that guarantee for the type checker.
     const child = spawn(command, args, {
       cwd: options.cwd,
-      shell: options.shell,
       stdio: ["ignore", "pipe", "pipe"]
-    });
+    }) as ChildProcessWithoutNullStreams;
 
     let stdout = "";
     let stderr = "";
@@ -85,7 +100,7 @@ export async function defaultExecRunner(
  * Creates a {@link WranglerRunner} that executes `npx wrangler types` as a real child process.
  *
  * @param execRunner - Optional override for the process spawner. When omitted, the default
- *   Node.js `child_process.spawn` wrapper is used. Inject a stub in tests.
+ *   `cross-spawn`-backed wrapper is used. Inject a stub in tests.
  * @returns A {@link WranglerRunner} implementation.
  */
 export function createWranglerRunner(execRunner?: ExecRunner): WranglerRunner {
@@ -94,7 +109,7 @@ export function createWranglerRunner(execRunner?: ExecRunner): WranglerRunner {
   return {
     async runTypes(outputPath: string, extraArgs: string[], cwd: string): Promise<WranglerResult> {
       const args = ["wrangler", "types", outputPath, ...extraArgs];
-      return exec("npx", args, { cwd, shell: true });
+      return exec("npx", args, { cwd });
     }
   };
 }
