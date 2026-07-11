@@ -54,6 +54,11 @@ use every export in this package:
 npx skills add adrianhall/cloudflare-toolkit
 ```
 
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the PR/changeset/release process, and
+[`AGENTS.md`](./AGENTS.md) for engineering conventions.
+
 ## License
 
 [MIT](./LICENSE)
