@@ -2,7 +2,7 @@
 
 This package vendors (copies source into this repository, rather than depending on) code from
 third-party, MIT-licensed projects. This notice preserves the required copyright/license
-attribution for that vendored code, per docs/SPECv2.md §5.4.
+attribution for that vendored code, per docs/specs/SPECv2.md §5.4.
 
 ## `src/lib/problem-details/`
 
@@ -24,7 +24,7 @@ comment, not a source-attribution header.
 
 Only the Hono-free core primitives were ported. The `zod`/`valibot`/`openapi`/`standard-schema`/
 `opentelemetry` integrations, and the Hono-specific `problemDetailsHandler`, were intentionally
-**not** ported into this subpath — see docs/SPECv2.md §5.4. The Hono-specific handler is instead
+**not** ported into this subpath — see docs/specs/SPECv2.md §5.4. The Hono-specific handler is instead
 vendored separately, directly below.
 
 ## `src/lib/hono/error-handler.ts`
@@ -38,15 +38,15 @@ license as above:
 - Itself a fork of [`paveg/hono-problem-details`](https://github.com/paveg/hono-problem-details) —
   MIT License, Copyright (c) 2026 hono-problem-details contributors.
 
-It is a **direct re-export**, not a toolkit-authored wrapper (docs/SPECv2.md §5.4/§5.5, §9) — the
+It is a **direct re-export**, not a toolkit-authored wrapper (docs/specs/SPECv2.md §5.4/§5.5, §9) — the
 only change beyond the rename is dropping the `otelApi` option and its backing
 `integrations/opentelemetry.ts` file, since the opentelemetry integration (along with
-`zod`/`valibot`/`openapi`/`standard-schema`) is explicitly out of scope for v1 (docs/SPECv2.md
+`zod`/`valibot`/`openapi`/`standard-schema`) is explicitly out of scope for v1 (docs/specs/SPECv2.md
 §5.4). It shares the Hono-free primitives above (`statusToPhrase`, `buildProblemResponse`, etc.)
 rather than duplicating them.
 
 `notFoundHandler` in the same directory has no vendored equivalent — it is toolkit-authored (see
-docs/SPECv2.md §5.5) and is not covered by this notice.
+docs/specs/SPECv2.md §5.5) and is not covered by this notice.
 
 ### MIT License text
 
