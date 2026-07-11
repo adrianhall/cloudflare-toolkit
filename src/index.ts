@@ -11,6 +11,7 @@ export { sqlCount, throwIfNull, valueOrDefault } from "./lib/guards/index.js";
 
 export {
   badRequest,
+  contentTooLarge,
   forbidden,
   gone,
   internalServerError,

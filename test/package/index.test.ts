@@ -17,6 +17,7 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "notFound",
   "methodNotAllowed",
   "gone",
+  "contentTooLarge",
   "unsupportedMediaType",
   "unprocessableContent",
   "internalServerError",
@@ -47,9 +48,9 @@ describe("dist/index.js — root barrel exports", () => {
     expect(typeof root[name]).toBe("function");
   });
 
-  it("exports exactly the 30 documented runtime symbols (guards + errors + problem-details + logging)", () => {
+  it("exports exactly the 31 documented runtime symbols (guards + errors + problem-details + logging)", () => {
     expect(Object.keys(root).sort()).toStrictEqual([...EXPECTED_RUNTIME_EXPORTS].sort());
-    expect(Object.keys(root)).toHaveLength(30);
+    expect(Object.keys(root)).toHaveLength(31);
   });
 
   it("does not leak hono/vite/testing symbols", () => {
