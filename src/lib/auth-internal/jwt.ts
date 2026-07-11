@@ -83,7 +83,7 @@ function generateDevSub(): string {
  *
  * @param email - The user's email address (becomes the `email` claim).
  * @param options - Optional overrides.
- * @param options.secret - HMAC signing secret (default {@link DEFAULT_DEV_SECRET}).
+ * @param options.secret - HMAC signing secret (default `DEFAULT_DEV_SECRET`).
  * @param options.lifetime - Token lifetime in seconds (default `86400` / 24 h).
  * @param options.sub - Subject claim. When provided it is used **verbatim**; when omitted a
  *   random UUID is generated (matching the shape of a real Cloudflare Access `sub`) instead of
