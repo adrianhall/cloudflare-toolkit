@@ -35,29 +35,50 @@ const TEAM_DOMAIN_HOST_PATTERN = /^[a-z0-9-]+\.cloudflareaccess\.com$/;
 const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 /**
- * Return (or create-and-cache) a remote JWKS function for the given Cloudflare Access team
- * domain.
+ * Normalize and validate a Cloudflare Access team domain to its canonical `https://` origin.
+ *
+ * Used both to build the JWKS certs URL in {@link getRemoteJwks} and to compute the expected
+ * `iss` (Issuer) claim value for `jwtVerify` in `verifyAccessJwt` (SEC-003) — a single shared
+ * implementation keeps the two in permanent agreement instead of risking two independent
+ * normalizations drifting apart.
  *
  * @param teamDomain - The Cloudflare Access team domain (e.g. `"my-team.cloudflareaccess.com"`).
  *   A missing `https://` prefix is added automatically, and a trailing slash is stripped, so
  *   `"my-team.cloudflareaccess.com"`, `"my-team.cloudflareaccess.com/"`, and
- *   `"https://my-team.cloudflareaccess.com"` all resolve to the same cache entry.
- * @returns The `jose` remote JWK set function for `${teamDomain}/cdn-cgi/access/certs`, cached
- *   across calls for the same normalized domain.
+ *   `"https://my-team.cloudflareaccess.com"` all normalize to the same origin.
+ * @returns The canonical origin, e.g. `"https://my-team.cloudflareaccess.com"` — no trailing
+ *   slash, no path.
  * @throws {Error} If `teamDomain` has an explicit non-`https://` scheme (see {@link ensureHttps}),
  *   or if the resulting hostname is not a `*.cloudflareaccess.com` team domain — closing off both
  *   the malformed-URL footgun and the SSRF/JWKS-poisoning surface of a dynamically-sourced
  *   `teamDomain` pointing somewhere unexpected.
  */
-export function getRemoteJwks(teamDomain: string): ReturnType<typeof createRemoteJWKSet> {
+export function normalizeTeamDomain(teamDomain: string): string {
   // Normalise: strip trailing slash, ensure https prefix.
   const base = teamDomain.replace(/\/+$/, "");
   const url = ensureHttps(base);
-  const certsUrl = new URL(`${url}/cdn-cgi/access/certs`);
+  const parsed = new URL(url);
 
-  if (!TEAM_DOMAIN_HOST_PATTERN.test(certsUrl.hostname)) {
+  if (!TEAM_DOMAIN_HOST_PATTERN.test(parsed.hostname)) {
     throw new Error(`Invalid Cloudflare Access team domain: "${teamDomain}"`);
   }
+
+  return parsed.origin;
+}
+
+/**
+ * Return (or create-and-cache) a remote JWKS function for the given Cloudflare Access team
+ * domain.
+ *
+ * @param teamDomain - The Cloudflare Access team domain. See {@link normalizeTeamDomain} for the
+ *   accepted input forms and normalization rules.
+ * @returns The `jose` remote JWK set function for `${teamDomain}/cdn-cgi/access/certs`, cached
+ *   across calls for the same normalized domain.
+ * @throws {Error} See {@link normalizeTeamDomain}.
+ */
+export function getRemoteJwks(teamDomain: string): ReturnType<typeof createRemoteJWKSet> {
+  const origin = normalizeTeamDomain(teamDomain);
+  const certsUrl = new URL(`${origin}/cdn-cgi/access/certs`);
 
   let jwks = jwksCache.get(certsUrl.href);
   if (!jwks) {

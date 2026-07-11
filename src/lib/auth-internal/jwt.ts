@@ -10,7 +10,7 @@
 import { SignJWT, jwtVerify, errors as joseErrors } from "jose";
 import type { JWTPayload } from "jose";
 import type { AccessJwtPayload } from "./types.js";
-import { getRemoteJwks } from "./jwks.js";
+import { getRemoteJwks, normalizeTeamDomain } from "./jwks.js";
 import type { Logger } from "../logging/types.js";
 
 // ---------------------------------------------------------------------------
@@ -175,6 +175,14 @@ function classifyVerificationFailure(err: unknown): "network" | "invalid" {
 /**
  * Verify a JWT against Cloudflare Access's remote JWKS endpoint.
  *
+ * The `iss` (Issuer) claim is always verified against the normalized `teamDomain` (e.g.
+ * `"https://my-team.cloudflareaccess.com"`, via {@link normalizeTeamDomain}) — SEC-003. This is
+ * defense-in-depth: the JWKS itself is already team-scoped (fetched from
+ * `teamDomain/cdn-cgi/access/certs`), so a token signed by a different team's key would already
+ * fail signature verification, but binding `iss` explicitly matches Cloudflare's own published
+ * Worker+Access reference implementation and requires the presence of the `iss` claim, so a
+ * token without one is rejected too.
+ *
  * When `audience` is provided the `aud` claim is also verified. **When `audience` is omitted,
  * `aud` is not checked at all** — because every Cloudflare Access application in an account
  * shares the same team JWKS, this means a token minted for *any other Access application in the
@@ -192,7 +200,8 @@ function classifyVerificationFailure(err: unknown): "network" | "invalid" {
  * token without changing the fail-closed `null` return contract.
  *
  * @param token - The compact JWS to verify.
- * @param teamDomain - The Cloudflare Access team domain used to fetch the public JWKS.
+ * @param teamDomain - The Cloudflare Access team domain used to fetch the public JWKS and to
+ *   compute the expected `iss` claim value (see {@link normalizeTeamDomain}).
  * @param audience - Application Audience Tag to verify the `aud` claim against. When omitted,
  *   `aud` is not checked at all — see the security remarks above.
  * @param logger - Optional structured logger. When omitted, verification failures are still
@@ -207,7 +216,8 @@ export async function verifyAccessJwt(
   try {
     const jwks = getRemoteJwks(teamDomain);
     const { payload } = await jwtVerify(token, jwks, {
-      audience: audience ?? undefined
+      audience: audience ?? undefined,
+      issuer: normalizeTeamDomain(teamDomain)
     });
     return extractClaims(payload);
   } catch (err) {

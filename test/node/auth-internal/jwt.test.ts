@@ -232,6 +232,9 @@ describe("JWT utilities", () => {
   // -----------------------------------------------------------------------
 
   describe("verifyAccessJwt", () => {
+    /** Canonical expected `iss` claim value for the `"test.cloudflareaccess.com"` team domain. */
+    const EXPECTED_ISSUER = "https://test.cloudflareaccess.com";
+
     it("verifies a JWT signed with a key from the remote JWKS", async () => {
       const { publicKey, privateKey } = await generateKeyPair("RS256");
       const publicJwk = await exportJWK(publicKey);
@@ -246,6 +249,7 @@ describe("JWT utilities", () => {
 
       const token = await new SignJWT({ email: "access@cloudflare.com", sub: "cf-user-123" })
         .setProtectedHeader({ alg: "RS256" })
+        .setIssuer(EXPECTED_ISSUER)
         .setIssuedAt()
         .setExpirationTime("1h")
         .sign(privateKey);
@@ -269,6 +273,7 @@ describe("JWT utilities", () => {
       const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
         .setProtectedHeader({ alg: "RS256" })
         .setAudience("my-app-aud")
+        .setIssuer(EXPECTED_ISSUER)
         .setIssuedAt()
         .setExpirationTime("1h")
         .sign(privateKey);
@@ -280,6 +285,83 @@ describe("JWT utilities", () => {
       // Wrong audience → null.
       const bad = await verifyAccessJwt(token, "test.cloudflareaccess.com", "wrong-aud");
       expect(bad).toBeNull();
+    });
+
+    // -----------------------------------------------------------------------
+    // SEC-003: `iss` (Issuer) claim must be bound to the team domain
+    // -----------------------------------------------------------------------
+
+    describe("issuer validation (SEC-003)", () => {
+      it("returns null when the token has no iss claim at all", async () => {
+        const { publicKey, privateKey } = await generateKeyPair("RS256");
+        const publicJwk = await exportJWK(publicKey);
+        publicJwk.alg = "RS256";
+
+        const localJwks = createLocalJWKSet({ keys: [publicJwk] }) as ReturnType<
+          typeof getRemoteJwks
+        >;
+        vi.mocked(getRemoteJwks).mockReturnValue(localJwks);
+
+        // Deliberately omit .setIssuer(...) — a correctly-signed token with no `iss` claim.
+        const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
+          .setProtectedHeader({ alg: "RS256" })
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com");
+        expect(result).toBeNull();
+      });
+
+      it("returns null when the iss claim does not match the expected team domain (cross-team token replay)", async () => {
+        const { publicKey, privateKey } = await generateKeyPair("RS256");
+        const publicJwk = await exportJWK(publicKey);
+        publicJwk.alg = "RS256";
+
+        const localJwks = createLocalJWKSet({ keys: [publicJwk] }) as ReturnType<
+          typeof getRemoteJwks
+        >;
+        vi.mocked(getRemoteJwks).mockReturnValue(localJwks);
+
+        const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
+          .setProtectedHeader({ alg: "RS256" })
+          .setIssuer("https://a-different-team.cloudflareaccess.com")
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com");
+        expect(result).toBeNull();
+      });
+
+      it("logs a warn with cause 'invalid' when the iss claim is mismatched", async () => {
+        const { publicKey, privateKey } = await generateKeyPair("RS256");
+        const publicJwk = await exportJWK(publicKey);
+        publicJwk.alg = "RS256";
+
+        const localJwks = createLocalJWKSet({ keys: [publicJwk] }) as ReturnType<
+          typeof getRemoteJwks
+        >;
+        vi.mocked(getRemoteJwks).mockReturnValue(localJwks);
+
+        const token = await new SignJWT({ email: "a@b.com", sub: "u1" })
+          .setProtectedHeader({ alg: "RS256" })
+          .setIssuer("https://a-different-team.cloudflareaccess.com")
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(privateKey);
+
+        const capture = createCaptureTransport();
+        const logger = createLogger({ transport: capture, level: "trace" });
+
+        const result = await verifyAccessJwt(token, "test.cloudflareaccess.com", undefined, logger);
+
+        expect(result).toBeNull();
+        const warnings = capture.find("warn");
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]!.context.cause).toBe("invalid");
+        expect(warnings[0]!.context.err).toMatchObject({ name: "JWTClaimValidationFailed" });
+      });
     });
 
     it("returns null when the signature does not match the JWKS (wrong signature)", async () => {
