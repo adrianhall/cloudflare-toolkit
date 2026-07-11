@@ -5,7 +5,9 @@ distinct from `skills/cloudflare-toolkit/SKILL.md` (the installable Agent Skill,
 adrianhall/cloudflare-toolkit`), which teaches _consumers_ how to use the published package. This
 file teaches _contributors_ how the toolkit's own repository is built, tested, and structured. The
 authoritative engineering contract is [`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md); this file captures the
-conventions and quality gates that are easy to miss.
+conventions and quality gates that are easy to miss. For the _process_ side of contributing —
+when a PR needs a changeset and what merging the automated "Version Packages" PR actually
+triggers — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) instead.
 
 [`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md) §12 ("Known and Accepted Issues") is a living
 record of architecture/code-review findings that were evaluated and explicitly accepted rather
@@ -121,7 +123,10 @@ else under `src/` is measured.
 
 ```text
 README.md                          # npm/GitHub landing page — short quickstart, links to the docs site
+CONTRIBUTING.md                    # changeset requirement + release-process/governance notes
 THIRD-PARTY-NOTICES.md             # required MIT attribution for vendored problem-details code (see below)
+.changeset/                        # @changesets/cli scaffold (config.json, README.md, and one .md
+                                    # file per pending changeset — see CONTRIBUTING.md)
 src/
   index.ts                         # root barrel: guards + errors + problem-details + logging ONLY
   lib/
