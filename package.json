@@ -1,6 +1,6 @@
 {
   "name": "@adrianhall/cloudflare-toolkit",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform",
   "keywords": [
     "cloudflare",
