@@ -24,6 +24,7 @@ import type { PathPolicy } from "../auth-internal/types.js";
 import { createLogger } from "../logging/logger.js";
 import { createSilentTransport } from "../logging/transports/silent.js";
 import type { Logger } from "../logging/types.js";
+import type { AuthVariables } from "./types.js";
 
 /**
  * Worker binding read by {@link cloudflareAccess} when `options.teamDomain` is not supplied.
@@ -186,7 +187,10 @@ async function verifyToken(
  * "fail-closed" describe block in `test/workers/hono/cloudflare-access.test.ts`.
  * @param options - Options controlling path policies, the default action for unmatched paths,
  * the Cloudflare Access team domain/audience, dev-token verification, and the logger.
- * @returns A Hono `MiddlewareHandler`.
+ * @returns A Hono `MiddlewareHandler` parameterised with {@link AuthVariables}, so
+ * `c.set("userEmail", …)`/`c.set("userSub", …)` inside this middleware — and `c.get("userEmail")`/
+ * `c.get("userSub")` in a consumer's own handlers once composed via `app.use(...)` — are
+ * statically checked against {@link AuthVariables} rather than accepted as untyped magic strings.
  * @example
  * ```ts
  * import { Hono } from "hono";
@@ -197,7 +201,9 @@ async function verifyToken(
  * app.get("/api/*", (c) => c.json({ user: c.get("userEmail") }));
  * ```
  */
-export function cloudflareAccess(options: CloudflareAccessOptions = {}): MiddlewareHandler {
+export function cloudflareAccess(
+  options: CloudflareAccessOptions = {}
+): MiddlewareHandler<{ Variables: AuthVariables }> {
   const policies = options.policies;
   const defaultAction = options.defaultAction ?? "block";
   const enableDevTokens = options.enableDevTokens ?? false;
