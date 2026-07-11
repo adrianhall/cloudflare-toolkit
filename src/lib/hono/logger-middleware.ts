@@ -12,6 +12,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { createLogger } from "../logging/logger.js";
 import { resolveLoggerConfig } from "../logging/resolve.js";
 import type { Environment, LogLevel, Logger, Transport } from "../logging/types.js";
+import type { LoggerVariables } from "./types.js";
 
 /**
  * Worker binding read by {@link cloudflareLogger} when `options.environment` is not supplied.
@@ -64,7 +65,10 @@ function resolveEnvironment(options: CloudflareLoggerOptions, c: Context): Envir
  *
  * @param options - Options controlling the environment, level, and transport used to build the
  * logger.
- * @returns A Hono `MiddlewareHandler`.
+ * @returns A Hono `MiddlewareHandler` parameterised with {@link LoggerVariables}, so
+ * `c.set("LOGGER", …)` inside this middleware — and `c.get("LOGGER")` in a consumer's own
+ * handlers once composed via `app.use(...)` — are statically checked against
+ * {@link LoggerVariables} rather than accepted as an untyped magic string.
  * @example
  * ```ts
  * import { Hono } from "hono";
@@ -79,7 +83,9 @@ function resolveEnvironment(options: CloudflareLoggerOptions, c: Context): Envir
  * });
  * ```
  */
-export function cloudflareLogger(options: CloudflareLoggerOptions = {}): MiddlewareHandler {
+export function cloudflareLogger(
+  options: CloudflareLoggerOptions = {}
+): MiddlewareHandler<{ Variables: LoggerVariables }> {
   return async (c, next) => {
     const environment = resolveEnvironment(options, c);
     const base = resolveLoggerConfig(environment, "worker");
