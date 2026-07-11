@@ -4,9 +4,11 @@ This page walks through wiring `@adrianhall/cloudflare-toolkit` into a minimal H
 Workers app, end to end: install, `wrangler.jsonc`, the Worker itself, and local dev via
 [`@cloudflare/vite-plugin`](https://developers.cloudflare.com/workers/vite-plugin/).
 
-For a deeper dive into any single piece — authentication, logging, error handling, guards, the
-CLI, or testing — see the [Guides](/guides/) section. For every exported symbol's full signature,
-see the [API Reference](/reference/).
+For a deeper dive into any single piece — [authentication](/guides/authentication),
+[logging](/guides/logging), [error handling](/guides/error-handling),
+[guards](/guides/defensive-guards), [the CLI](/guides/cli), or [testing](/guides/testing) — see
+the [Guides](/guides/) section. For every exported symbol's full signature, see the
+[API Reference](/reference/).
 
 ## Install
 
@@ -42,7 +44,7 @@ npx skills add adrianhall/cloudflare-toolkit
 
 Run `generate-wrangler-types` (installed as part of this package's `bin`) to keep a
 `worker-configuration.d.ts` in sync with this file — see the
-[`generate-wrangler-types` guide](/guides/) for the full CLI reference.
+[`generate-wrangler-types` guide](/guides/cli) for the full CLI reference.
 
 ## The Worker
 
