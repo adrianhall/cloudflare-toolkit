@@ -5,6 +5,11 @@
  * `createConsoleTransport()` supports optional ANSI color codes and configurable timestamp
  * formats.
  *
+ * `record.message` is sanitized via `sanitizeTerminalText()` (SEC-007) before it is written,
+ * escaping control/ANSI characters so caller-supplied data cannot forge additional log lines or
+ * inject terminal escape sequences when the output is later viewed in a real terminal (e.g.
+ * `wrangler tail`).
+ *
  * Level-to-method mapping:
  *   trace, debug, info  → console.log
  *   warn, error, fatal  → console.error
@@ -15,6 +20,7 @@
 import { getConsoleMethod } from "../internal/console.js";
 import type { ConsoleLike } from "../internal/console.js";
 import { safeStringify } from "../internal/safe-json.js";
+import { sanitizeTerminalText } from "../internal/sanitize.js";
 import { valueOrDefault } from "../../guards/index.js";
 import type { ConsoleTransportOptions, LogLevel, LogRecord, Transport } from "../types.js";
 
@@ -114,10 +120,12 @@ export function createConsoleTransport(
         parts.push(label);
       }
 
-      // Message.
-      parts.push(record.message);
+      // Message (sanitized — see SEC-007 note in the file header above).
+      parts.push(sanitizeTerminalText(record.message));
 
-      // Context (compact safe JSON, omitted when empty).
+      // Context (compact safe JSON, omitted when empty). `safeStringify` delegates to
+      // `JSON.stringify`, which already escapes every C0 control character (including ESC) per
+      // the JSON spec, so no additional sanitization is needed here.
       const hasContext = Object.keys(record.context).length > 0;
       if (hasContext) {
         parts.push(safeStringify(record.context));
