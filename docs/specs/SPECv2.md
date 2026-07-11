@@ -925,3 +925,49 @@ in its _observability_ posture (not just its authorization posture) — e.g. as 
 minor/major version change — at which point switching `createDefaultLogger()` to
 `createLogger(resolveLoggerConfig(undefined, "worker"))` (matching `cloudflareLogger`'s own
 production default) and updating the stale test noted above would be the concrete next step.
+
+### 12.6 Explicit `deps.neverBundle` list in `tsdown.config.ts` replaced with `deps.onlyBundle: []`
+
+**Source:** [Issue #92](https://github.com/adrianhall/cloudflare-toolkit/issues/92), severity low,
+`enhancement` label — a follow-up cleanup task from
+[#89](https://github.com/adrianhall/cloudflare-toolkit/issues/89) (the tsup → tsdown migration,
+§2.3).
+
+**File:** `tsdown.config.ts` — the `deps` build option.
+
+**Finding:** `tsdown.config.ts` carried forward `deps.neverBundle: ["hono", "vite", "jose",
+"commander", "chalk", "cross-spawn"]`, ported verbatim from `tsup.config.ts`'s old `external`
+array during #89. Per [tsdown's own docs](https://tsdown.dev/options/dependencies), tsdown already
+externalizes everything listed under `package.json`'s `dependencies`, `peerDependencies`, and
+`optionalDependencies` by default — identical semantics to tsup's own default — and all six named
+packages already live in one of those buckets (`hono`/`vite` → `peerDependencies`;
+`jose`/`commander`/`chalk`/`cross-spawn` → `dependencies`). So the explicit list was redundant with
+tsdown's defaults on the day it was written. It was **not**, however, pure noise: because tsdown
+only externalizes `devDependencies` when they are _not_ imported by source (bundling them
+otherwise), the list was real (if easily overlooked) insurance against one of the six being moved
+to `devDependencies` in a future `package.json` edit while still imported — that specific
+regression would silently bundle a private copy of the package with no build-time signal at all
+under tsdown's defaults alone.
+
+**Resolution:** Replaced the six-package `deps.neverBundle` list (and its ~40-line rationale
+comment) with `deps.onlyBundle: []`. Per the same tsdown docs, `deps.onlyBundle` is an allowlist of
+packages permitted to be bundled from `node_modules`; setting it to an empty array means **no**
+package may ever be bundled, and tsdown throws a hard build error (naming every offending file)
+the moment one is. This closes the exact regression the old list protected against — a dependency
+silently changing `package.json` bucket while still imported — but does so for every dependency
+this package has or will ever have, not just the six named in 2026, and with no list to keep in
+sync with `package.json` as dependencies are added, removed, or reclassified. Verified empirically
+while implementing this entry: temporarily moving `jose` from `dependencies` to `devDependencies`
+(leaving the `auth-internal` import in place) reproduces the failure `deps.onlyBundle: []` is meant
+to catch — `npm run build` fails immediately, listing every `jose` file rolldown pulled into the
+bundle — where builds under `tsdown`'s bare defaults (no `deps` option at all) would have
+succeeded silently with `jose` now privately bundled into `dist/hono/index.js`,
+`dist/vite/index.js`, and `dist/testing/index.js`. `npm run build` and the full
+`npm run test:coverage` suite (`test/package/hono.test.ts`'s `instanceof HTTPException` check
+among them) both pass unchanged under the new config, confirming `hono`/`vite`/`jose`/`commander`/
+`chalk`/`cross-spawn` are all still external in the built `dist/` exactly as before.
+
+**Revisit if:** a future entry under this build legitimately needs to bundle a private copy of a
+`node_modules` package on purpose — at which point that package would be added to
+`deps.onlyBundle`'s array explicitly, with a comment explaining why, rather than reaching back for
+an unconditional `neverBundle`-style external list.
