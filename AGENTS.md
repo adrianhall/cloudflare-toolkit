@@ -123,8 +123,15 @@ else under `src/` is measured.
 
 ```text
 README.md                          # npm/GitHub landing page — short quickstart, links to the docs site
-CONTRIBUTING.md                    # changeset requirement + release-process/governance notes
+CONTRIBUTING.md                    # changeset requirement + PR/governance notes; links to RELEASING.md
+RELEASING.md                       # maintainer-facing: how a release is actually cut, one-time
+                                    # npm/GitHub setup the pipeline depends on, troubleshooting
 THIRD-PARTY-NOTICES.md             # required MIT attribution for vendored problem-details code (see below)
+.github/
+  workflows/
+    ci.yml                        # PR checks: types/lint/format/pack + coverage, ci-pass gate
+    release.yml                   # Changesets version PR + OIDC npm publish + docs deploy — see
+                                    # RELEASING.md, not duplicated here
 .changeset/                        # @changesets/cli scaffold (config.json, README.md, and one .md
                                     # file per pending changeset — see CONTRIBUTING.md)
 src/
