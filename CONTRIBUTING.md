@@ -45,10 +45,14 @@ lifecycle will look like this:
    required-reviewer environment restricted to `adrianhall`. Don't merge it casually "to keep
    things tidy"; merging it kicks off a real publish approval request.
 
-**Current state:** `main` has no branch-protection rules configured, and `adrianhall` is
-presently the only collaborator with push access to this repository — so today, nobody but the
-repo owner can merge anything into `main`, including that "Version Packages" PR. That's an
-implicit second gate on top of `release-gate`, but it relies on "nobody else has push access yet"
-rather than an explicit rule. If collaborators are ever granted push access, this should be
-revisited — e.g. by adding branch protection that requires `adrianhall`'s review specifically on
-the "Version Packages" PR — so the gate stays real rather than becoming an oversight.
+**Current state:** `main` is protected by a repository ruleset that blocks direct pushes,
+force-pushes, and deletions, and requires every change to land via a pull request with a green
+`ci-pass` status check (strict — the branch must be up to date with `main` before merging). The
+ruleset has **no bypass actors configured** (`current_user_can_bypass: "never"`), so this applies
+to everyone, including `adrianhall`, who is also presently the only collaborator with push access
+to this repository. That means the "Version Packages" PR is subject to the same `ci-pass`-gated
+PR flow as any other change — it's not merged directly, and there's nothing to revisit if
+collaborators are ever added, since the rule already applies uniformly rather than relying on
+"nobody else has push access yet." The ruleset itself doesn't require an approving review
+(`required_approving_review_count: 0`); the human-approval gate on top of `ci-pass` for this
+specific PR comes from `release-gate` above, not from branch protection.
