@@ -7,6 +7,12 @@ file teaches _contributors_ how the toolkit's own repository is built, tested, a
 authoritative engineering contract is [`docs/SPECv2.md`](./docs/SPECv2.md); this file captures the
 conventions and quality gates that are easy to miss.
 
+[`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md) §12 ("Known and Accepted Issues") is a living
+record of architecture/code-review findings that were evaluated and explicitly accepted rather
+than fixed, each with its reasoning documented inline. **Consult it before filing or acting on a
+new finding** — a duplication, inconsistency, or similar pattern flagged during review may already
+be a deliberate, reasoned decision rather than an oversight.
+
 ## What this package is
 
 A toolkit of framework-agnostic and Hono/Vite-specific utilities for building Cloudflare Workers
