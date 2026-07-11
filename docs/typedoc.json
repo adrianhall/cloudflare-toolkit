@@ -28,6 +28,19 @@
   // this: `excludeInternal` only drops a reflection's own page, not a still-public function's
   // reference to that now-excluded type. See issue #100.
   "intentionallyNotExported": ["src/lib/logging/internal/console.ts:ConsoleLike"],
+  // `Response` is the global Fetch API type from `@cloudflare/workers-types`, entirely outside
+  // this package — referenced via `{@link Response}` in the JSDoc for `getResponse()` on
+  // `ProblemDetailsError` (and its subclasses `NullError`/`InvalidShapeError`). Without this
+  // mapping, TypeDoc resolves the symbol but can't generate a page for it, so it warns "linked
+  // but not included in the documentation" and renders the link as plain, non-clickable text.
+  // Mapping it to Cloudflare's own Response runtime API docs (rather than the placeholder "#"
+  // from TypeDoc's own warning text) turns it into a genuinely useful working hyperlink instead.
+  // See issue #101.
+  "externalSymbolLinkMappings": {
+    "@cloudflare/workers-types": {
+      "Response": "https://developers.cloudflare.com/workers/runtime-apis/response/"
+    }
+  },
   // Every module barrel uses a `@file` block comment (this toolkit's own JSDoc convention).
   // TypeDoc warns "Encountered an unknown block tag @file" for it since `@file` isn't in its
   // default recognized block-tag list — cosmetic only (0 build errors either way). Extending
