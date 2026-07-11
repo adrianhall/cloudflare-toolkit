@@ -365,6 +365,52 @@ describe("cloudflareAccess", () => {
   });
 
   // -----------------------------------------------------------------------
+  // SEC-001: omitting `audience` skips `aud` validation entirely, allowing cross-application
+  // Access token replay within the same team. This must warn loudly in the default
+  // (production-shaped) configuration, and stay silent when `enableDevTokens` signals a
+  // local-development posture.
+  // -----------------------------------------------------------------------
+  describe("SECURITY: audience omission warns outside dev-token mode", () => {
+    it("logs a one-time warning when audience is omitted and enableDevTokens is unset (default)", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({ logger });
+
+      const warnings = capture.find("warn");
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.message).toContain("audience");
+    });
+
+    it("logs a one-time warning when audience is omitted and enableDevTokens is explicitly false", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({ enableDevTokens: false, logger });
+
+      expect(capture.find("warn")).toHaveLength(1);
+    });
+
+    it("does not warn when audience is provided (default, non-dev-token configuration)", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({ audience: "my-app-aud", logger });
+
+      expect(capture.find("warn")).toHaveLength(0);
+    });
+
+    it("does not warn when audience is omitted but enableDevTokens is true (local development)", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({ enableDevTokens: true, devSecret: "explicit-secret", logger });
+
+      expect(capture.find("warn")).toHaveLength(0);
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // Pluggable logger
   // -----------------------------------------------------------------------
   describe("pluggable logger", () => {
@@ -388,11 +434,14 @@ describe("cloudflareAccess", () => {
       expect(capture.find("warn")).toHaveLength(0);
     });
 
-    it("does not warn when dev tokens are disabled (default)", () => {
+    it("does not warn about devSecret when dev tokens are disabled (default) and audience is configured", () => {
       const capture = createCaptureTransport();
       const logger = createLogger({ transport: capture, level: "warn" });
 
-      cloudflareAccess({ logger });
+      // `audience` is supplied so this isolates the devSecret-specific assertion from the
+      // separate SEC-001 audience-omission warning (see the "SECURITY: audience omission warns
+      // outside dev-token mode" describe block above).
+      cloudflareAccess({ audience: "test-aud", logger });
 
       expect(capture.find("warn")).toHaveLength(0);
     });
