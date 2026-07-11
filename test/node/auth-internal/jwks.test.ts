@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ensureHttps,
   getRemoteJwks,
-  MAX_JWKS_CACHE_ENTRIES
+  MAX_JWKS_CACHE_ENTRIES,
+  normalizeTeamDomain
 } from "../../../src/lib/auth-internal/jwks.js";
 
 describe("ensureHttps", () => {
@@ -28,6 +29,64 @@ describe("ensureHttps", () => {
 
   it("handles an empty string", () => {
     expect(ensureHttps("")).toBe("https://");
+  });
+});
+
+describe("normalizeTeamDomain", () => {
+  it("prepends https:// and returns the origin for a bare domain", () => {
+    expect(normalizeTeamDomain("my-team.cloudflareaccess.com")).toBe(
+      "https://my-team.cloudflareaccess.com"
+    );
+  });
+
+  it("strips a trailing slash", () => {
+    expect(normalizeTeamDomain("my-team.cloudflareaccess.com/")).toBe(
+      "https://my-team.cloudflareaccess.com"
+    );
+  });
+
+  it("returns the same origin for an already-https:// domain", () => {
+    expect(normalizeTeamDomain("https://my-team.cloudflareaccess.com")).toBe(
+      "https://my-team.cloudflareaccess.com"
+    );
+  });
+
+  it("strips any path from the input, keeping only the origin", () => {
+    expect(normalizeTeamDomain("https://my-team.cloudflareaccess.com/some/path")).toBe(
+      "https://my-team.cloudflareaccess.com"
+    );
+  });
+
+  describe("SECURITY: team-domain host allowlist (SEC-003/SEC-009/CODE-004)", () => {
+    it("rejects a domain that is not a *.cloudflareaccess.com host", () => {
+      expect(() => normalizeTeamDomain("example.com")).toThrow(
+        'Invalid Cloudflare Access team domain: "example.com"'
+      );
+    });
+
+    it("rejects the bare cloudflareaccess.com host with no team label", () => {
+      expect(() => normalizeTeamDomain("cloudflareaccess.com")).toThrow(
+        'Invalid Cloudflare Access team domain: "cloudflareaccess.com"'
+      );
+    });
+
+    it("rejects a suffix-spoofing attempt appended after the real cloudflareaccess.com host", () => {
+      expect(() => normalizeTeamDomain("my-team.cloudflareaccess.com.attacker.example")).toThrow(
+        'Invalid Cloudflare Access team domain: "my-team.cloudflareaccess.com.attacker.example"'
+      );
+    });
+
+    it("rejects a userinfo-embedding trick (legit host as userinfo, attacker host as the real host)", () => {
+      expect(() => normalizeTeamDomain("legit-team.cloudflareaccess.com@evil.example")).toThrow(
+        'Invalid Cloudflare Access team domain: "legit-team.cloudflareaccess.com@evil.example"'
+      );
+    });
+
+    it("rejects an explicit non-https:// scheme (delegated to ensureHttps)", () => {
+      expect(() => normalizeTeamDomain("http://my-team.cloudflareaccess.com")).toThrow(
+        'Expected an https:// URL, got: "http://my-team.cloudflareaccess.com"'
+      );
+    });
   });
 });
 
