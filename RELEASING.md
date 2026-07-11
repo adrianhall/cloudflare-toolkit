@@ -100,12 +100,20 @@ with release rights) doesn't have to be reverse-engineered from `release.yml`.
   (`integration_id: 15368`). This is what makes the synthetic `ci-pass` status step in the
   `version` job necessary — without it, the bot-opened "Version Packages" PR could never be
   merged.
+- **"Allow GitHub Actions to create and approve pull requests"**, `Settings` → `Actions` →
+  `General` → `Workflow permissions` (API: `can_approve_pull_request_reviews` under
+  `GET/PUT /repos/{owner}/{repo}/actions/permissions/workflow`). This must be **enabled**. It's a
+  hard repository-level gate that blocks `GITHUB_TOKEN` from opening pull requests no matter what
+  `permissions:` a workflow job declares — `changesets/action`'s first real run on this repo
+  failed with `HttpError: GitHub Actions is not permitted to create or approve pull requests.`
+  until this was turned on (it defaults to **off** on new repositories).
 
 None of the above is provisioned by `release.yml` itself; if any of it is ever deleted or
 recreated, it must be reconfigured to match these exact values or the pipeline breaks (npm
 publishing fails with an OIDC auth error if the workflow filename or environment name don't match
 exactly; the Version Packages PR becomes permanently unmergeable if the ruleset or the synthetic
-status step diverge).
+status step diverge; the `version` job fails outright if the "create and approve pull requests"
+setting above is off).
 
 ## Manual fallback (only if CI is broken)
 
@@ -133,6 +141,14 @@ alternative to the automated flow above.
 
 ## Troubleshooting
 
+- **The `version` job fails with `HttpError: GitHub Actions is not permitted to create or approve
+pull requests.`** — the repository-level "Allow GitHub Actions to create and approve pull
+  requests" setting (see [One-time setup](#one-time-setup-already-done) above) is off. Enable it
+  under `Settings` → `Actions` → `General` → `Workflow permissions`, or via:
+  ```sh
+  gh api -X PUT repos/adrianhall/cloudflare-toolkit/actions/permissions/workflow \
+    -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true
+  ```
 - **`npm publish` fails with an OIDC/"Unable to authenticate" error** — the workflow filename or
   the `publish` job's `environment:` value no longer matches the Trusted Publisher configuration
   on npmjs.com exactly (both are case-sensitive). Re-check
