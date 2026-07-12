@@ -19,17 +19,6 @@
   "excludeInternal": true,
   "excludePrivate": true,
   "excludeProtected": true,
-  // Every module barrel (and every other src/ file) opens with a `@file` block comment (this
-  // toolkit's own JSDoc convention — see docs/specs/SPECv2.md §12.9). `@file` isn't in
-  // TypeDoc's own default recognized block-tag list, so without this option every entry point
-  // below produces an "Encountered an unknown block tag @file" warning (cosmetic only — 0
-  // build errors either way; CI's docs-check job never sets --treatWarningsAsErrors).
-  // `blockTags` REPLACES TypeDoc's default list rather than appending to it, so this repeats
-  // every tag typedoc@0.28 recognizes by default (verified against `OptionDefaults.blockTags`)
-  // plus `@file`. This file already tolerates `//` comments (TypeDoc's config loader accepts
-  // JSONC), so a plain literal array works fine here — no `.js`/`.mjs` config file is needed.
-  // Re-verify this list against `OptionDefaults.blockTags` whenever `typedoc` is bumped past
-  // its current `^0.28.20` pin, in case a future release adds a new default tag.
   "blockTags": [
     "@defaultValue",
     "@deprecated",
