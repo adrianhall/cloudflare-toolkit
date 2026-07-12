@@ -129,7 +129,8 @@ RELEASING.md                       # maintainer-facing: how a release is actuall
 THIRD-PARTY-NOTICES.md             # required MIT attribution for vendored problem-details code (see below)
 .github/
   workflows/
-    ci.yml                        # PR checks: types/lint/format/pack + coverage, ci-pass gate
+    ci.yml                        # PR checks: types/lint/format/pack + coverage, path-filtered
+                                    # docs/** build verification, ci-pass gate (single required check)
     release.yml                   # Changesets version PR + OIDC npm publish + docs deploy — see
                                     # RELEASING.md, not duplicated here
 .changeset/                        # @changesets/cli scaffold (config.json, README.md, and one .md

@@ -587,6 +587,18 @@ pattern from `hono-problem-details`'s `ci.yml` (a job that fails if any dependen
 failed/cancelled, used as the single required status check) is recommended so branch protection
 only needs one required check.
 
+**Amended:** `ci.yml` also feeds a PR-time `docs/**` build check into that same `ci-pass` gate — a
+`docs-changes` job (`dorny/paths-filter`) detects whether the push/PR touched `docs/**`, and a
+`docs-check` job (`needs: docs-changes`, gated by that output) runs the TypeDoc + `vitepress
+build` steps only when it did. This is a job-level `if:` inside the always-triggered `ci.yml`,
+**not** a workflow-level `on.pull_request.paths` filter on a separate workflow: GitHub leaves
+checks from a path-filtered workflow permanently "Pending" for any PR that never triggers it,
+which would otherwise block merge, whereas a job that runs and reports `skipped` satisfies
+`ci-pass`'s `if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')`
+check normally. This keeps the "single required check" property above intact even after adding
+docs verification — no second required status check needed. See issue #90 for the identified
+gotcha and #23 for the separate release-triggered `build-docs` job this is distinct from.
+
 ## 8. Non-Functional Requirements
 
 These are the toolkit's own repository rules, resolving ambiguity where the existing sibling repos
