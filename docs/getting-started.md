@@ -137,8 +137,21 @@ The `cloudflareLogger()` method injects a logger into the Hono context so it is 
 
 Enterprise apps need authentication. [Cloudflare Access] is a great way to provide a common authentication
 layer for all your apps. However, it's not included in [Miniflare], so you have to emulate it. Our middleware
-and vite plugin allow you to use Cloudflare Access in production, but simulate it in local development. This
-is done in three steps:
+and vite plugin allow you to use Cloudflare Access in production, but simulate it in local development.
+
+In production, `cloudflareAccess` verifies each request's JWT against your team's public keys, so it needs
+your Cloudflare Access team domain. Add it to the `vars` block in `wrangler.jsonc` alongside `ENVIRONMENT`
+(the vite plugin emulates Access locally, so this isn't needed while developing):
+
+```json
+"vars": {
+  "ENVIRONMENT": "production",
+  "CLOUDFLARE_TEAM_DOMAIN": "my-team.cloudflareaccess.com"
+}
+```
+
+The middleware reads `CLOUDFLARE_TEAM_DOMAIN` from the environment automatically. Then wire it up in three
+steps:
 
 ### 1. Set up your path policy
 
