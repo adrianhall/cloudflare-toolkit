@@ -26,9 +26,9 @@ const OUTPUT_MTIME_STALE = 500; // output older → regenerate
 
 function makeLogSink(): {
   sink: LogSink;
-  logs: Array<{ level: LogLevel; message: string }>;
+  logs: { level: LogLevel; message: string }[];
 } {
-  const logs: Array<{ level: LogLevel; message: string }> = [];
+  const logs: { level: LogLevel; message: string }[] = [];
   const sink: LogSink = (level, message) => logs.push({ level, message });
   return { sink, logs };
 }
@@ -58,7 +58,7 @@ function makeWrangler(result: Partial<WranglerResult> = {}): WranglerRunner {
 
 function makeDeps(
   overrides: Partial<GenerateWranglerTypesDeps> = {}
-): GenerateWranglerTypesDeps & { logs: Array<{ level: LogLevel; message: string }> } {
+): GenerateWranglerTypesDeps & { logs: { level: LogLevel; message: string }[] } {
   const { sink, logs } = makeLogSink();
   return {
     fs: makeFS(),
@@ -69,8 +69,6 @@ function makeDeps(
     // If the caller explicitly provides a logSink, use it instead.
     ...(overrides.logSink ? {} : { logSink: sink }),
     logs
-  } as GenerateWranglerTypesDeps & {
-    logs: Array<{ level: LogLevel; message: string }>;
   };
 }
 
@@ -405,6 +403,9 @@ describe("exit 2 — wrangler spawn failure", () => {
       }),
       wrangler: {
         async runTypes() {
+          // Deliberately a non-Error throw — this test exercises run()'s handling of a
+          // WranglerRunner that violates its own contract by rejecting with a plain value.
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
           throw "plain string rejection";
         }
       }

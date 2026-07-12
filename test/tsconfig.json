@@ -1,0 +1,8 @@
+{
+  // Gives ESLint's `parserOptions.projectService` (eslint.config.js) a project to find for
+  // `test/**/*.ts` — it walks up from each linted file to the nearest tsconfig.json, and the
+  // root tsconfig.json's `include` is scoped to `src/**/*.ts` only (ARCH-004, issue #122).
+  // Extending the root config keeps compiler options identical to `src/`; only `include` differs.
+  "extends": "../tsconfig.json",
+  "include": ["**/*.ts"]
+}

@@ -4,7 +4,10 @@ import { cloudflareLogger } from "../../../src/lib/hono/logger-middleware.js";
 import type { LoggerVariables } from "../../../src/lib/hono/types.js";
 import { createCaptureTransport } from "../../../src/lib/logging/transports/capture.js";
 
-type LoggerEnv = { Bindings: { ENVIRONMENT?: string }; Variables: LoggerVariables };
+interface LoggerEnv {
+  Bindings: { ENVIRONMENT?: string };
+  Variables: LoggerVariables;
+}
 
 describe("cloudflareLogger", () => {
   it("sets c.get('LOGGER') to a usable Logger for downstream handlers", async () => {
@@ -47,7 +50,7 @@ describe("cloudflareLogger", () => {
     const records = capture.find("info");
     expect(records).toHaveLength(1);
     expect(records[0]?.message).toBe("handling request");
-    expect(records[0]?.context["route"]).toBe("/");
+    expect(records[0]?.context.route).toBe("/");
   });
 
   it("resolves level/transport from resolveLoggerConfig(environment, 'worker') via options.environment", async () => {

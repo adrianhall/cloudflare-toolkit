@@ -1032,3 +1032,78 @@ of duplicating them.
 **Revisit if:** tsdown changes its code-splitting, `fixedExtension`, or dts-generation defaults in
 a future major version — re-verify each numbered point above against the new behavior before
 trusting this entry.
+
+### 12.8 ARCH-004 (Issue #122): `test/package/**/*.ts` excluded from type-checked linting
+
+**Source:** [Issue #122](https://github.com/adrianhall/cloudflare-toolkit/issues/122), severity
+low, `Architecture`/`dev-only` labels — `eslint.config.ts`'s flat config had exactly two rule-bearing
+`files` blocks (`src/**/*.ts` and `*.config.{js,mjs,ts}`), neither of which matched `test/**/*.ts`,
+so `check:lint` applied zero rules to any of the ~50 files under `test/`.
+
+**File:** `eslint.config.js`, `test/tsconfig.json` (new).
+
+**Finding:** Giving `test/**/*.ts` the same type-checked ruleset as `src/**/*.ts` requires
+`parserOptions.projectService` to find a tsconfig covering those files — the root `tsconfig.json`'s
+`include` is `src/**/*.ts` only. Adding `test/tsconfig.json` (extends the root config,
+`include: ["**/*.ts"]`) solves that for `test/node/**` and `test/workers/**`, whose files import
+from `src/` directly. `test/package/**/*.ts`, however, imports `@adrianhall/cloudflare-toolkit/*`
+by its published subpaths (§5.1), which `package.json#exports` resolves to `dist/*` — an artifact
+that does not exist in a fresh checkout until `npm run build` runs. `check:lint` (`eslint .`, no
+build step first) and the pre-commit hook (which explicitly runs only `check:types`/`check:lint`,
+"not the full test suite, to keep commits fast" — see the non-negotiable-gates section above) both
+run without building. Verified empirically: with `test/package/**/*.ts` included in the
+type-checked block against an unbuilt `dist/`, every unresolvable `dist/*` import degrades to
+`any`, cascading into ~150 `no-unsafe-call`/`no-unsafe-argument`/`no-unsafe-return` findings across
+every `test/package/*.test.ts` file — none of them real bugs, all of them artifacts of the missing
+build.
+
+**Resolution:** `test/package/**/*.ts` is linted in the same non-type-checked block as
+`*.config.{js,mjs,ts}` (`tseslint.configs.recommended`, no `parserOptions.projectService`) instead
+of the type-checked `test/node/**/*.ts` + `test/workers/**/*.ts` block. This still resolves the
+core ARCH-004 gap for those files (zero rules → a real, if smaller, ruleset) without making
+`check:lint` depend on a prior `npm run build`. One direct consequence: `@typescript-eslint/no-deprecated`
+— which issue #122 explicitly says must never be relaxed for test files — cannot run on
+`test/package/**/*.ts` at all, because it requires type information that is structurally
+unavailable there pre-build; this is a hard technical constraint, not a policy relaxation.
+
+The type-checked `test/node/**/*.ts` + `test/workers/**/*.ts` block also relaxes five rules
+(`@typescript-eslint/require-await`, `no-unsafe-assignment`, `no-unsafe-member-access`,
+`no-empty-function`, `prefer-promise-reject-errors`) plus reconfigures `no-unused-vars` with
+`argsIgnorePattern`/`varsIgnorePattern`/`caughtErrorsIgnorePattern: "^_"`. Each fires on patterns
+that are idiomatic in test doubles rather than genuine bugs — e.g. an `async` stub method
+implementing an interface without needing an internal `await`, a minimal mock object with
+intentionally empty methods, or forwarding a Connect-style `next(err?: unknown)` callback's
+untyped `err` into `Promise.reject`. Every other finding surfaced by turning on type-checked
+linting for `test/**/*.ts` (~200 in total, mostly `dot-notation` and `no-unnecessary-type-assertion`)
+was fixed at the call site instead of suppressed, the large majority via `eslint --fix`; three
+uses of vitest's deprecated `expectTypeOf().toMatchTypeOf()` were replaced with `.toExtend()`
+(same semantics, per `expect-type`'s own deprecation notice), and one deliberate non-`Error` throw
+in a CLI resilience test (`only-throw-error`) kept its narrow inline `eslint-disable-next-line`
+rather than relaxing the rule package-wide for one call site.
+
+**Caution for future maintainers — do not blindly trust `no-unnecessary-type-assertion`'s
+`--fix` here.** A subset of the `--fix`-removed assertions were **false positives**, not genuine
+no-ops: `@cloudflare/workers-types`'s `Response.json<T>(): Promise<T>` has no default for
+`T` (resolving to `unknown` when uncalled with an explicit type argument), and a handful of test
+files used `(await res.json()) as SomeShape` specifically to narrow that `unknown` before member
+access. The rule's "unnecessary" check evidently doesn't fully account for how a type assertion on
+one call argument can influence generic inference for another (`optionalField<T extends
+object>(o: T, prop: keyof T)`'s test call showed the identical pattern: asserting `{}`'s type
+affects what `keyof T` accepts for `prop`, `--fix` removed the assertion anyway, and `tsc` then
+correctly reported `TS18046`/an unassignable-`"stack"`-to-`never` error at the exact removed
+sites). This was caught **only** because `test/tsconfig.json` (added by this same fix) makes
+`npx tsc --noEmit -p test/tsconfig.json` an available independent check — `check:types` itself
+does not run it (its scope is `src/**/*.ts` only, unchanged by this issue) — and running it against
+`eslint --fix`'s output surfaced real compile errors ESLint's own rule engine had missed (it does
+not re-surface `tsc`'s own semantic diagnostics as lint findings, so a clean `eslint .` run does
+**not** imply a clean `tsc` run over the same files). The affected sites were restored using
+`res.json<Shape>()`'s explicit generic form (sidesteps the assertion-based check entirely, since a
+generic type argument isn't a type assertion) rather than re-adding the flagged `as Shape` casts.
+**Any future contributor changing this ruleset should re-run `npx tsc --noEmit -p
+test/tsconfig.json` before trusting `eslint --fix`'s output on `test/**/*.ts` wholesale** — a
+passing `eslint .` alone is not sufficient evidence that a mechanical autofix here was correct.
+
+**Revisit if:** `test/package/**/*.ts` gains a way to type-check against `dist/` without requiring
+a build first (e.g. if a future test harness stubs the package exports map), or if `no-deprecated`
+gains a non-type-aware detection mode — at which point `test/package/**/*.ts` could move into the
+type-checked block alongside `test/node/**` and `test/workers/**`.

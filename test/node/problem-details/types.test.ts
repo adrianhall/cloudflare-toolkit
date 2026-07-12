@@ -22,6 +22,10 @@ describe("ProblemDetails type", () => {
   });
 
   it("generic parameter types extensions", () => {
+    // Must stay a `type` alias, not an `interface`: ProblemDetails<Ext> constrains
+    // `Ext extends Record<string, unknown>`, and a plain `interface` (unlike an object type
+    // literal) doesn't satisfy that index-signature constraint.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
     type CustomExt = { traceId: string; retryAfter: number };
     type PD = ProblemDetails<CustomExt>;
     expectTypeOf<PD["extensions"]>().toEqualTypeOf<CustomExt | undefined>();
@@ -36,7 +40,7 @@ describe("ProblemDetails type", () => {
 
 describe("ProblemDetailsInput type", () => {
   it("requires status only", () => {
-    expectTypeOf<{ status: number }>().toMatchTypeOf<ProblemDetailsInput>();
+    expectTypeOf<{ status: number }>().toExtend<ProblemDetailsInput>();
   });
 
   it("type, title, detail, instance are optional", () => {
@@ -47,6 +51,8 @@ describe("ProblemDetailsInput type", () => {
   });
 
   it("generic parameter types extensions", () => {
+    // Same reason as ProblemDetails's own generic-extensions test above.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
     type CustomExt = { errors: string[] };
     type Input = ProblemDetailsInput<CustomExt>;
     expectTypeOf<Input["extensions"]>().toEqualTypeOf<CustomExt | undefined>();
@@ -70,7 +76,7 @@ describe("problemDetails() factory type inference", () => {
 
 describe("ProblemDetailsError type", () => {
   it("extends Error", () => {
-    expectTypeOf<ProblemDetailsError>().toMatchTypeOf<Error>();
+    expectTypeOf<ProblemDetailsError>().toExtend<Error>();
   });
 
   it("has readonly problemDetails property", () => {

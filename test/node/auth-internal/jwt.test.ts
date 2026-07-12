@@ -360,8 +360,8 @@ describe("JWT utilities", () => {
         expect(result).toBeNull();
         const warnings = capture.find("warn");
         expect(warnings).toHaveLength(1);
-        expect(warnings[0]!.context.cause).toBe("invalid");
-        expect(warnings[0]!.context.err).toMatchObject({ name: "JWTClaimValidationFailed" });
+        expect(warnings[0].context.cause).toBe("invalid");
+        expect(warnings[0].context.err).toMatchObject({ name: "JWTClaimValidationFailed" });
       });
     });
 
@@ -424,8 +424,8 @@ describe("JWT utilities", () => {
         expect(result).toBeNull();
         const warnings = capture.find("warn");
         expect(warnings).toHaveLength(1);
-        expect(warnings[0]!.context.cause).toBe("invalid");
-        expect(warnings[0]!.context.err).toMatchObject({ name: "JOSEAlgNotAllowed" });
+        expect(warnings[0].context.cause).toBe("invalid");
+        expect(warnings[0].context.err).toMatchObject({ name: "JOSEAlgNotAllowed" });
       });
     });
 
@@ -486,10 +486,10 @@ describe("JWT utilities", () => {
         expect(result).toBeNull();
         const warnings = capture.find("warn");
         expect(warnings).toHaveLength(1);
-        expect(warnings[0]!.message).toBe("Cloudflare Access JWT verification failed");
-        expect(warnings[0]!.context.cause).toBe("invalid");
-        expect(warnings[0]!.context.teamDomain).toBe("test.cloudflareaccess.com");
-        expect(warnings[0]!.context.err).toMatchObject({ name: "JWSSignatureVerificationFailed" });
+        expect(warnings[0].message).toBe("Cloudflare Access JWT verification failed");
+        expect(warnings[0].context.cause).toBe("invalid");
+        expect(warnings[0].context.teamDomain).toBe("test.cloudflareaccess.com");
+        expect(warnings[0].context.err).toMatchObject({ name: "JWSSignatureVerificationFailed" });
       });
 
       it("logs a warn with cause 'network' when the JWKS lookup throws a non-JOSE (e.g. fetch/DNS) error", async () => {
@@ -519,8 +519,8 @@ describe("JWT utilities", () => {
         expect(result).toBeNull();
         const warnings = capture.find("warn");
         expect(warnings).toHaveLength(1);
-        expect(warnings[0]!.context.cause).toBe("network");
-        expect(warnings[0]!.context.err).toMatchObject({
+        expect(warnings[0].context.cause).toBe("network");
+        expect(warnings[0].context.err).toMatchObject({
           name: "TypeError",
           message: "fetch failed"
         });

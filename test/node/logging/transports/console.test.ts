@@ -5,7 +5,7 @@ import type { ConsoleLike } from "../../../../src/lib/logging/internal/console.j
 import type { LogLevel, LogRecord } from "../../../../src/lib/logging/index.js";
 
 /** ANSI escape sequence pattern (used to strip colors for plain-text assertions). */
-// eslint-disable-next-line no-control-regex
+
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 
 /** Build a minimal LogRecord for testing. */
@@ -230,7 +230,7 @@ describe("createConsoleTransport()", () => {
 
     it("handles circular references safely", () => {
       const obj: Record<string, unknown> = { a: 1 };
-      obj["self"] = obj;
+      obj.self = obj;
       const { c, logCalls } = makeConsoleSpy();
       const transport = createConsoleTransport({ colors: false, timestamp: false }, c);
       expect(() => transport.log(makeRecord({ context: obj }))).not.toThrow();
