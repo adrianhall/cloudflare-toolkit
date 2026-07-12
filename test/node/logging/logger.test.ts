@@ -188,36 +188,36 @@ describe("createLogger()", () => {
       const { transport, records } = makeCapture();
       const logger = createLogger({ transport, clock });
       logger.info("msg", { foo: "bar" });
-      expect(records[0]?.context["foo"]).toBe("bar");
+      expect(records[0]?.context.foo).toBe("bar");
     });
 
     it("bindings appear in record.context", () => {
       const { transport, records } = makeCapture();
       const logger = createLogger({ transport, clock, bindings: { service: "api" } });
       logger.info("msg");
-      expect(records[0]?.context["service"]).toBe("api");
+      expect(records[0]?.context.service).toBe("api");
     });
 
     it("per-call context wins over bindings on key collision", () => {
       const { transport, records } = makeCapture();
       const logger = createLogger({ transport, clock, bindings: { key: "binding" } });
       logger.info("msg", { key: "call" });
-      expect(records[0]?.context["key"]).toBe("call");
+      expect(records[0]?.context.key).toBe("call");
     });
 
     it("bindings and per-call context are both present when keys differ", () => {
       const { transport, records } = makeCapture();
       const logger = createLogger({ transport, clock, bindings: { a: 1 } });
       logger.info("msg", { b: 2 });
-      expect(records[0]?.context["a"]).toBe(1);
-      expect(records[0]?.context["b"]).toBe(2);
+      expect(records[0]?.context.a).toBe(1);
+      expect(records[0]?.context.b).toBe(2);
     });
 
     it("omitting per-call context still includes bindings", () => {
       const { transport, records } = makeCapture();
       const logger = createLogger({ transport, clock, bindings: { x: "y" } });
       logger.info("no context arg");
-      expect(records[0]?.context["x"]).toBe("y");
+      expect(records[0]?.context.x).toBe("y");
     });
   });
 
@@ -245,7 +245,7 @@ describe("createLogger()", () => {
       const parent = createLogger({ transport, clock });
       const child = parent.child({ component: "Widget" });
       child.info("msg");
-      expect(records[0]?.context["component"]).toBe("Widget");
+      expect(records[0]?.context.component).toBe("Widget");
     });
 
     it("child merges parent bindings with child bindings", () => {
@@ -253,8 +253,8 @@ describe("createLogger()", () => {
       const parent = createLogger({ transport, clock, bindings: { service: "api" } });
       const child = parent.child({ component: "Widget" });
       child.info("msg");
-      expect(records[0]?.context["service"]).toBe("api");
-      expect(records[0]?.context["component"]).toBe("Widget");
+      expect(records[0]?.context.service).toBe("api");
+      expect(records[0]?.context.component).toBe("Widget");
     });
 
     it("child bindings override parent bindings on collision", () => {
@@ -262,7 +262,7 @@ describe("createLogger()", () => {
       const parent = createLogger({ transport, clock, bindings: { key: "parent" } });
       const child = parent.child({ key: "child" });
       child.info("msg");
-      expect(records[0]?.context["key"]).toBe("child");
+      expect(records[0]?.context.key).toBe("child");
     });
 
     it("parent logger does not pick up child bindings", () => {
@@ -271,8 +271,8 @@ describe("createLogger()", () => {
       const child = parent.child({ component: "Widget" });
       parent.info("from parent");
       child.info("from child");
-      expect(records[0]?.context["component"]).toBeUndefined();
-      expect(records[1]?.context["component"]).toBe("Widget");
+      expect(records[0]?.context.component).toBeUndefined();
+      expect(records[1]?.context.component).toBe("Widget");
     });
 
     it("child shares the same transport as the parent", () => {
@@ -325,10 +325,10 @@ describe("createLogger()", () => {
       const logger = createLogger({ transport, clock });
       const err = new Error("db failed");
       logger.error("save failed", { err });
-      const ctxErr = records[0]?.context["err"] as Record<string, unknown>;
+      const ctxErr = records[0]?.context.err as Record<string, unknown>;
       expect(ctxErr).not.toBeInstanceOf(Error);
-      expect(ctxErr["name"]).toBe("Error");
-      expect(ctxErr["message"]).toBe("db failed");
+      expect(ctxErr.name).toBe("Error");
+      expect(ctxErr.message).toBe("db failed");
     });
 
     it("does not serialize a nested error inside a context value", () => {
@@ -336,8 +336,8 @@ describe("createLogger()", () => {
       const logger = createLogger({ transport, clock });
       const nested = new Error("nested");
       logger.error("outer", { wrapper: { inner: nested } });
-      const wrapper = records[0]?.context["wrapper"] as Record<string, unknown>;
-      expect(wrapper["inner"]).toBeInstanceOf(Error);
+      const wrapper = records[0]?.context.wrapper as Record<string, unknown>;
+      expect(wrapper.inner).toBeInstanceOf(Error);
     });
 
     it("serializes multiple top-level Errors independently", () => {
@@ -346,10 +346,10 @@ describe("createLogger()", () => {
       const err1 = new Error("first");
       const err2 = new Error("second");
       logger.error("two errors", { err1, err2 });
-      const ctxErr1 = records[0]?.context["err1"] as Record<string, unknown>;
-      const ctxErr2 = records[0]?.context["err2"] as Record<string, unknown>;
-      expect(ctxErr1["message"]).toBe("first");
-      expect(ctxErr2["message"]).toBe("second");
+      const ctxErr1 = records[0]?.context.err1 as Record<string, unknown>;
+      const ctxErr2 = records[0]?.context.err2 as Record<string, unknown>;
+      expect(ctxErr1.message).toBe("first");
+      expect(ctxErr2.message).toBe("second");
     });
   });
 
@@ -486,17 +486,17 @@ describe("createLogger()", () => {
       logger.info("first", { x: 1 });
       logger.info("second", { x: 2 });
       expect(records[0]?.context).not.toBe(records[1]?.context);
-      expect(records[0]?.context["x"]).toBe(1);
-      expect(records[1]?.context["x"]).toBe(2);
+      expect(records[0]?.context.x).toBe(1);
+      expect(records[1]?.context.x).toBe(2);
     });
 
     it("mutating record.context after delivery does not affect subsequent records", () => {
       const { transport, records } = makeCapture();
       const logger = createLogger({ transport, clock });
       logger.info("first", { x: 1 });
-      (records[0]!.context as Record<string, unknown>)["x"] = 99;
+      (records[0].context as Record<string, unknown>).x = 99;
       logger.info("second", { x: 2 });
-      expect(records[1]?.context["x"]).toBe(2);
+      expect(records[1]?.context.x).toBe(2);
     });
   });
 

@@ -16,17 +16,17 @@ function makeExecRunner(result: WranglerResult): ExecRunner {
 
 function makeCapturingExecRunner(): {
   runner: ExecRunner;
-  calls: Array<{
+  calls: {
     command: string;
     args: string[];
     options: { cwd: string };
-  }>;
+  }[];
 } {
-  const calls: Array<{
+  const calls: {
     command: string;
     args: string[];
     options: { cwd: string };
-  }> = [];
+  }[] = [];
   const runner: ExecRunner = async (command, args, options) => {
     calls.push({ command, args, options });
     return { exitCode: 0, stdout: "", stderr: "" };

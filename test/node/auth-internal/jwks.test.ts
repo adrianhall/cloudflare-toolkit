@@ -152,11 +152,11 @@ describe("getRemoteJwks", () => {
 
       // The oldest entry (index 0) was evicted to make room for the (MAX + 1)th insertion, so
       // requesting it again must produce a *new* instance rather than the original.
-      const oldestAgain = getRemoteJwks(domains[0]!);
+      const oldestAgain = getRemoteJwks(domains[0]);
       expect(oldestAgain).not.toBe(instances[0]);
 
       // The most recently inserted entry must still be cached (not evicted).
-      const newestAgain = getRemoteJwks(domains[domains.length - 1]!);
+      const newestAgain = getRemoteJwks(domains[domains.length - 1]);
       expect(newestAgain).toBe(instances[instances.length - 1]);
     });
   });

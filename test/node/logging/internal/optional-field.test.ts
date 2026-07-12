@@ -13,7 +13,7 @@ describe("optionalField()", () => {
   });
 
   it("returns an empty object when the property is absent", () => {
-    const result = sut.optionalField({} as { stack?: string }, "stack");
+    const result = sut.optionalField<{ stack?: string }>({}, "stack");
     expect(result).toStrictEqual({});
   });
 

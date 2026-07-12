@@ -165,9 +165,14 @@ src/
     generate-wrangler-types/
       index.ts run.ts types.ts fs.ts wrangler.ts logger.ts
 test/
+  tsconfig.json # extends the root tsconfig with include: ["**/*.ts"] — gives eslint.config.js's
+                # parserOptions.projectService a project to resolve test/node + test/workers
+                # files against (root tsconfig.json's own include is src/**/*.ts only)
   node/       # plain Node — guards, errors, problem-details, logging, auth-internal, vite (mock req/res), CLI
   workers/    # workerd via @cloudflare/vitest-pool-workers — hono/* middleware
   package/    # plain Node — imports the built dist/ for every subpath, asserts expected exports/types
+              # (NOT type-checked by eslint.config.js — dist/ doesn't exist pre-build, so these
+              # files get the same non-type-checked ruleset as *.config.{js,mjs,ts})
 skills/
   cloudflare-toolkit/SKILL.md      # installable Agent Skill (consumer-facing) — see docs/specs/SPECv2.md §5.8
 docs/                              # VitePress + TypeDoc documentation site (§2.4, §6.1) — its OWN

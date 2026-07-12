@@ -25,11 +25,11 @@ function makeConsoleSpy() {
     error: []
   };
   const c: ConsoleLike = {
-    debug: vi.fn((...args: unknown[]) => calls["debug"]!.push(args)),
-    info: vi.fn((...args: unknown[]) => calls["info"]!.push(args)),
-    log: vi.fn((...args: unknown[]) => calls["log"]!.push(args)),
-    warn: vi.fn((...args: unknown[]) => calls["warn"]!.push(args)),
-    error: vi.fn((...args: unknown[]) => calls["error"]!.push(args))
+    debug: vi.fn((...args: unknown[]) => calls.debug.push(args)),
+    info: vi.fn((...args: unknown[]) => calls.info.push(args)),
+    log: vi.fn((...args: unknown[]) => calls.log.push(args)),
+    warn: vi.fn((...args: unknown[]) => calls.warn.push(args)),
+    error: vi.fn((...args: unknown[]) => calls.error.push(args))
   };
   return { c, calls };
 }
@@ -65,7 +65,7 @@ describe("createStructuredTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createStructuredTransport({}, c);
       transport.log(makeRecord());
-      const args = calls["log"]![0]!;
+      const args = calls.log[0];
       expect(args).toHaveLength(1);
       expect(typeof args[0]).toBe("object");
     });
@@ -79,19 +79,19 @@ describe("createStructuredTransport()", () => {
         message: "hello"
       });
       transport.log(record);
-      const payload = calls["log"]![0]![0] as Record<string, unknown>;
-      expect(payload["time"]).toBe("2026-01-01T00:00:00.000Z");
-      expect(payload["level"]).toBe("info");
-      expect(payload["message"]).toBe("hello");
+      const payload = calls.log[0][0] as Record<string, unknown>;
+      expect(payload.time).toBe("2026-01-01T00:00:00.000Z");
+      expect(payload.level).toBe("info");
+      expect(payload.message).toBe("hello");
     });
 
     it("payload includes context fields", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createStructuredTransport({}, c);
       transport.log(makeRecord({ context: { userId: "abc", requestId: "123" } }));
-      const payload = calls["log"]![0]![0] as Record<string, unknown>;
-      expect(payload["userId"]).toBe("abc");
-      expect(payload["requestId"]).toBe("123");
+      const payload = calls.log[0][0] as Record<string, unknown>;
+      expect(payload.userId).toBe("abc");
+      expect(payload.requestId).toBe("123");
     });
 
     it("reserved keys from the record override context keys", () => {
@@ -105,10 +105,10 @@ describe("createStructuredTransport()", () => {
           context: { time: "WRONG", level: "WRONG", message: "WRONG" }
         })
       );
-      const payload = calls["log"]![0]![0] as Record<string, unknown>;
-      expect(payload["time"]).toBe("2026-01-01T00:00:00.000Z");
-      expect(payload["level"]).toBe("info");
-      expect(payload["message"]).toBe("real message");
+      const payload = calls.log[0][0] as Record<string, unknown>;
+      expect(payload.time).toBe("2026-01-01T00:00:00.000Z");
+      expect(payload.level).toBe("info");
+      expect(payload.message).toBe("real message");
     });
   });
 
@@ -130,7 +130,7 @@ describe("createStructuredTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createStructuredTransport({ stringify: true }, c);
       transport.log(makeRecord());
-      const args = calls["log"]![0]!;
+      const args = calls.log[0];
       expect(args).toHaveLength(1);
       expect(typeof args[0]).toBe("string");
     });
@@ -141,11 +141,11 @@ describe("createStructuredTransport()", () => {
       transport.log(
         makeRecord({ time: "2026-01-01T00:00:00.000Z", level: "info", message: "hello" })
       );
-      const raw = calls["log"]![0]![0] as string;
+      const raw = calls.log[0][0] as string;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      expect(parsed["time"]).toBe("2026-01-01T00:00:00.000Z");
-      expect(parsed["level"]).toBe("info");
-      expect(parsed["message"]).toBe("hello");
+      expect(parsed.time).toBe("2026-01-01T00:00:00.000Z");
+      expect(parsed.level).toBe("info");
+      expect(parsed.message).toBe("hello");
     });
 
     it("reserved keys in stringified output override context keys", () => {
@@ -159,20 +159,20 @@ describe("createStructuredTransport()", () => {
           context: { time: "bad", level: "bad", message: "bad" }
         })
       );
-      const raw = calls["log"]![0]![0] as string;
+      const raw = calls.log[0][0] as string;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
-      expect(parsed["time"]).toBe("2026-01-01T00:00:00.000Z");
-      expect(parsed["level"]).toBe("info");
-      expect(parsed["message"]).toBe("real");
+      expect(parsed.time).toBe("2026-01-01T00:00:00.000Z");
+      expect(parsed.level).toBe("info");
+      expect(parsed.message).toBe("real");
     });
 
     it("handles circular references safely in string mode", () => {
       const obj: Record<string, unknown> = { a: 1 };
-      obj["self"] = obj;
+      obj.self = obj;
       const { c, calls } = makeConsoleSpy();
       const transport = createStructuredTransport({ stringify: true }, c);
       expect(() => transport.log(makeRecord({ context: obj }))).not.toThrow();
-      const raw = calls["log"]![0]![0] as string;
+      const raw = calls.log[0][0] as string;
       expect(raw).toContain("[Circular]");
     });
 
@@ -180,7 +180,7 @@ describe("createStructuredTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createStructuredTransport({ stringify: true }, c);
       expect(() => transport.log(makeRecord({ context: { count: BigInt(99) } }))).not.toThrow();
-      const raw = calls["log"]![0]![0] as string;
+      const raw = calls.log[0][0] as string;
       expect(raw).toContain("99n");
     });
   });

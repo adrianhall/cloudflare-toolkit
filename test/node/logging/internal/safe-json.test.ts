@@ -140,7 +140,7 @@ describe("safeStringify()", () => {
 
   it("serializes a bigint nested inside an object", () => {
     const result = JSON.parse(sut.safeStringify({ count: 100n })) as Record<string, unknown>;
-    expect(result["count"]).toBe("100n");
+    expect(result.count).toBe("100n");
   });
 
   it("serializes a symbol with a description", () => {
@@ -153,7 +153,7 @@ describe("safeStringify()", () => {
 
   it("serializes a symbol nested inside an object", () => {
     const result = JSON.parse(sut.safeStringify({ key: Symbol("id") })) as Record<string, unknown>;
-    expect(result["key"]).toBe("Symbol(id)");
+    expect(result.key).toBe("Symbol(id)");
   });
 
   it("serializes a named function as '[Function name]'", () => {
@@ -176,23 +176,23 @@ describe("safeStringify()", () => {
         }
       })
     ) as Record<string, unknown>;
-    expect(result["handler"]).toBe("[Function doThing]");
+    expect(result.handler).toBe("[Function doThing]");
   });
 
   it("replaces a direct circular reference with '[Circular]'", () => {
     const obj: Record<string, unknown> = { a: 1 };
-    obj["self"] = obj;
+    obj.self = obj;
     const result = JSON.parse(sut.safeStringify(obj)) as Record<string, unknown>;
-    expect(result["self"]).toBe("[Circular]");
+    expect(result.self).toBe("[Circular]");
   });
 
   it("replaces a deep circular reference with '[Circular]'", () => {
     const parent: Record<string, unknown> = { name: "parent" };
     const child: Record<string, unknown> = { name: "child", parent };
-    parent["child"] = child;
+    parent.child = child;
     const result = JSON.parse(sut.safeStringify(parent)) as Record<string, unknown>;
-    const childResult = result["child"] as Record<string, unknown>;
-    expect(childResult["parent"]).toBe("[Circular]");
+    const childResult = result.child as Record<string, unknown>;
+    expect(childResult.parent).toBe("[Circular]");
   });
 
   it("replaces a circular array reference with '[Circular]'", () => {
@@ -208,8 +208,8 @@ describe("safeStringify()", () => {
       string,
       unknown
     >;
-    expect(result["a"]).toStrictEqual({ x: 1 });
-    expect(result["b"]).toStrictEqual({ x: 1 });
+    expect(result.a).toStrictEqual({ x: 1 });
+    expect(result.b).toStrictEqual({ x: 1 });
   });
 
   it("does not treat a shared/diamond array reference as circular", () => {
@@ -218,8 +218,8 @@ describe("safeStringify()", () => {
       string,
       unknown
     >;
-    expect(result["a"]).toStrictEqual([1, 2]);
-    expect(result["b"]).toStrictEqual([1, 2]);
+    expect(result.a).toStrictEqual([1, 2]);
+    expect(result.b).toStrictEqual([1, 2]);
   });
 
   it("does not treat a reference shared across three or more sibling keys as circular", () => {
@@ -228,19 +228,19 @@ describe("safeStringify()", () => {
       string,
       unknown
     >;
-    expect(result["a"]).toStrictEqual({ id: "shared" });
-    expect(result["b"]).toStrictEqual({ id: "shared" });
-    expect(result["c"]).toStrictEqual({ id: "shared" });
+    expect(result.a).toStrictEqual({ id: "shared" });
+    expect(result.b).toStrictEqual({ id: "shared" });
+    expect(result.c).toStrictEqual({ id: "shared" });
   });
 
   it("still detects a true circular reference alongside an unrelated shared/diamond reference", () => {
     const shared = { id: "shared" };
     const root: Record<string, unknown> = { a: shared, b: shared };
-    root["self"] = root;
+    root.self = root;
     const result = JSON.parse(sut.safeStringify(root)) as Record<string, unknown>;
-    expect(result["a"]).toStrictEqual({ id: "shared" });
-    expect(result["b"]).toStrictEqual({ id: "shared" });
-    expect(result["self"]).toBe("[Circular]");
+    expect(result.a).toStrictEqual({ id: "shared" });
+    expect(result.b).toStrictEqual({ id: "shared" });
+    expect(result.self).toBe("[Circular]");
   });
 
   it("does not treat a reference reused after a prior sibling subtree finished as circular", () => {
@@ -250,8 +250,8 @@ describe("safeStringify()", () => {
     const shared = { x: 1 };
     const a = { nested: shared };
     const result = JSON.parse(sut.safeStringify({ a, b: shared })) as Record<string, unknown>;
-    expect(result["a"]).toStrictEqual({ nested: { x: 1 } });
-    expect(result["b"]).toStrictEqual({ x: 1 });
+    expect(result.a).toStrictEqual({ nested: { x: 1 } });
+    expect(result.b).toStrictEqual({ x: 1 });
   });
 
   it("returns '[FormattingError]' when a getter throws during serialization", () => {

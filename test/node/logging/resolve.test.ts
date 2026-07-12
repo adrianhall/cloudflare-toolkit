@@ -85,7 +85,7 @@ describe("module exports", () => {
   it("does not export detectRuntime", async () => {
     const resolveModule: Record<string, unknown> =
       await import("../../../src/lib/logging/resolve.js");
-    expect(resolveModule["detectRuntime"]).toBeUndefined();
+    expect(resolveModule.detectRuntime).toBeUndefined();
   });
 });
 

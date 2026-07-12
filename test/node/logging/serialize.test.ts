@@ -33,8 +33,8 @@ describe("serializeError()", () => {
   it("includes name and message for a plain Error", () => {
     const err = new Error("oops");
     const result = serializeError(err) as Record<string, unknown>;
-    expect(result["name"]).toBe("Error");
-    expect(result["message"]).toBe("oops");
+    expect(result.name).toBe("Error");
+    expect(result.message).toBe("oops");
   });
 
   it("includes stack when present", () => {
@@ -42,7 +42,7 @@ describe("serializeError()", () => {
     // In Node, stack is always set; test that the field is included.
     if (err.stack !== undefined) {
       const result = serializeError(err) as Record<string, unknown>;
-      expect(result["stack"]).toBe(err.stack);
+      expect(result.stack).toBe(err.stack);
     }
   });
 
@@ -52,25 +52,25 @@ describe("serializeError()", () => {
     }
     const err = new DatabaseError("db unavailable");
     const result = serializeError(err) as Record<string, unknown>;
-    expect(result["name"]).toBe("DatabaseError");
-    expect(result["message"]).toBe("db unavailable");
+    expect(result.name).toBe("DatabaseError");
+    expect(result.message).toBe("db unavailable");
   });
 
   it("serializes Error cause shallowly when cause is an Error", () => {
     const cause = new Error("root cause");
     const err = new Error("outer", { cause });
     const result = serializeError(err) as Record<string, unknown>;
-    const serializedCause = result["cause"] as Record<string, unknown>;
+    const serializedCause = result.cause as Record<string, unknown>;
     expect(serializedCause).not.toBeInstanceOf(Error);
-    expect(serializedCause["name"]).toBe("Error");
-    expect(serializedCause["message"]).toBe("root cause");
+    expect(serializedCause.name).toBe("Error");
+    expect(serializedCause.message).toBe("root cause");
   });
 
   it("passes non-Error cause through unchanged", () => {
     const err = new Error("outer");
-    (err as unknown as Record<string, unknown>)["cause"] = "string cause";
+    (err as unknown as Record<string, unknown>).cause = "string cause";
     const result = serializeError(err) as Record<string, unknown>;
-    expect(result["cause"]).toBe("string cause");
+    expect(result.cause).toBe("string cause");
   });
 
   it("omits cause key when cause is undefined", () => {

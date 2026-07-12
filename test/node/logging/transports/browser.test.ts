@@ -25,11 +25,11 @@ function makeConsoleSpy() {
     error: []
   };
   const c: ConsoleLike = {
-    debug: vi.fn((...args: unknown[]) => calls["debug"]!.push(args)),
-    info: vi.fn((...args: unknown[]) => calls["info"]!.push(args)),
-    log: vi.fn((...args: unknown[]) => calls["log"]!.push(args)),
-    warn: vi.fn((...args: unknown[]) => calls["warn"]!.push(args)),
-    error: vi.fn((...args: unknown[]) => calls["error"]!.push(args))
+    debug: vi.fn((...args: unknown[]) => calls.debug.push(args)),
+    info: vi.fn((...args: unknown[]) => calls.info.push(args)),
+    log: vi.fn((...args: unknown[]) => calls.log.push(args)),
+    warn: vi.fn((...args: unknown[]) => calls.warn.push(args)),
+    error: vi.fn((...args: unknown[]) => calls.error.push(args))
   };
   return { c, calls };
 }
@@ -65,7 +65,7 @@ describe("createBrowserTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createBrowserTransport(undefined, c);
       transport.log(makeRecord({ level: "info" }));
-      const args = calls["info"]![0]!;
+      const args = calls.info[0];
       expect(args[0]).toBe("%cINFO");
     });
 
@@ -73,7 +73,7 @@ describe("createBrowserTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createBrowserTransport(undefined, c);
       transport.log(makeRecord({ level: "info" }));
-      const args = calls["info"]![0]!;
+      const args = calls.info[0];
       expect(typeof args[1]).toBe("string");
       expect(args[1] as string).toBeTruthy();
     });
@@ -82,7 +82,7 @@ describe("createBrowserTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createBrowserTransport(undefined, c);
       transport.log(makeRecord({ level: "info", message: "user loaded" }));
-      const args = calls["info"]![0]!;
+      const args = calls.info[0];
       expect(args[2]).toBe("user loaded");
     });
   });
@@ -93,7 +93,7 @@ describe("createBrowserTransport()", () => {
       const transport = createBrowserTransport(undefined, c);
       const ctx = { userId: "123" };
       transport.log(makeRecord({ level: "info", context: ctx }));
-      const args = calls["info"]![0]!;
+      const args = calls.info[0];
       expect(args).toHaveLength(4);
       expect(args[3]).toBe(ctx);
     });
@@ -102,7 +102,7 @@ describe("createBrowserTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createBrowserTransport(undefined, c);
       transport.log(makeRecord({ level: "info", context: {} }));
-      const args = calls["info"]![0]!;
+      const args = calls.info[0];
       expect(args).toHaveLength(3);
     });
   });
@@ -113,7 +113,7 @@ describe("createBrowserTransport()", () => {
       const { c, calls } = makeConsoleSpy();
       const transport = createBrowserTransport({ levelStyles: { info: CUSTOM_STYLE } }, c);
       transport.log(makeRecord({ level: "info" }));
-      const args = calls["info"]![0]!;
+      const args = calls.info[0];
       expect(args[1]).toBe(CUSTOM_STYLE);
     });
 
@@ -130,8 +130,8 @@ describe("createBrowserTransport()", () => {
       transportWithOverride.log(record);
       transportDefault.log(record);
 
-      const style1 = calls1["info"]![0]![1];
-      const style2 = calls2["info"]![0]![1];
+      const style1 = calls1.info[0][1];
+      const style2 = calls2.info[0][1];
       expect(style1).toBe(style2);
     });
   });
@@ -146,7 +146,7 @@ describe("createBrowserTransport()", () => {
       const transport = createBrowserTransport(undefined, c);
       transport.log(makeRecord({ level: "trace" })); // trace → debug → fallback to log
       expect(logCalls).toHaveLength(1);
-      expect(logCalls[0]![0]).toBe("%cTRACE");
+      expect(logCalls[0][0]).toBe("%cTRACE");
     });
   });
 
@@ -183,7 +183,7 @@ describe("createBrowserTransport()", () => {
           : level === "info" ? "info"
           : level === "warn" ? "warn"
           : "error";
-        const args = calls[methodName]![0]!;
+        const args = calls[methodName][0];
         expect(args[0]).toBe(badge);
       });
     }
