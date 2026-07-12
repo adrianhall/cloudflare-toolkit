@@ -19,6 +19,62 @@
   "excludeInternal": true,
   "excludePrivate": true,
   "excludeProtected": true,
+  // Every module barrel (and every other src/ file) opens with a `@file` block comment (this
+  // toolkit's own JSDoc convention — see docs/specs/SPECv2.md §12.9). `@file` isn't in
+  // TypeDoc's own default recognized block-tag list, so without this option every entry point
+  // below produces an "Encountered an unknown block tag @file" warning (cosmetic only — 0
+  // build errors either way; CI's docs-check job never sets --treatWarningsAsErrors).
+  // `blockTags` REPLACES TypeDoc's default list rather than appending to it, so this repeats
+  // every tag typedoc@0.28 recognizes by default (verified against `OptionDefaults.blockTags`)
+  // plus `@file`. This file already tolerates `//` comments (TypeDoc's config loader accepts
+  // JSONC), so a plain literal array works fine here — no `.js`/`.mjs` config file is needed.
+  // Re-verify this list against `OptionDefaults.blockTags` whenever `typedoc` is bumped past
+  // its current `^0.28.20` pin, in case a future release adds a new default tag.
+  "blockTags": [
+    "@defaultValue",
+    "@deprecated",
+    "@example",
+    "@jsx",
+    "@param",
+    "@privateRemarks",
+    "@remarks",
+    "@returns",
+    "@see",
+    "@throws",
+    "@typeParam",
+    "@author",
+    "@callback",
+    "@category",
+    "@categoryDescription",
+    "@default",
+    "@document",
+    "@extends",
+    "@augments",
+    "@yields",
+    "@group",
+    "@groupDescription",
+    "@import",
+    "@inheritDoc",
+    "@license",
+    "@module",
+    "@mergeModuleWith",
+    "@prop",
+    "@property",
+    "@return",
+    "@satisfies",
+    "@since",
+    "@sortStrategy",
+    "@template",
+    "@this",
+    "@type",
+    "@typedef",
+    "@summary",
+    "@preventInline",
+    "@inlineType",
+    "@preventExpand",
+    "@expandType",
+    "@file"
+  ],
   "githubPages": false,
   "intentionallyNotExported": ["src/lib/logging/internal/console.ts:ConsoleLike"],
   "externalSymbolLinkMappings": {
@@ -30,11 +86,4 @@
   "compilerOptions": {
     "types": ["@cloudflare/workers-types", "node"]
   }
-
-  // Every module barrel uses a `@file` block comment (this toolkit's own JSDoc convention).
-  // TypeDoc warns "Encountered an unknown block tag @file" for it since `@file` isn't in its
-  // default recognized block-tag list — cosmetic only (0 build errors either way). Extending
-  // TypeDoc's default blockTags list requires a JS/ESM config file (`[...OptionDefaults
-  // .blockTags, "@file"]`), which isn't worth the added moving part for a warning with no
-  // functional effect; revisit if TypeDoc ever escalates this to an error.
 }

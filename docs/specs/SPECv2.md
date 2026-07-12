@@ -1107,3 +1107,43 @@ passing `eslint .` alone is not sufficient evidence that a mechanical autofix he
 a build first (e.g. if a future test harness stubs the package exports map), or if `no-deprecated`
 gains a non-type-aware detection mode — at which point `test/package/**/*.ts` could move into the
 type-checked block alongside `test/node/**` and `test/workers/**`.
+
+### 12.9 (Issue #135): `docs/typedoc.json`'s stale `@file` rationale comment corrected with a real fix
+
+**Source:** [Issue #135](https://github.com/adrianhall/cloudflare-toolkit/issues/135) — running
+`npm run docs` (TypeDoc) produced eight "Encountered an unknown block tag @file" warnings, one per
+entry point (`src/index.ts` plus the seven subpath `index.ts` barrels), and the file's own inline
+comment explaining why this was left unfixed turned out not to hold up.
+
+**File:** `docs/typedoc.json`.
+
+**Finding:** Every barrel — and every other `src/` file — opens with a `/** @file ... */` block
+comment (this toolkit's own JSDoc convention). TypeDoc's own default `blockTags` list doesn't
+include `@file`, so TypeDoc warns on every entry point. The comment previously justifying this as
+accepted-not-fixed claimed that extending TypeDoc's default `blockTags` list "requires a JS/ESM
+config file (`[...OptionDefaults.blockTags, "@file"]`)" and that the added moving part wasn't worth
+it for a cosmetic warning. That claim doesn't hold up under inspection: `docs/typedoc.json` already
+contained `//` comments before this fix and loaded successfully (TypeDoc's config loader accepts
+JSONC, not strict JSON), so no format migration was ever required to make this kind of change —
+and `blockTags` is a plain `Array`-type TypeDoc option settable with a literal string array in the
+existing `.json` file. Verified empirically against `typedoc@^0.28.20`'s `Application` API:
+setting `blockTags` via config **replaces** TypeDoc's default list rather than appending to it (so
+naively setting `blockTags: ["@file"]` would have swapped eight `@file` warnings for a much larger
+set of "unknown block tag" warnings on every other recognized tag actually used in `src/` —
+`@example`, `@param`, `@remarks`, `@returns`, `@throws`), and that TypeDoc exports the exact
+default array as `OptionDefaults.blockTags` for exactly this reason.
+
+**Resolution:** `docs/typedoc.json` now sets `"blockTags"` to `typedoc@0.28`'s full default array
+(re-typed as a literal JSON array, cross-checked against `OptionDefaults.blockTags`) plus `"@file"`
+appended. This was verified two ways: `Application.bootstrapWithPlugins()` + `.convert()` against
+this repo's real entry points reports `warningCount: 0` with the new config (vs. `8` with the old
+one, matching the issue's reproduction exactly), and `npm run docs:build` (TypeDoc +
+`vitepress build`) completes with no `@file` warnings and an unchanged VitePress build result. The
+stale inline comment is replaced with one describing the actual mechanics (replace-not-merge
+semantics, why a `.js`/`.mjs` config file was never actually required, and what to re-check if
+`typedoc` is ever bumped past its current `^0.28.20` pin). No `src/` changes were made — `@file`
+remains the toolkit's convention; only the tool consuming it was told about it.
+
+**Revisit if:** `typedoc` is bumped to a new minor/major version — diff the new
+`OptionDefaults.blockTags` against the array hardcoded in `docs/typedoc.json` and add any new
+default tags TypeDoc introduces, the same way this fix accounted for the full 0.28 default set.
