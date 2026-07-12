@@ -20,46 +20,21 @@
   "excludePrivate": true,
   "excludeProtected": true,
   "githubPages": false,
-  // `ConsoleLike` (src/lib/logging/internal/console.ts) is a test-injection seam for the
-  // `_console` default-`console` parameter on the logging transports — never meant to be passed
-  // by a real consumer, so it's deliberately not exported from the `logging` barrel. Without this
-  // entry, TypeDoc would otherwise warn "ConsoleLike ... referenced but not included in the
-  // documentation" for every transport that references it. `@internal` alone does not suppress
-  // this: `excludeInternal` only drops a reflection's own page, not a still-public function's
-  // reference to that now-excluded type. See issue #100.
   "intentionallyNotExported": ["src/lib/logging/internal/console.ts:ConsoleLike"],
-  // `Response` is the global Fetch API type from `@cloudflare/workers-types`, entirely outside
-  // this package — referenced via `{@link Response}` in the JSDoc for `getResponse()` on
-  // `ProblemDetailsError` (and its subclasses `NullError`/`InvalidShapeError`). Without this
-  // mapping, TypeDoc resolves the symbol but can't generate a page for it, so it warns "linked
-  // but not included in the documentation" and renders the link as plain, non-clickable text.
-  // Mapping it to Cloudflare's own Response runtime API docs (rather than the placeholder "#"
-  // from TypeDoc's own warning text) turns it into a genuinely useful working hyperlink instead.
-  // See issue #101.
   "externalSymbolLinkMappings": {
     "@cloudflare/workers-types": {
       "Response": "https://developers.cloudflare.com/workers/runtime-apis/response/"
     }
   },
+  "entryFileName": "index",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "node"]
+  }
+
   // Every module barrel uses a `@file` block comment (this toolkit's own JSDoc convention).
   // TypeDoc warns "Encountered an unknown block tag @file" for it since `@file` isn't in its
   // default recognized block-tag list — cosmetic only (0 build errors either way). Extending
   // TypeDoc's default blockTags list requires a JS/ESM config file (`[...OptionDefaults
   // .blockTags, "@file"]`), which isn't worth the added moving part for a warning with no
   // functional effect; revisit if TypeDoc ever escalates this to an error.
-  // "index" (not the plugin default "README") so directory pages map to clean VitePress
-  // folder routes (e.g. /reference/lib/hono/ -> lib/hono/index.md), per
-  // https://typedoc-plugin-markdown.org/docs/options/file#entryfilename.
-  "entryFileName": "index",
-  // Entry points are only the 8 public subpath barrels (src/index.ts + src/lib/*/index.ts) —
-  // deliberately NOT src/cli/generate-wrangler-types (a bin, not a documented import subpath;
-  // see SPECv2.md §5.1). Because of that narrower root-name set, the ambient `node` triple-slash
-  // reference living in that CLI's entry file (which is what lets the root project's own
-  // `tsc --noEmit`, which type-checks the whole `src/**/*.ts` glob, see Node globals in
-  // Node-only files like `vite/plugin.ts`) never gets pulled into TypeDoc's narrower program.
-  // Re-adding "node" here (alongside the root tsconfig's own `@cloudflare/workers-types`)
-  // restores those same globals for TypeDoc's program without touching the root tsconfig.
-  "compilerOptions": {
-    "types": ["@cloudflare/workers-types", "node"]
-  }
 }
