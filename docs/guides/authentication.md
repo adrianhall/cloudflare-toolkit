@@ -1,22 +1,39 @@
 # Authentication
 
-`@adrianhall/cloudflare-toolkit` protects a Hono Worker with **Cloudflare Access** JWT
-validation, and gives you a safe way to develop against those same protected routes locally,
-without a real Cloudflare Access deployment sitting in front of your machine.
+[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/) is a great way to put a single authentication layer in front of every app on your team. The problem: Access runs at Cloudflare's edge, not in your local dev server — so the access token your Worker relies on in production simply isn't there when you run `vite dev` or your Vitest suite.
 
-Two pieces work together:
+The Cloudflare Toolkit closes that gap with two pieces that share the same policies and the same verification code, so your Worker's authentication code is written once and runs unchanged from local development to production:
 
-- [`cloudflareAccess`](#cloudflareaccess-in-production) (`/hono`) — production JWT validation,
-  wired into your Worker.
-- [`cloudflareAccessPlugin`](#local-development-with-cloudflareaccessplugin) (`/vite`) — a
-  dev-only Vite plugin that emulates the Cloudflare Access edge during `vite dev`, so the Worker
-  never needs a separate dev-only authentication path.
+- [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) (`/hono`) — the
+  production middleware that validates the Access JWT on every request.
+- [`cloudflareAccessPlugin`](/reference/lib/vite/functions/cloudflareAccessPlugin.md) (`/vite`) —
+  a dev-only Vite plugin that emulates the Access edge during `vite dev`.
 
-Both are built on the same internal JWT/JWKS/policy module, so a session created by the Vite
-plugin locally is accepted by the exact same verification code that runs in production — see the
-[Vite + Vitest guide](/guides/vite-vitest) for the full wiring between the two.
+## The problem: Cloudflare Access lives at the edge
 
-## `cloudflareAccess` in production
+In production, Cloudflare Access sits in front of your Worker. It authenticates the user, then injects a signed JWT into every request before that request ever reaches your code. Your Worker's only job is to ensure that the access token is valid.
+
+Locally there is no Cloudflare Access in the loop. `vite dev` serves your app straight from [Miniflare](https://developers.cloudflare.com/workers/testing/miniflare/), which doesn't emulate Cloudflare Access, so no access token is ever injected.
+
+## The mechanism: two halves, one code path
+
+The Cloudflare Toolkit provides two halves of the system. Within your worker, the [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) middleware makes it easy to validate the token that the Cloudflare Access system provides. Outside the worker, the Cloudflare Toolkit provides the [`cloudflareAccessPlugin`](/reference/lib/vite/functions/cloudflareAccessPlugin.md) for vite, which emulates the functionality of Cloudflare Access, making it simple to emulate any user of the system without complicated authentication logic. Your code goes from development to production seamlessly.
+
+Both halves of the process are built on the same internal JWT/JWKS/policy module and take the same [`PathPolicy`](/reference/lib/hono/interfaces/PathPolicy.md) array, so a session minted locally is accepted by the exact verification code that runs in production.
+
+| Step                       | Production                | Local `vite dev`                    |
+| -------------------------- | ------------------------- | ----------------------------------- |
+| Authenticates the user     | Cloudflare Access (edge)  | `cloudflareAccessPlugin` login form |
+| Signs the JWT              | Cloudflare Access         | `cloudflareAccessPlugin` (dev key)  |
+| Injects the request header | Cloudflare Access (edge)  | `cloudflareAccessPlugin` (connect)  |
+| Verifies the JWT           | `cloudflareAccess` (JWKS) | `cloudflareAccess` (dev key)        |
+| **Your handler code**      | **unchanged**             | **unchanged**                       |
+
+The rest of this guide shows you how to wire each half, then covers configuring both for production and development in [Security hardening](#security-hardening).
+
+## Protecting your Worker
+
+Add [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) as middleware. It reads the JWT, verifies it, and on success sets two typed context variables typed for every downstream handler:
 
 ```ts
 import { Hono } from "hono";
@@ -38,25 +55,25 @@ app.get("/api/version", (c) => c.json({ version: "1.0.0" })); // public
 app.get("/api/me", (c) => c.json({ email: c.get("userEmail"), sub: c.get("userSub") })); // protected
 ```
 
-On a successful verification, `cloudflareAccess` sets two context variables — typed by
-`AuthVariables` — for every downstream handler to read: `userEmail` (the JWT `email` claim) and
-`userSub` (the JWT `sub` claim). Every `401` it returns is itself an RFC 9457
-`application/problem+json` response, the same shape `problemDetailsErrorHandler` and
-`notFoundHandler` produce — see the [Error Handling guide](/guides/error-handling).
+The `AuthVariables` (and the combined [`CloudflareToolkitVariables`](/reference/lib/hono/type-aliases/CloudflareToolkitVariables.md)) provides the following typed variables within the Hono context:
 
-### Path policies and the default action
+- `userEmail` — the JWT `email` claim.
+- `userSub` — the JWT `sub` claim, a stable per-user identifier ideal for authorization.
 
-`policies` is an ordered array of `{ pattern: RegExp, authenticate: boolean }` — **first match
-wins**:
+Every `401` the middleware returns is itself an RFC 9457 `application/problem+json` response — the same shape [`problemDetailsErrorHandler`](/reference/lib/hono/functions/problemDetailsErrorHandler.md) and [`notFoundHandler`](/reference/lib/hono/functions/notFoundHandler.md) produce, so errors stay uniform across your app (see [Error Handling](/guides/error-handling)).
 
-- `authenticate: false` — bypass JWT validation entirely for matching paths.
-- `authenticate: true` — require a valid JWT; a missing/invalid one returns `401`.
+### Path policies
 
-For any path that matches **no** policy, `defaultAction` decides what happens:
+[`policies`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#policies) is an ordered [`PathPolicy`](/reference/lib/hono/interfaces/PathPolicy.md) array; the **first match wins**:
 
-- `"block"` _(default)_ — return `401` if no valid JWT is present.
-- `"bypass"` — let the request through. If a valid JWT happens to be present, `AuthVariables` are
-  still set; otherwise the request continues unauthenticated.
+- `authenticate: false` — public; skip JWT validation entirely.
+- `authenticate: true` — protected; a missing or invalid JWT returns `401`.
+
+For a path that matches **no** policy, [`defaultAction`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#defaultaction) decides:
+
+- `"block"` _(default)_ — treat it as protected.
+- `"bypass"` — let it through unauthenticated. If a valid JWT happens to be present,
+  `AuthVariables` are still set.
 
 ```ts
 app.use(
@@ -67,75 +84,11 @@ app.use(
 );
 ```
 
-### Team domain and audience
+See [`CloudflareAccessOptions`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md) for the full option surface.
 
-`teamDomain` is your Cloudflare Access team's domain, used to fetch its public JWKS. When
-omitted, `cloudflareAccess` reads `c.env.CLOUDFLARE_TEAM_DOMAIN` at request time — the pattern
-shown in the [Getting Started](/getting-started) `wrangler.jsonc` example, so most apps never
-need to pass it explicitly.
+## Developing locally
 
-`audience` is your Access Application's Audience (AUD) Tag. **Set it outside local
-development.** Every Cloudflare Access application on the same team shares the same JWKS, so
-without an `aud` check, a JWT that's valid for _any other_ Access application in your team is
-accepted here too — a cross-application token replay risk. Unless `enableDevTokens` is `true`,
-omitting `audience` logs a one-time warning at construction time for exactly this reason:
-
-```ts
-app.use(
-  cloudflareAccess({
-    policies: [{ pattern: /^\/api\//, authenticate: true }],
-    audience: "4714c1358e65fe4b21c711123456effd" // find this on the Access Application's Overview tab
-  })
-);
-```
-
-### The local-dev token bypass — and why it's fail-closed by default
-
-`enableDevTokens` controls whether `cloudflareAccess` will additionally accept a
-developer-signed HS256 token (as opposed to only real Cloudflare Access JWKS-verified tokens).
-**It defaults to `false`.** This is a deliberate fail-closed default: a deployed Worker that
-somehow ends up with `enableDevTokens` statically `true` would silently trust a forgeable HS256
-token — including one signed with the well-known public `DEFAULT_DEV_SECRET` from `/testing`.
-
-Always gate it on a build-time signal that resolves to `false` in a production build, never a
-runtime environment variable that could be misconfigured at deploy time:
-
-```ts
-app.use(
-  cloudflareAccess({
-    policies,
-    enableDevTokens: import.meta.env.DEV // statically false once bundled for production
-  })
-);
-```
-
-When dev tokens are enabled without an explicit `devSecret`, `cloudflareAccess` logs a one-time
-warning that it's verifying against the public `DEFAULT_DEV_SECRET` — safe only on localhost.
-
-### Logging
-
-Pass `logger` (a `/logging` `Logger` — see the [Logging guide](/guides/logging)) to get
-debug/info/warn/error diagnostics from `cloudflareAccess` itself, such as the audience and
-dev-secret warnings above. It defaults to a silent logger, so these diagnostics are opt-in:
-
-```ts
-import { createLogger, createConsoleTransport } from "@adrianhall/cloudflare-toolkit/logging";
-
-app.use(
-  cloudflareAccess({
-    policies,
-    logger: createLogger({ level: "warn", transport: createConsoleTransport() })
-  })
-);
-```
-
-## Local development with `cloudflareAccessPlugin`
-
-In production, Cloudflare Access sits at the edge and injects the `Cf-Access-Jwt-Assertion`
-header before your request ever reaches the Worker. During `vite dev` there's no Access in that
-loop, so `cloudflareAccessPlugin` reproduces the same behavior at Vite's connect-middleware layer
-— the Worker keeps **only** the production `cloudflareAccess` middleware above, with no
-separate, dev-only authentication path to maintain or accidentally ship.
+Register [`cloudflareAccessPlugin`](/reference/lib/vite/functions/cloudflareAccessPlugin.md) in `vite.config.ts`, and pass it the **same** policy array you gave the Worker:
 
 ```ts
 // vite.config.ts
@@ -147,31 +100,18 @@ import { authPolicies } from "./src/auth-policies";
 export default defineConfig({
   plugins: [
     // MUST come before cloudflare() so its connect middleware runs first and can inject the
-    // Access headers before the request is dispatched into the Worker runtime.
+    // Access headers before the request is dispatched into the Worker.
     cloudflareAccessPlugin({ policies: authPolicies }),
     cloudflare()
   ]
 });
 ```
 
-Pass the **same** `policies` array you gave `cloudflareAccess` in the Worker (`authPolicies`
-above is shared between both configs) so dev and production agree on which paths are protected.
+Define `authPolicies` in its own module and import it into both configs — that single shared array is what keeps dev and production agreeing on which routes are protected (see the [Vite + Vitest guide](/guides/vite-vitest)).
 
-Visiting a policy-protected route in the browser during `vite dev` redirects to a login form
-served by the plugin itself, at `loginPath` (default `/cdn-cgi/access/login`). Submitting it
-mints a dev-signed JWT — accepted by the Worker's own `cloudflareAccess` because both sides share
-the same `DEFAULT_DEV_SECRET`/verification code internally, with no separate verification logic
-to keep in sync. The plugin also serves `/cdn-cgi/access/logout` and
-`/cdn-cgi/access/get-identity`, mirroring the real Cloudflare Access edge endpoints.
+During `vite dev`, visiting a protected route redirects the browser to a login form the plugin serves at [`loginPath`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#loginpath) (default `/cdn-cgi/access/login`). Submitting it mints a dev-signed JWT and hands you back to your app, now authenticated. The plugin also serves `/cdn-cgi/access/logout` and `/cdn-cgi/access/get-identity`, mirroring the real Access edge endpoints.
 
-Other `CloudflareAccessPluginOptions`:
-
-| Option          | Default                    | Purpose                                                                                                   |
-| --------------- | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `devSecret`     | `DEFAULT_DEV_SECRET`       | Must match the Worker's `devSecret`, if you overrode it there.                                            |
-| `users`         | _(none — free-text email)_ | Selectable identities (`{ email, name?, sub? }`) rendered on the login form instead of a free-text input. |
-| `loginPath`     | `/cdn-cgi/access/login`    | Pathname for the login form.                                                                              |
-| `tokenLifetime` | `86400` (24 h)             | Dev JWT lifetime, in seconds.                                                                             |
+By default the login form is a free-text email box. Supply [`users`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#users) to pick from named accounts instead:
 
 ```ts
 cloudflareAccessPlugin({
@@ -183,16 +123,78 @@ cloudflareAccessPlugin({
 });
 ```
 
-Both `enableDevTokens: true` on the Worker side and `cloudflareAccessPlugin` on the Vite side are
-independent ways to get past `cloudflareAccess` locally — the plugin emulates the **browser**
-login flow for `vite dev`; `/testing`'s `signDevJwt` (covered in the
-[Testing guide](/guides/testing)) signs a token directly for **Vitest** assertions against the
-Worker's `fetch` handler, with no Vite server involved at all.
+The remaining [`CloudflareAccessPluginOptions`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md):
+
+| Option                                                                                           | Default                 | Purpose                                                 |
+| ------------------------------------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------- |
+| [`devSecret`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#devsecret)         | public dev key          | Must match the Worker's `devSecret` if you overrode it. |
+| [`users`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#users)                 | _(free-text email)_     | Selectable `DevLoginUser` identities on the login form. |
+| [`loginPath`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#loginpath)         | `/cdn-cgi/access/login` | Pathname for the login form.                            |
+| [`tokenLifetime`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#tokenlifetime) | `86400` (24 h)          | Dev JWT lifetime, in seconds.                           |
+
+## Security hardening
+
+Both halves default to safe behavior, but a production deployment and a local dev session want opposite settings for a couple of options. Configure them explicitly.
+
+### In production
+
+- **Set [`audience`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#audience)** to your Access application's Audience (AUD) Tag — found on the Access Application's **Overview** tab. Every Access app on your team shares one JWKS, so without the `aud` check a token minted for _any_ app on the team is accepted here too.
+- **Keep [`enableDevTokens`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#enabledevtokens) statically `false`.** Gate it on a build-time signal (`import.meta.env.DEV`), never a runtime env var — a deployed Worker with dev tokens on would trust a forgeable HS256 token signed with the public `DEFAULT_DEV_SECRET`. `false` is the default precisely so this fails closed.
+- **Provide the team domain** via the `CLOUDFLARE_TEAM_DOMAIN` binding (the [Getting Started](/getting-started) `wrangler.jsonc` pattern) — `cloudflareAccess` reads it at request time to fetch the JWKS — or pass [`teamDomain`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#teamdomain) explicitly.
+
+```ts
+app.use(
+  cloudflareAccess({
+    policies: authPolicies,
+    audience: "4714c1358e65fe4b21c711123456effd",
+    enableDevTokens: import.meta.env.DEV // statically false once bundled for production
+  })
+);
+```
+
+### In local development
+
+- **Set `enableDevTokens: import.meta.env.DEV`** so the Worker accepts the dev-signed tokens the Vite plugin (and `/testing`) produce. Leaving [`devSecret`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#devsecret) unset uses the public dev key and logs a one-time warning — fine on localhost.
+- **Match `devSecret` on both sides** _only_ if you override the default: the value passed to [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) and to [`cloudflareAccessPlugin`](/reference/lib/vite/functions/cloudflareAccessPlugin.md) must be identical, or locally-minted tokens won't verify.
+
+### Diagnostics
+
+Pass a [`logger`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#logger) (a [`Logger`](/reference/lib/logging/index.md#logger)) to surface the warnings above plus per-request debug output. It defaults to silent, so diagnostics are opt-in (see [Logging](/guides/logging)):
+
+```ts
+import { createLogger, createConsoleTransport } from "@adrianhall/cloudflare-toolkit/logging";
+
+app.use(
+  cloudflareAccess({
+    policies: authPolicies,
+    logger: createLogger({ level: "warn", transport: createConsoleTransport() })
+  })
+);
+```
+
+## Beyond the browser: testing
+
+[`cloudflareAccessPlugin`](/reference/lib/vite/functions/cloudflareAccessPlugin.md) emulates the **browser** login flow for a human clicking around in `vite dev`. For **Vitest**, `/testing`'s [`signDevJwt`](/reference/lib/testing/functions/signDevJwt.md) signs a token directly — no Vite server involved — so you can call your Worker's `fetch` handler with a ready-made [`JWT_HEADER`](/reference/lib/testing/variables/JWT_HEADER.md):
+
+```ts
+import { signDevJwt, JWT_HEADER } from "@adrianhall/cloudflare-toolkit/testing";
+
+const token = await signDevJwt("alice@example.com");
+const res = await app.fetch(
+  new Request("http://localhost/api/me", { headers: { [JWT_HEADER]: token } }),
+  env
+);
+```
+
+Both paths require `enableDevTokens` on the Worker for the tokens they produce to be accepted. See [Testing](/guides/testing) for
+more details.
 
 ## See also
 
-- [Error Handling](/guides/error-handling) — the RFC 9457 shape of every `401`/`404` this
-  middleware and its siblings produce.
+- [Error Handling](/guides/error-handling) — the RFC 9457 shape of every `401` this middleware
+  returns.
+- [Logging](/guides/logging) — the [`Logger`](/reference/lib/logging/index.md#logger) you hand to
+  `cloudflareAccess` for its diagnostics.
 - [Testing](/guides/testing) — `signDevJwt`, `buildCookieHeader`, and `clearCookieHeader` for
   asserting against Access-protected routes in Vitest.
 - [Vite + Vitest configuration](/guides/vite-vitest) — the full `wrangler.jsonc` +
