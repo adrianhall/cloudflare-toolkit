@@ -1,0 +1,23 @@
+/**
+ * Fixes #136: the home page hero (docs/index.md) has no `hero.image`, so VitePress's default
+ * theme never applies its `.VPHero.has-image` class. Without that class, the `.main` text
+ * column itself stretches to fill the full hero container (it's the sole flex child with
+ * `flex-grow: 1`) — but the heading (`.name`/`.text`) and `.tagline` inside it carry their own
+ * hard-coded `max-width` caps (392px / 576px across breakpoints, see VPHero.vue) that never
+ * grow past that regardless of viewport width. That leaves roughly half the hero block as blank
+ * space on typical desktop widths.
+ *
+ * `max-width: 100%` (rather than removing the constraint outright) keeps these elements
+ * responsive to `.main`'s actual width at every breakpoint instead of being unconstrained, while
+ * `:not(.has-image)` scopes the override to this project's actual imageless hero so a future
+ * hero image would keep the default theme's intended narrower, image-paired text column.
+ *
+ * See https://vitepress.dev/guide/extending-default-theme#customizing-css for why this requires
+ * a custom theme rather than a config-only override: none of these widths are exposed as
+ * `--vp-*` CSS variables.
+ */
+.VPHero:not(.has-image) .name,
+.VPHero:not(.has-image) .text,
+.VPHero:not(.has-image) .tagline {
+  max-width: 100%;
+}
