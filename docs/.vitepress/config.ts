@@ -76,29 +76,35 @@ export default defineConfig({
       { text: "Changelog", link: "/changelog" }
     ],
 
-    sidebar: {
-      "/guides/": [
-        {
-          text: "Guides",
-          items: [
-            { text: "Overview", link: "/guides/" },
-            { text: "Authentication", link: "/guides/authentication" },
-            { text: "Logging", link: "/guides/logging" },
-            { text: "Error Handling", link: "/guides/error-handling" },
-            { text: "Defensive Guards", link: "/guides/defensive-guards" },
-            { text: "generate-wrangler-types CLI", link: "/guides/cli" },
-            { text: "Testing", link: "/guides/testing" },
-            { text: "Vite + Vitest configuration", link: "/guides/vite-vitest" }
-          ]
-        }
-      ],
-      "/reference/": [
-        {
-          text: "API Reference",
-          items: buildReferenceSidebar()
-        }
-      ]
-    },
+    // A single flat array (rather than the path-keyed multi-sidebar form) so the exact same
+    // sidebar renders on every "doc" layout page — Getting Started, every guide, every API
+    // Reference page, and the changelog — instead of only appearing on whichever section a
+    // path-keyed config happens to match (issue #142). The home page (`index.md`,
+    // `layout: home`) is unaffected either way: VitePress's home layout never renders the
+    // sidebar regardless of this config.
+    sidebar: [
+      { text: "Getting Started", link: "/getting-started" },
+      {
+        text: "Guides",
+        collapsed: false,
+        items: [
+          { text: "Overview", link: "/guides/" },
+          { text: "Authentication", link: "/guides/authentication" },
+          { text: "Logging", link: "/guides/logging" },
+          { text: "Error Handling", link: "/guides/error-handling" },
+          { text: "Defensive Guards", link: "/guides/defensive-guards" },
+          { text: "generate-wrangler-types CLI", link: "/guides/cli" },
+          { text: "Testing", link: "/guides/testing" },
+          { text: "Vite + Vitest configuration", link: "/guides/vite-vitest" }
+        ]
+      },
+      {
+        text: "API Reference",
+        collapsed: false,
+        items: buildReferenceSidebar()
+      },
+      { text: "Changelog", link: "/changelog" }
+    ],
 
     socialLinks: [{ icon: "github", link: "https://github.com/adrianhall/cloudflare-toolkit" }],
 
