@@ -92,9 +92,8 @@ export default defineConfig({
           { text: "Authentication", link: "/guides/authentication" },
           { text: "Logging", link: "/guides/logging" },
           { text: "Error Handling", link: "/guides/error-handling" },
-          { text: "Defensive Guards", link: "/guides/defensive-guards" },
-          { text: "generate-wrangler-types CLI", link: "/guides/cli" },
           { text: "Testing", link: "/guides/testing" },
+          { text: "Command Line Tools", link: "/guides/cli" },
           { text: "Vite + Vitest configuration", link: "/guides/vite-vitest" }
         ]
       },
@@ -102,8 +101,7 @@ export default defineConfig({
         text: "API Reference",
         collapsed: false,
         items: buildReferenceSidebar()
-      },
-      { text: "Changelog", link: "/changelog" }
+      }
     ],
 
     socialLinks: [{ icon: "github", link: "https://github.com/adrianhall/cloudflare-toolkit" }],
