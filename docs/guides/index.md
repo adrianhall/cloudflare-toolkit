@@ -1,23 +1,55 @@
 # Guides
 
-One guide per functional area, each expanding on the corresponding
-[Getting Started](/getting-started) snippet with fuller worked examples:
+<div class="guide-panels">
 
-- [Authentication](/guides/authentication) — `cloudflareAccess` + `cloudflareAccessPlugin`: path
-  policies, the local-dev token bypass, and why it's fail-closed by default.
-- [Logging](/guides/logging) — `cloudflareLogger` + the `/logging` core, and all five
-  transports.
-- [Error Handling](/guides/error-handling) — the HTTP error generators,
-  `problemDetailsErrorHandler`, `notFoundHandler`, and how RFC 9457 problem details show up in a
-  response.
-- [Defensive Guards](/guides/defensive-guards) — why `throwIfNull`, `valueOrDefault`, and
-  `sqlCount` exist.
-- [The `generate-wrangler-types` CLI](/guides/cli) — keeping `worker-configuration.d.ts` fresh.
-- [Testing a toolkit-based app](/guides/testing) — `/testing` helpers and
-  `@cloudflare/vitest-pool-workers` recipes.
-- [Vite + Vitest configuration for a Hono/Workers project](/guides/vite-vitest) — pairing
-  `@cloudflare/vite-plugin` and `@cloudflare/vitest-pool-workers` against the same Worker.
+<div class="guide-panel">
 
-The [`cloudflare-toolkit` Agent Skill](https://www.npmjs.com/package/skills)
-(`npx skills add adrianhall/cloudflare-toolkit`) documents the same API surface in a form built
-for coding agents, and is kept in sync with the source on every release.
+### [Authentication](./authentication)
+
+Integrate Cloudflare Access in your app while preserving local development.
+
+</div>
+
+<div class="guide-panel">
+
+### [Logging](./logging)
+
+Simplify logging from development through production.
+
+</div>
+
+<div class="guide-panel">
+
+### [Error Handling](./error-handling)
+
+Built-in RFC 9457 compatible error handling.
+
+</div>
+
+<div class="guide-panel">
+
+### [Command Line Tools](./cli)
+
+Keep your workspace up to date automatically.
+
+</div>
+
+<div class="guide-panel">
+
+### [Testing](./testing)
+
+Utilities for handling authenticated test flows easily.
+
+</div>
+
+<div class="guide-panel">
+
+### [Defensive Guards](./defensive-guards)
+
+A set of utility functions to make coverage targets easier to meet.
+
+</div>
+
+</div>
+
+The [`cloudflare-toolkit` Agent Skill](https://www.npmjs.com/package/skills) (`npx skills add adrianhall/cloudflare-toolkit`) documents the same API surface in a form built for coding agents, and is kept in sync with the source on every release.
