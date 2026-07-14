@@ -1,16 +1,12 @@
 # Guides
 
-One guide per functional area, each expanding on the corresponding
-[Getting Started](/getting-started) snippet with fuller worked examples:
-
 <div class="guide-panels">
 
 <div class="guide-panel">
 
 ### [Authentication](./authentication)
 
-`cloudflareAccess` + `cloudflareAccessPlugin`: path policies, the local-dev token bypass, and why
-it's fail-closed by default.
+Integrate Cloudflare Access in your app while preserving local development.
 
 </div>
 
@@ -18,7 +14,7 @@ it's fail-closed by default.
 
 ### [Logging](./logging)
 
-`cloudflareLogger` + the `/logging` core, and all five transports.
+Simplify logging from development through production.
 
 </div>
 
@@ -26,8 +22,7 @@ it's fail-closed by default.
 
 ### [Error Handling](./error-handling)
 
-The HTTP error generators, `problemDetailsErrorHandler`, `notFoundHandler`, and how RFC 9457
-problem details show up in a response.
+Built-in RFC 9457 compatible error handling.
 
 </div>
 
@@ -35,7 +30,7 @@ problem details show up in a response.
 
 ### [Command Line Tools](./cli)
 
-Keeping `worker-configuration.d.ts` fresh with the `generate-wrangler-types` CLI.
+Keep your workspace up to date automatically.
 
 </div>
 
@@ -43,7 +38,7 @@ Keeping `worker-configuration.d.ts` fresh with the `generate-wrangler-types` CLI
 
 ### [Testing](./testing)
 
-`/testing` helpers and `@cloudflare/vitest-pool-workers` recipes.
+Utilities for handling authenticated test flows easily.
 
 </div>
 
@@ -51,12 +46,10 @@ Keeping `worker-configuration.d.ts` fresh with the `generate-wrangler-types` CLI
 
 ### [Defensive Guards](./defensive-guards)
 
-Why `throwIfNull`, `valueOrDefault`, and `sqlCount` exist.
+A set of utility functions to make coverage targets easier to meet.
 
 </div>
 
 </div>
 
-The [`cloudflare-toolkit` Agent Skill](https://www.npmjs.com/package/skills)
-(`npx skills add adrianhall/cloudflare-toolkit`) documents the same API surface in a form built
-for coding agents, and is kept in sync with the source on every release.
+The [`cloudflare-toolkit` Agent Skill](https://www.npmjs.com/package/skills) (`npx skills add adrianhall/cloudflare-toolkit`) documents the same API surface in a form built for coding agents, and is kept in sync with the source on every release.
