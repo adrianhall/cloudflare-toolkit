@@ -1,8 +1,6 @@
 # Getting Started
 
-The Cloudflare Toolkit is a set of utilities that speed up development of multi-tier apps written
-for [Cloudflare Workers], using a combination of [Vite] plugins, [Hono] utilities, and [CLI tools].
-It is a complement to the official [Cloudflare tooling], including [Wrangler] and the [vite plugin].
+The Cloudflare Toolkit is a set of utilities that speed up development of multi-tier apps written for [Cloudflare Workers], using a combination of [Vite] plugins, [Hono] utilities, and [CLI tools]. It is a complement to the official [Cloudflare tooling], including [Wrangler] and the [vite plugin].
 
 All apps start life as a [vite-based hono app]:
 
@@ -16,8 +14,7 @@ npm create cloudflare@latest -- tutorial --template=cloudflare/templates/vite-re
 npm install @adrianhall/cloudflare-toolkit hono
 ```
 
-Once installed, set up your environments. There are three known environment names (`production`,
-`development`, and `test`). Edit your `wrangler.jsonc` and add an environment variable:
+Once installed, set up your environments. There are three known environment names (`production`, `development`, and `test`). Edit your `wrangler.jsonc` and add an environment variable:
 
 ```json
 "vars": {
@@ -49,15 +46,11 @@ app.get("/api/me", (c) => {
 export default app;
 ```
 
-This code is your basic "worker" pattern for an API. You can request `/api/me` in your browser
-or a tool like [Insomnia] or [Postman] and see the JSON block. We'll augment this code during
-this short tutorial.
+This code is your basic "worker" pattern for an API. You can request `/api/me` in your browser or a tool like [Insomnia] or [Postman] and see the JSON block. We'll augment this code during this short tutorial.
 
 ## Add RFC 9457 error handling
 
-When something goes wrong, you want to report that back to the user. [RFC 9457] is the standard
-mechanism for reporting errors to clients with problem details. You can quickly add this to your
-app:
+When something goes wrong, you want to report that back to the user. [RFC 9457] is the standard mechanism for reporting errors to clients with problem details. You can quickly add [error handling](/guides/error-handling.md) to your app:
 
 ```ts{2-3,11-12,19}
 import { Hono } from "hono";
@@ -84,16 +77,11 @@ app.get("/api/error", (c) => {
 export default app;
 ```
 
-Now use your browser to go to a missing API and you will see an RFC 9457 compliant 404 response. Go
-to `/api/error` and you will free an RFC 9457 compliant 400 response with some details. We have
-generators for all the common HTTP error codes and allow you to generate your own for codes not
-already covered.
+Now use your browser to go to a missing API and you will see an RFC 9457 compliant 404 response. Go to `/api/error` and you will free an RFC 9457 compliant 400 response with some details. We have generators for all the common HTTP error codes and allow you to generate your own for codes not already covered.
 
 ## Add structured logging
 
-Cloudflare Workers includes a mechanism for [recording structured logging]. Cloudflare Toolkit provides
-an injectable logger that configures itself based on your environment - structured logging in production
-that Cloudflare Observability can understand, and pretty console logs in development.
+Cloudflare Workers includes a mechanism for [recording structured logging]. Cloudflare Toolkit provides [an injectable logger](/guides/logging.md) that configures itself based on your environment - structured logging in production that Cloudflare Observability can understand, and pretty console logs in development.
 
 Let's augment the example with logging:
 
@@ -130,18 +118,13 @@ app.get("/api/error", (c) => {
 export default app;
 ```
 
-The `CloudflareToolkitVariables` contains the variable definitions for the Cloudflare Toolkit.
-The `cloudflareLogger()` method injects a logger into the Hono context so it is available everywhere.
+The `CloudflareToolkitVariables` contains the variable definitions for the Cloudflare Toolkit. The `cloudflareLogger()` method injects a logger into the Hono context so it is available everywhere.
 
 ## Add Cloudflare Access
 
-Enterprise apps need authentication. [Cloudflare Access] is a great way to provide a common authentication
-layer for all your apps. However, it's not included in [Miniflare], so you have to emulate it. Our middleware
-and vite plugin allow you to use Cloudflare Access in production, but simulate it in local development.
+Enterprise apps need authentication. [Cloudflare Access] is a great way to provide a common authentication layer for all your apps. However, it's not included in [Miniflare], so you have to emulate it. Our [middleware and vite plugin](/guides/authentication.md) allow you to use Cloudflare Access in production, but simulate it in local development.
 
-In production, `cloudflareAccess` verifies each request's JWT against your team's public keys, so it needs
-your Cloudflare Access team domain. Add it to the `vars` block in `wrangler.jsonc` alongside `ENVIRONMENT`
-(the vite plugin emulates Access locally, so this isn't needed while developing):
+In production, `cloudflareAccess` verifies each request's JWT against your team's public keys, so it need your Cloudflare Access team domain. Add it to the `vars` block in `wrangler.jsonc` alongside `ENVIRONMENT` (the vite plugin emulates Access locally, so this isn't needed while developing):
 
 ```json
 "vars": {
@@ -155,8 +138,7 @@ steps:
 
 ### 1. Set up your path policy
 
-The path policy is an array of `PathPolicy` objects that define how you want the application to act. This is
-best done in a separate file because both the vite plugin and your code need it:
+The path policy is an array of `PathPolicy` objects that define how you want the application to act. This is best done in a separate file because both the vite plugin and your code need it:
 
 ```ts
 /** @file auth-policies.ts */
@@ -225,16 +207,11 @@ app.get("/api/error", (c) => {
 export default app;
 ```
 
-The `CloudflareToolkitVariables` contains the variable names `userEmail` and `userSub` that
-can be used in your application to support authorization requests.
+The `CloudflareToolkitVariables` contains the variable names `userEmail` and `userSub` that can be used in your application to support authorization requests.
 
 ## Automate type generation
 
-Whenever you add or change a binding within `wrangler.jsonc`, you must re-generate the
-`worker-configuration.d.ts` file by using `wrangler types`. This is a common friction
-point since you don't want the file updated all the time. We wrote a small CLI tool
-that only runs `wrangler types` when the `wrangler.jsonc` file actually changes. This
-allows you to wire the script into a "prebuild" or "prestart" script in `package.json`:
+Whenever you add or change a binding within `wrangler.jsonc`, you must re-generate the `worker-configuration.d.ts` file by using `wrangler types`. This is a common friction point since you don't want the file updated all the time. We wrote [a small CLI tool](/guides/cli.md) that only runs `wrangler types` when the `wrangler.jsonc` file actually changes. This allows you to wire the script into a "prebuild" or "prestart" script in `package.json`:
 
 ```json{2,4,6,10}
   "scripts": {
