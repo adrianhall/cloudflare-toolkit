@@ -236,7 +236,6 @@ Review our in-depth guides on each function area:
 - [Authentication & Authorization](./guides/authentication.md)
 - [Command line tools](./guides/cli.md)
 - [Testing](./guides/testing.md)
-- [Vite and Vitest](./guides/vite-vitest.md)
 
 <!-- Links -->
 
