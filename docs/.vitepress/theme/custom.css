@@ -21,3 +21,72 @@
 .VPHero:not(.has-image) .tagline {
   max-width: 100%;
 }
+
+/**
+ * Fixes #146: renders the guides overview (docs/guides/index.md) as a 3x2 panel grid instead of
+ * a bullet list. This is deliberately a hand-rolled grid rather than a reuse of VitePress's
+ * built-in home-page "features" grid (VPFeatures.vue/VPFeature.vue): that component only renders
+ * under `layout: home` frontmatter, which would drop the sidebar on this page, and its CSS is
+ * `<style scoped>` so it wouldn't apply to hand-written markdown HTML here anyway.
+ *
+ * `.guide-panels`/`.guide-panel` are plain `<div>`s written directly in guides/index.md (each
+ * opening/closing tag isolated on its own line with a blank line on either side, so markdown-it
+ * treats them as standalone HTML blocks and still fully parses the markdown — including the
+ * links — in between; see https://vitepress.dev/guide/markdown for the same technique used by
+ * VitePress's own custom containers). Using real markdown link syntax inside (rather than raw
+ * `<a href>` tags) matters here: this site has `base: "/cloudflare-toolkit/"`, and only
+ * markdown-syntax links get rewritten with that base prefix by VitePress's link plugin — a raw
+ * `<a href="/guides/...">` would 404 once deployed.
+ *
+ * Uses the same `--vp-c-*` theme variables as VPFeature.vue (bg-soft/divider/brand-1/text-2) so
+ * the panels stay correct in both light and dark mode without hard-coded colors, and collapses
+ * to a single column below 640px, matching VPFeatures.vue's own grid-3 breakpoint.
+ */
+.guide-panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+@media (min-width: 640px) {
+  .guide-panels {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.guide-panel {
+  display: block;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background-color: var(--vp-c-bg-soft);
+  padding: 20px;
+  transition:
+    border-color 0.25s,
+    background-color 0.25s;
+}
+
+.guide-panel:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+.guide-panel h3 {
+  margin: 0 0 8px;
+  padding: 0;
+  border-top: none;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.guide-panel h3 a {
+  text-decoration: none;
+}
+
+.guide-panel p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--vp-c-text-2);
+}
