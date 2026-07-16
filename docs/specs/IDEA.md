@@ -54,11 +54,11 @@ At the end of this project, the developer can integrate cloudflare functionality
 3. Add a prebuild step to package.json for "generate-wrangler-types" to generate the worker-configuration.d.ts
 4. Update vite.config.ts with the following code:
 
-```ts
-import { cloudflareAccessPlugin } from "@adrianhall/cloudflare-toolkit";
+   ```ts
+   import { cloudflareAccessPlugin } from "@adrianhall/cloudflare-toolkit";
 
-vite.defineConfig([cloudflareAccessPlugin(), cloudflare(), svelte()]);
-```
+   vite.defineConfig([cloudflareAccessPlugin(), cloudflare(), svelte()]);
+   ```
 
 5. Incorporate the middleware with:
 
@@ -122,7 +122,7 @@ This allows more specific targeting of the code if needed.
 
 We provide a `cloudflare-toolkit` skills in `skills/cloudflare-toolkit/SKILL.md` to assist with cloudflare dev platform coding when using Hono or Vite. It is installable using `npx skills add`. It should reference the common patterns that we are establishing within this library. It can reference other skills that should be consulted if available; for example, `cloudflare`, `wrangler`, `workers-best-practices`, and `durable-objects`.
 
-Additional hints should be provided (based on the samples in cloudflare docs) on how to do migrations for vitest and wrangler. It's a common problem that most Hono based wrangler apps will face and get wrong. vite and vitest both have specific pages in the Cloudflare Docs (available via MCP) that can be referenced, and there are lots of samples demonstrating good patterns linked from the docs (TODO: provide page link)
+Additional hints should be provided (based on the samples in cloudflare docs) on how to do migrations for vitest and wrangler. It's a common problem that most Hono based wrangler apps will face and get wrong. vite and vitest both have specific pages in the Cloudflare Docs (available via MCP) that can be referenced, and there are lots of samples demonstrating good patterns linked from the docs
 
 In addition, we also provide an `AGENTS.md` within this repository to guide implementation for the toolkit. The one major rule is to always consult the latest documentation for cloudflare (via MCP), Hono, Vite, and vitest. note that vite and vitest both have specific documentation pages that MUST be consulted when working with vite or vitest in a cloudflare dev platform context
 
