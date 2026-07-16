@@ -1,0 +1,19 @@
+docs/guides/utilities.md
+  s_bd5773dc8854e9::t_1ad67432e691e4 3-5,9-10,20-22,26,34-35,38,57,59-60,62,66-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "acccbb96a2653ad62ed66d60e28798d46d37226a",
+  "prompts": {},
+  "sessions": {
+    "s_bd5773dc8854e9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_095d37e9dffeCjsAAABtDvnImV",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
