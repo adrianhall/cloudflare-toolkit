@@ -93,8 +93,7 @@ export default defineConfig({
           { text: "Logging", link: "/guides/logging" },
           { text: "Error Handling", link: "/guides/error-handling" },
           { text: "Testing", link: "/guides/testing" },
-          { text: "Command Line Tools", link: "/guides/cli" },
-          { text: "Vite + Vitest configuration", link: "/guides/vite-vitest" }
+          { text: "Command Line Tools", link: "/guides/cli" }
         ]
       },
       {

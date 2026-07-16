@@ -479,9 +479,11 @@ through source or this spec to figure out how to use the toolkit:
   - Defensive Guards (why `throwIfNull`/`valueOrDefault`/`sqlCount` exist, tied to the
     100%-coverage philosophy in §7/§8)
   - The `generate-wrangler-types` CLI
-  - Testing a toolkit-based app (`/testing` helpers, `@cloudflare/vitest-pool-workers` recipes)
-  - Vite + Vitest configuration for a Hono/Workers project (this content is shared with, not
-    duplicated from, the AI skill in §5.8 — one should link to the other, not fork it)
+  - Testing a toolkit-based app (`/testing` helpers, the `vite.config.ts`/`vitest.config.ts`
+    pairing for `@cloudflare/vite-plugin` + `@cloudflare/vitest-pool-workers` against the same
+    Worker, and `@cloudflare/vitest-pool-workers` recipes — this Vite + Vitest configuration
+    content is deliberately mirrored, not linked-to-instead-of, in the AI skill in §5.8; see
+    `AGENTS.md`'s architectural rules)
 - **API Reference** — generated directly from the same JSDoc comments that §8 rule 2 already
   requires on every public export, so it's always in sync with the code and costs nothing extra to
   maintain, via [`typedoc`](https://www.npmjs.com/package/typedoc) and

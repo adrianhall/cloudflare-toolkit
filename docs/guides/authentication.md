@@ -107,7 +107,7 @@ export default defineConfig({
 });
 ```
 
-Define `authPolicies` in its own module and import it into both configs — that single shared array is what keeps dev and production agreeing on which routes are protected (see the [Vite + Vitest guide](/guides/vite-vitest)).
+Define `authPolicies` in its own module and import it into both configs — that single shared array is what keeps dev and production agreeing on which routes are protected (see the [Testing guide](/guides/testing#vite-vitest-configuration-for-a-hono-workers-project)'s Vite + Vitest configuration section for the full `wrangler.jsonc`/`vite.config.ts`/`vitest.config.ts` pairing).
 
 During `vite dev`, visiting a protected route redirects the browser to a login form the plugin serves at [`loginPath`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#loginpath) (default `/cdn-cgi/access/login`). Submitting it mints a dev-signed JWT and hands you back to your app, now authenticated. The plugin also serves `/cdn-cgi/access/logout` and `/cdn-cgi/access/get-identity`, mirroring the real Access edge endpoints.
 
@@ -196,7 +196,6 @@ more details.
 - [Logging](/guides/logging) — the [`Logger`](/reference/lib/logging/index.md#logger) you hand to
   `cloudflareAccess` for its diagnostics.
 - [Testing](/guides/testing) — `signDevJwt`, `buildCookieHeader`, and `clearCookieHeader` for
-  asserting against Access-protected routes in Vitest.
-- [Vite + Vitest configuration](/guides/vite-vitest) — the full `wrangler.jsonc` +
+  asserting against Access-protected routes in Vitest, plus the full `wrangler.jsonc` +
   `vite.config.ts` + `vitest.config.ts` pairing that keeps `npm run dev` and `npm run test`
   agreeing on the same Worker.
