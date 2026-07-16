@@ -100,7 +100,7 @@ throw unprocessableContent({
 ### `NullError` / `InvalidShapeError`
 
 Specialized `internalServerError()`-shaped `ProblemDetailsError` subclasses thrown internally by
-`/guards`' `throwIfNull`/`sqlCount` (see the [Defensive Guards guide](/guides/defensive-guards)) —
+`/guards`' `throwIfNull`/`sqlCount` (see the [Utilities guide](/guides/utilities)) —
 you rarely construct these directly, but because both remain `ProblemDetailsError` instances,
 `problemDetailsErrorHandler` handles them exactly like every other thrown error, with no
 special-casing required:
@@ -284,7 +284,7 @@ patch the standard RFC 9457 fields (`type`, `status`, `title`, `detail`, `instan
 
 ## See also
 
-- [Defensive Guards](/guides/defensive-guards) — why `throwIfNull`/`sqlCount` throw `NullError`/
+- [Utilities](/guides/utilities) — why `throwIfNull`/`sqlCount` throw `NullError`/
   `InvalidShapeError` instead of an ad hoc branch.
 - [Authentication](/guides/authentication) — the `401` responses `cloudflareAccess` returns use
   this same problem-details shape.

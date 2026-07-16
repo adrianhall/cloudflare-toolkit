@@ -183,7 +183,7 @@ docs/                              # VitePress + TypeDoc documentation site (§2
   index.md                         # home page
   getting-started.md               # install + a minimal end-to-end example, linking into guides/
   guides/                          # one guide per functional area (§6.1); index.md is the overview
-    index.md authentication.md logging.md error-handling.md defensive-guards.md cli.md
+    index.md authentication.md logging.md error-handling.md utilities.md cli.md
     testing.md
                                     # testing.md's own "Vite + Vitest configuration" section
                                     # intentionally duplicates — not just links to — the Agent

@@ -1,4 +1,4 @@
-# Defensive Guards
+# Utilities
 
 `/guards` collects a small number of testable defensive helpers that replace inline, ad hoc
 `if (!x) throw ...` or `??` fallback branches with a single, individually-tested function. The
