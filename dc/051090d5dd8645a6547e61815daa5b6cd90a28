@@ -1,0 +1,19 @@
+docs/guides/testing.md
+  s_28ae5ca530099b::t_8232aa214ee106 3-27,31,37,59,71,80,82,84-90,92,94,98-99,118,126-127,129-130,136,138-155,158,162,176,178,180,197,209,213-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "dc051090d5dd8645a6547e61815daa5b6cd90a28",
+  "prompts": {},
+  "sessions": {
+    "s_28ae5ca530099b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_09601e6b2ffexQA8RyP8ZYKJVE",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
