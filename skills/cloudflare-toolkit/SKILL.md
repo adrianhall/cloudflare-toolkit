@@ -102,7 +102,7 @@ to cover them:
 If one of those skills isn't installed in your current environment, `npx skills add
 adrianhall/<name>` (for `cloudflare`, use the appropriate published skill source for your setup).
 
-## Defensive Guards (`/guards`)
+## Utilities — Defensive Guards (`/guards`)
 
 Testable defensive guards that replace inline, ad-hoc `if (!x) throw`/`??` branches with a
 single, individually-tested helper — the underlying motivation is keeping 100% branch coverage

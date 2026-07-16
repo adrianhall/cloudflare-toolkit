@@ -44,7 +44,7 @@ Utilities for handling authenticated test flows easily.
 
 <div class="guide-panel">
 
-### [Defensive Guards](./defensive-guards)
+### [Utilities](./utilities)
 
 A set of utility functions to make coverage targets easier to meet.
 
