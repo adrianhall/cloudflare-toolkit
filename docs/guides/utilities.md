@@ -64,4 +64,3 @@ Both are [`ProblemDetailsError`](/reference/index/classes/ProblemDetailsError.md
 ## See also
 
 - [Error Handling](/guides/error-handling) — the [`NullError`](/reference/index/classes/NullError.md)/[`InvalidShapeError`](/reference/index/classes/InvalidShapeError.md) classes these guards throw, and how they surface in an HTTP response.
-- The toolkit's own contributor documentation (`AGENTS.md`) documents the same 100%-coverage philosophy that motivates these guards, applied to this package's own source.
