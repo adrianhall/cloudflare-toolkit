@@ -1,5 +1,11 @@
 # @adrianhall/cloudflare-toolkit
 
+## 1.0.2
+
+### Patch Changes
+
+- 8c6453c: Improved documentation across the project with enhanced clarity, examples, and organization.
+
 ## 1.0.1
 
 ### Patch Changes
