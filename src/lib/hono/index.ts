@@ -13,7 +13,12 @@ export { cloudflareLogger } from "./logger-middleware.js";
 export type { CloudflareLoggerOptions } from "./logger-middleware.js";
 export { cloudflareAccess } from "./cloudflare-access.js";
 export type { CloudflareAccessOptions } from "./cloudflare-access.js";
-export type { AuthVariables, CloudflareToolkitVariables, LoggerVariables } from "./types.js";
+export type {
+  AuthVariables,
+  CloudflareAccessIdentity,
+  CloudflareToolkitVariables,
+  LoggerVariables
+} from "./types.js";
 // `auth-internal` has no public barrel of its own (per its own file comment) — this re-exports
 // just the `PathPolicy` type so `CloudflareAccessOptions.policies` has a linkable API Reference
 // page, not the rest of that module's surface.

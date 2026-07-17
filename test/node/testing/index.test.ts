@@ -74,7 +74,7 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
   function createApp() {
     const app = new Hono<AccessEnv>();
     app.use(cloudflareAccess({ enableDevTokens: true }));
-    app.get("/api/me", (c) => c.json({ email: c.get("userEmail"), sub: c.get("userSub") }));
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity")));
     return app;
   }
 
@@ -88,8 +88,8 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
     );
 
     expect(res.status).toBe(200);
-    const body = await res.json<{ email: string; sub: string }>();
-    expect(body).toEqual({ email: "dev@example.com", sub: "dev-uuid" });
+    const body = await res.json<{ source: string; email: string; sub: string }>();
+    expect(body).toEqual({ source: "header", email: "dev@example.com", sub: "dev-uuid" });
   });
 
   it("accepts a testing-signed token via the cookie helper when enableDevTokens is true", async () => {
@@ -103,8 +103,9 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
     );
 
     expect(res.status).toBe(200);
-    const body = await res.json<{ email: string }>();
+    const body = await res.json<{ source: string; email: string }>();
     expect(body.email).toBe("cookie-dev@example.com");
+    expect(body.source).toBe("cookie");
   });
 
   it("rejects the same testing-signed token when enableDevTokens is not enabled (fail-closed)", async () => {
@@ -112,7 +113,7 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
 
     const app = new Hono<AccessEnv>();
     app.use(cloudflareAccess()); // enableDevTokens defaults to false
-    app.get("/api/me", (c) => c.json({ email: c.get("userEmail") ?? null }));
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
 
     const res = await app.fetch(
       new Request("http://localhost/api/me", { headers: { [testing.JWT_HEADER]: token } }),

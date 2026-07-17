@@ -1,7 +1,7 @@
 /**
  * @file `cloudflareAccess` — Hono middleware that validates a Cloudflare Access JWT (from the
  * `CF_Authorization` cookie or the `Cf-Access-Jwt-Assertion` header) and populates
- * `AuthVariables` (`userEmail`, `userSub`, ./types.ts) on the Hono context for downstream
+ * `AuthVariables` (`Cloudflare_Access_Identity`, ./types.ts) on the Hono context for downstream
  * handlers.
  *
  * Built on this toolkit's own `auth-internal` module for the shared JWT/JWKS/policy primitives
@@ -63,7 +63,7 @@ export interface CloudflareAccessOptions {
    *
    * - `"block"` *(default)* — return 401 if no valid JWT is present.
    * - `"bypass"` — allow the request through without authentication. If a valid JWT is present
-   *   it is still verified and `AuthVariables` are still set; otherwise the request continues
+   *   it is still verified and `AuthVariables` is still set; otherwise the request continues
    *   with no authenticated user.
    */
   readonly defaultAction?: "block" | "bypass";
@@ -182,7 +182,7 @@ async function verifyToken(
 
 /**
  * Create a Hono middleware that validates a Cloudflare Access JWT and sets `AuthVariables`
- * (`userEmail`, `userSub`, ./types.ts) on the Hono context.
+ * (`Cloudflare_Access_Identity`, ./types.ts) on the Hono context.
  *
  * **Policy evaluation**:
  *
@@ -225,8 +225,9 @@ async function verifyToken(
  * @param options - Options controlling path policies, the default action for unmatched paths,
  * the Cloudflare Access team domain/audience, dev-token verification, and the logger.
  * @returns A Hono `MiddlewareHandler` parameterised with {@link AuthVariables}, so
- * `c.set("userEmail", …)`/`c.set("userSub", …)` inside this middleware — and `c.get("userEmail")`/
- * `c.get("userSub")` in a consumer's own handlers once composed via `app.use(...)` — are
+ * `c.set("Cloudflare_Access_Identity", …)` inside this middleware — and
+ * `c.get("Cloudflare_Access_Identity")` in a consumer's own handlers once composed via
+ * `app.use(...)` — are
  * statically checked against {@link AuthVariables} rather than accepted as untyped magic strings.
  * @example
  * ```ts
@@ -235,7 +236,7 @@ async function verifyToken(
  *
  * const app = new Hono<{ Variables: AuthVariables }>();
  * app.use(cloudflareAccess({ policies: [{ pattern: /^\/api\/version$/, authenticate: false }] }));
- * app.get("/api/*", (c) => c.json({ user: c.get("userEmail") }));
+ * app.get("/api/*", (c) => c.json({ user: c.get("Cloudflare_Access_Identity") }));
  * ```
  */
 export function cloudflareAccess(
@@ -298,7 +299,9 @@ export function cloudflareAccess(
     // -----------------------------------------------------------------
     // 2. Extract the token.
     // -----------------------------------------------------------------
-    const token = c.req.header(JWT_HEADER) ?? parseCookie(c.req.header("cookie"));
+    const headerToken = c.req.header(JWT_HEADER);
+    const source = headerToken === undefined ? "cookie" : "header";
+    const token = headerToken ?? parseCookie(c.req.header("cookie"));
 
     if (!token) {
       if (authRequired) {
@@ -323,8 +326,7 @@ export function cloudflareAccess(
 
     if (result) {
       log.debug("Verified token", { email: result.email });
-      c.set("userEmail", result.email);
-      c.set("userSub", result.sub);
+      c.set("Cloudflare_Access_Identity", { source, email: result.email, sub: result.sub });
       return next();
     }
 

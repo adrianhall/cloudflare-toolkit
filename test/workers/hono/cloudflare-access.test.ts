@@ -35,9 +35,7 @@ function createApp(options?: Parameters<typeof cloudflareAccess>[0]) {
   const app = new Hono<AccessEnv>();
   app.use(cloudflareAccess(options));
 
-  app.get("/api/test", (c) =>
-    c.json({ email: c.get("userEmail") ?? null, sub: c.get("userSub") ?? null })
-  );
+  app.get("/api/test", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
   app.get("/api/version", (c) => c.json({ version: "1.0" }));
   app.get("/public", (c) => c.text("ok"));
 
@@ -97,9 +95,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string | null; sub: string | null }>();
-      expect(body.email).toBeNull();
-      expect(body.sub).toBeNull();
+      expect(await res.json()).toBeNull();
     });
 
     it("verifies the same token once enableDevTokens is explicitly true", async () => {
@@ -111,9 +107,11 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string; sub: string }>();
-      expect(body.email).toBe("dev@example.com");
-      expect(body.sub).toBe("dev-uuid");
+      expect(await res.json()).toStrictEqual({
+        source: "header",
+        email: "dev@example.com",
+        sub: "dev-uuid"
+      });
     });
   });
 
@@ -121,7 +119,7 @@ describe("cloudflareAccess", () => {
   // Dev token verification (enableDevTokens: true)
   // -----------------------------------------------------------------------
   describe("dev token verification", () => {
-    it("sets AuthVariables from a valid dev JWT in the header", async () => {
+    it("sets Cloudflare_Access_Identity with header source from a valid dev JWT", async () => {
       const token = await signDevJwt("alice@example.com", { sub: "alice-uuid" });
       const app = createApp({ enableDevTokens: true });
 
@@ -130,13 +128,15 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string; sub: string }>();
-      expect(body.email).toBe("alice@example.com");
-      expect(body.sub).toBe("alice-uuid");
+      expect(await res.json()).toStrictEqual({
+        source: "header",
+        email: "alice@example.com",
+        sub: "alice-uuid"
+      });
     });
 
-    it("sets AuthVariables from a valid dev JWT in the cookie", async () => {
-      const token = await signDevJwt("bob@example.com");
+    it("sets Cloudflare_Access_Identity with cookie source from a valid dev JWT", async () => {
+      const token = await signDevJwt("bob@example.com", { sub: "bob-uuid" });
       const app = createApp({ enableDevTokens: true });
 
       const res = await fetchWithEnv(app, `${BASE}/api/test`, {
@@ -144,13 +144,16 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string }>();
-      expect(body.email).toBe("bob@example.com");
+      expect(await res.json()).toStrictEqual({
+        source: "cookie",
+        email: "bob@example.com",
+        sub: "bob-uuid"
+      });
     });
 
     it("prefers the header over the cookie when both are present", async () => {
-      const headerToken = await signDevJwt("header@example.com");
-      const cookieToken = await signDevJwt("cookie@example.com");
+      const headerToken = await signDevJwt("header@example.com", { sub: "header-uuid" });
+      const cookieToken = await signDevJwt("cookie@example.com", { sub: "cookie-uuid" });
       const app = createApp({ enableDevTokens: true });
 
       const res = await fetchWithEnv(app, `${BASE}/api/test`, {
@@ -158,8 +161,11 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string }>();
-      expect(body.email).toBe("header@example.com");
+      expect(await res.json()).toStrictEqual({
+        source: "header",
+        email: "header@example.com",
+        sub: "header-uuid"
+      });
     });
 
     it("works with a custom dev secret", async () => {
@@ -172,8 +178,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string }>();
-      expect(body.email).toBe("custom@example.com");
+      expect(await res.json()).toMatchObject({ email: "custom@example.com" });
     });
 
     it("falls through to the (failing) JWKS path when the dev secret does not match", async () => {
@@ -294,7 +299,7 @@ describe("cloudflareAccess", () => {
       expect(testRes.status).toBe(401);
     });
 
-    it("sets AuthVariables for an authenticated request under a policy requiring auth", async () => {
+    it("sets Cloudflare_Access_Identity for an authenticated request under a policy requiring auth", async () => {
       const token = await signDevJwt("alice@example.com");
       const app = createApp({
         enableDevTokens: true,
@@ -306,8 +311,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string }>();
-      expect(body.email).toBe("alice@example.com");
+      expect(await res.json()).toMatchObject({ email: "alice@example.com" });
     });
 
     it("falls back to defaultAction for a path that matches no policy", async () => {
@@ -331,12 +335,10 @@ describe("cloudflareAccess", () => {
 
       const res = await fetchWithEnv(app, `${BASE}/api/test`);
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string | null; sub: string | null }>();
-      expect(body.email).toBeNull();
-      expect(body.sub).toBeNull();
+      expect(await res.json()).toBeNull();
     });
 
-    it("sets AuthVariables when a valid JWT is present", async () => {
+    it("sets Cloudflare_Access_Identity when a valid JWT is present", async () => {
       const token = await signDevJwt("opt@example.com");
       const app = createApp({ defaultAction: "bypass", enableDevTokens: true });
 
@@ -345,8 +347,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string }>();
-      expect(body.email).toBe("opt@example.com");
+      expect(await res.json()).toMatchObject({ email: "opt@example.com" });
     });
 
     it("allows through with an invalid JWT (no user set)", async () => {
@@ -357,8 +358,7 @@ describe("cloudflareAccess", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json<{ email: string | null }>();
-      expect(body.email).toBeNull();
+      expect(await res.json()).toBeNull();
     });
 
     it("still blocks when a policy explicitly requires auth", async () => {
