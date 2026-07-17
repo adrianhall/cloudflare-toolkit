@@ -81,7 +81,7 @@ describe("hono smoke test against the built dist/", () => {
   it("cloudflareAccess blocks a request with no token by default (defaultAction: block)", async () => {
     const app = new Hono();
     app.use(hono.cloudflareAccess());
-    app.get("/", (c) => c.json({ email: c.get("userEmail") ?? null }));
+    app.get("/", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
 
     // No JWT provided at all — defaultAction defaults to "block", so this is a 401, proving the
     // middleware from dist/ is wired and enforcing auth, not silently passing every request.

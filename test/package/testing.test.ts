@@ -41,13 +41,14 @@ describe("cross-entry: a testing-signed token is accepted/rejected by hono's clo
 
     const app = new Hono();
     app.use(hono.cloudflareAccess({ enableDevTokens: true }));
-    app.get("/api/me", (c) => c.json({ email: c.get("userEmail") ?? null }));
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
 
     const res = await app.request("/api/me", { headers: { [testing.JWT_HEADER]: token } });
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { email: string };
+    const body = (await res.json()) as { source: string; email: string };
     expect(body.email).toBe("dev@example.com");
+    expect(body.source).toBe("header");
   });
 
   it("rejects the same token when enableDevTokens is not enabled (fail-closed)", async () => {
@@ -55,7 +56,7 @@ describe("cross-entry: a testing-signed token is accepted/rejected by hono's clo
 
     const app = new Hono();
     app.use(hono.cloudflareAccess());
-    app.get("/api/me", (c) => c.json({ email: c.get("userEmail") ?? null }));
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
 
     const res = await app.request("/api/me", { headers: { [testing.JWT_HEADER]: token } });
 
@@ -68,12 +69,13 @@ describe("cross-entry: a testing-signed token is accepted/rejected by hono's clo
 
     const app = new Hono();
     app.use(hono.cloudflareAccess({ enableDevTokens: true }));
-    app.get("/api/me", (c) => c.json({ email: c.get("userEmail") ?? null }));
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
 
     const res = await app.request("/api/me", { headers: { Cookie: cookie } });
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { email: string };
+    const body = (await res.json()) as { source: string; email: string };
     expect(body.email).toBe("cookie-dev@example.com");
+    expect(body.source).toBe("cookie");
   });
 });
