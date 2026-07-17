@@ -1,5 +1,11 @@
 # @adrianhall/cloudflare-toolkit
 
+## 2.0.0
+
+### Major Changes
+
+- cad6fcd: Replace the Cloudflare Access user context variables with a namespaced identity object that includes its credential source.
+
 ## 1.0.2
 
 ### Patch Changes
