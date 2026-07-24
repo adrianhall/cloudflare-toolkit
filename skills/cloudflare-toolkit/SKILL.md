@@ -507,6 +507,12 @@ app.get("/", (c) => {
 Override the environment/level/transport explicitly (e.g. in tests) via
 `cloudflareLogger({ environment, level, transport })`.
 
+The minimum level is resolved with this precedence: `options.level` (highest) → the `LOG_LEVEL`
+Worker binding (`c.env.LOG_LEVEL`) → the `resolveLoggerConfig(env.ENVIRONMENT, "worker")` default.
+`LOG_LEVEL` accepts any of the six levels (`trace`/`debug`/`info`/`warn`/`error`/`fatal`,
+case-insensitive) and lets operators change verbosity via config alone; a value that is set but
+unrecognized is ignored with a `console.warn` and the environment default is used instead.
+
 ### `problemDetailsErrorHandler(options?)`
 
 An `app.onError` handler that converts `ProblemDetailsError`, Hono `HTTPException`, and any other

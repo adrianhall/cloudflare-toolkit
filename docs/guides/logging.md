@@ -215,6 +215,26 @@ const capture = createCaptureTransport();
 app.use(cloudflareLogger({ level: "trace", transport: capture }));
 ```
 
+### Overriding the level with a `LOG_LEVEL` binding
+
+For operational control without a redeploy of code, the middleware also honors a `LOG_LEVEL` Worker binding (`c.env.LOG_LEVEL`). The minimum level is resolved in this order of precedence:
+
+1. `options.level` — the value passed to `cloudflareLogger({ level })`, when supplied.
+2. `c.env.LOG_LEVEL` — when it is one of the six recognized levels (`trace`, `debug`, `info`, `warn`, `error`, `fatal`). Matching is **case-insensitive**, so `"INFO"` and `"info"` are equivalent.
+3. The environment-resolved default from `resolveLoggerConfig(env.ENVIRONMENT, "worker")`.
+
+If `LOG_LEVEL` is set to a value that is not a recognized level, it is ignored — a `console.warn` is emitted and the middleware falls back to the environment-resolved default. If `LOG_LEVEL` is not set at all, the existing behavior is unchanged.
+
+```jsonc
+// wrangler.jsonc
+{
+  "vars": {
+    "ENVIRONMENT": "production",
+    "LOG_LEVEL": "debug" // temporarily raise verbosity in production
+  }
+}
+```
+
 ## See also
 
 - [Testing](/guides/testing) — using `createCaptureTransport()` to assert on log output emitted during a Vitest request, including logs from `cloudflareAccess`'s own diagnostics.

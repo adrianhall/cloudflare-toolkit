@@ -8,18 +8,53 @@
  * via `resolveLoggerConfig`/`createLogger` (`../logging/*`) and sets it as the `LOGGER` context
  * variable (`LoggerVariables`, ./types.ts) for downstream code to read.
  */
-import type { Context, MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from "hono";
+import { LOG_LEVELS } from "../logging/levels.js";
 import { createLogger } from "../logging/logger.js";
 import { resolveLoggerConfig } from "../logging/resolve.js";
 import type { Environment, LogLevel, Logger, Transport } from "../logging/types.js";
 import type { LoggerVariables } from "./types.js";
 
 /**
- * Worker binding read by {@link cloudflareLogger} when `options.environment` is not supplied.
+ * Worker bindings read by {@link cloudflareLogger} at request time.
  */
 interface EnvironmentBindings {
   /** Environment name used to resolve the default level/transport via `resolveLoggerConfig`. */
   readonly ENVIRONMENT?: Environment;
+  /**
+   * Operational override for the minimum log level. When set to one of the recognised
+   * {@link LogLevel} values (`trace`/`debug`/`info`/`warn`/`error`/`fatal`, case-insensitive),
+   * it takes precedence over the environment-resolved default. An unrecognised value is ignored
+   * with a `console.warn`. See {@link resolveEnvLogLevel}.
+   */
+  readonly LOG_LEVEL?: string;
+}
+
+/**
+ * Parse and validate the `LOG_LEVEL` Worker binding into a {@link LogLevel}.
+ *
+ * Matching is case-insensitive against the six recognised levels. Exported for unit testing but
+ * intentionally **not** re-exported from the `hono` barrel (`./index.ts`) — it is an internal
+ * helper, not part of the public API.
+ *
+ * @param raw - The raw `c.env.LOG_LEVEL` value, or `undefined` when the binding is not set.
+ * @returns The matching {@link LogLevel} when `raw` is a recognised level; otherwise `undefined`
+ * (the binding is unset, or is set to an unrecognised value — in the latter case a `console.warn`
+ * is emitted so the caller can fall back to its resolved default).
+ */
+export function resolveEnvLogLevel(raw: string | undefined): LogLevel | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const normalized = raw.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(LOG_LEVELS, normalized)) {
+    return normalized as LogLevel;
+  }
+  console.warn(
+    `Invalid LOG_LEVEL "${raw}"; expected one of: ${Object.keys(LOG_LEVELS).join(", ")}. `
+      + `Falling back to the resolved default.`
+  );
+  return undefined;
 }
 
 /**
@@ -33,7 +68,9 @@ export interface CloudflareLoggerOptions {
    */
   readonly environment?: Environment;
   /**
-   * Minimum severity level to emit. Defaults to the level chosen by
+   * Minimum severity level to emit. This is the highest-priority source of the level: when set,
+   * it wins over both the `LOG_LEVEL` binding and the environment-resolved default. When omitted,
+   * the level is taken from `c.env.LOG_LEVEL` if it is a valid {@link LogLevel}, otherwise from
    * `resolveLoggerConfig(environment, "worker")`.
    */
   readonly level?: LogLevel;
@@ -45,11 +82,13 @@ export interface CloudflareLoggerOptions {
   readonly transport?: Transport;
 }
 
-function resolveEnvironment(options: CloudflareLoggerOptions, c: Context): Environment | undefined {
+function resolveEnvironment(
+  options: CloudflareLoggerOptions,
+  bindings: EnvironmentBindings | undefined
+): Environment | undefined {
   if (options.environment !== undefined) {
     return options.environment;
   }
-  const bindings = c.env as EnvironmentBindings | undefined;
   return bindings?.ENVIRONMENT;
 }
 
@@ -59,7 +98,15 @@ function resolveEnvironment(options: CloudflareLoggerOptions, c: Context): Envir
  * through it.
  *
  * The logger's level and transport are resolved via `resolveLoggerConfig(environment, "worker")`
- * (`@adrianhall/cloudflare-toolkit/logging`) unless overridden by `options.level`/
+ * (`@adrianhall/cloudflare-toolkit/logging`) unless overridden. The minimum level is chosen in
+ * this order of precedence:
+ *
+ * 1. `options.level`, when supplied.
+ * 2. The `LOG_LEVEL` Worker binding (`c.env.LOG_LEVEL`), when it is a recognised {@link LogLevel}
+ *    (case-insensitive). A value that is set but unrecognised is ignored with a `console.warn`.
+ * 3. The environment-resolved default from `resolveLoggerConfig(environment, "worker")`.
+ *
+ * The transport defaults to `resolveLoggerConfig`'s choice unless overridden by
  * `options.transport`. This middleware is independently wireable — it has no dependency on
  * `cloudflareAccess`.
  *
@@ -87,10 +134,12 @@ export function cloudflareLogger(
   options: CloudflareLoggerOptions = {}
 ): MiddlewareHandler<{ Variables: LoggerVariables }> {
   return async (c, next) => {
-    const environment = resolveEnvironment(options, c);
+    const bindings = c.env as EnvironmentBindings | undefined;
+    const environment = resolveEnvironment(options, bindings);
     const base = resolveLoggerConfig(environment, "worker");
+    const envLevel = resolveEnvLogLevel(bindings?.LOG_LEVEL);
     const logger: Logger = createLogger({
-      level: options.level ?? base.level,
+      level: options.level ?? envLevel ?? base.level,
       transport: options.transport ?? base.transport
     });
 
