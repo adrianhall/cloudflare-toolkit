@@ -33,7 +33,7 @@ The rest of this guide shows you how to wire each half, then covers configuring 
 
 ## Protecting your Worker
 
-Add [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) as middleware. It reads the JWT, verifies it, and on success sets two typed context variables typed for every downstream handler:
+Add [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) as middleware. It reads the JWT, verifies it, and on success sets one typed identity object for every downstream handler:
 
 ```ts
 import { Hono } from "hono";
@@ -52,13 +52,14 @@ app.use(
 );
 
 app.get("/api/version", (c) => c.json({ version: "1.0.0" })); // public
-app.get("/api/me", (c) => c.json({ email: c.get("userEmail"), sub: c.get("userSub") })); // protected
+app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity"))); // protected
 ```
 
-The `AuthVariables` (and the combined [`CloudflareToolkitVariables`](/reference/lib/hono/type-aliases/CloudflareToolkitVariables.md)) provides the following typed variables within the Hono context:
+The `AuthVariables` (and the combined [`CloudflareToolkitVariables`](/reference/lib/hono/type-aliases/CloudflareToolkitVariables.md)) provides `Cloudflare_Access_Identity` within the Hono context:
 
-- `userEmail` — the JWT `email` claim.
-- `userSub` — the JWT `sub` claim, a stable per-user identifier ideal for authorization.
+- `email` — the JWT `email` claim.
+- `sub` — the JWT `sub` claim, a stable per-user identifier ideal for authorization.
+- `source` — `"header"` for `Cf-Access-Jwt-Assertion` or `"cookie"` for `CF_Authorization`. The header takes precedence when both are present.
 
 Every `401` the middleware returns is itself an RFC 9457 `application/problem+json` response — the same shape [`problemDetailsErrorHandler`](/reference/lib/hono/functions/problemDetailsErrorHandler.md) and [`notFoundHandler`](/reference/lib/hono/functions/notFoundHandler.md) produce, so errors stay uniform across your app (see [Error Handling](/guides/error-handling)).
 

@@ -435,7 +435,7 @@ app.notFound(notFoundHandler());
 
 app.get("/api/me", (c) => {
   c.get("LOGGER").info("handling /api/me");
-  return c.json({ email: c.get("userEmail") });
+  return c.json({ email: c.get("Cloudflare_Access_Identity").email });
 });
 
 export default app;
@@ -448,8 +448,9 @@ toolkit-specific type.
 ### `cloudflareAccess(options?)`
 
 Validates a Cloudflare Access JWT (from the `CF_Authorization` cookie or the
-`Cf-Access-Jwt-Assertion` header) and sets `AuthVariables` (`userEmail`, `userSub`) on the Hono
-context.
+`Cf-Access-Jwt-Assertion` header) and sets `AuthVariables` (`Cloudflare_Access_Identity`) on the
+Hono context. The identity contains `email`, `sub`, and `source`; `source` is `"header"` when the
+header is selected and `"cookie"` otherwise. The header takes precedence when both are present.
 
 - `policies?: PathPolicy[]` — `{ pattern: RegExp, authenticate: boolean }`, evaluated in order,
   first match wins.
@@ -484,7 +485,7 @@ import { cloudflareAccess, type AuthVariables } from "@adrianhall/cloudflare-too
 
 const app = new Hono<{ Variables: AuthVariables }>();
 app.use(cloudflareAccess({ policies: [{ pattern: /^\/api\/version$/, authenticate: false }] }));
-app.get("/api/*", (c) => c.json({ user: c.get("userEmail") }));
+app.get("/api/*", (c) => c.json({ user: c.get("Cloudflare_Access_Identity") }));
 ```
 
 ### `cloudflareLogger(options?)`
@@ -622,7 +623,7 @@ import { cloudflareAccess } from "@adrianhall/cloudflare-toolkit/hono";
 const app = new Hono();
 app.use(cloudflareAccess({ enableDevTokens: true })); // opt-in, test-only
 
-app.get("/api/me", (c) => c.json({ email: c.get("userEmail") }));
+app.get("/api/me", (c) => c.json({ email: c.get("Cloudflare_Access_Identity").email }));
 
 const token = await signDevJwt("alice@example.com");
 const res = await app.request("/api/me", { headers: { [JWT_HEADER]: token } });

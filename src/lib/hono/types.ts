@@ -29,7 +29,7 @@ export interface LoggerVariables {
 /**
  * Context variables set by {@link cloudflareAccess} on a successfully authenticated request.
  * Intersect this with your own `Variables` when typing your `Hono` instance so that
- * `c.get("userEmail")`/`c.get("userSub")` are statically known:
+ * `c.get("Cloudflare_Access_Identity")` is statically known:
  *
  * ```ts
  * interface AppVariables extends AuthVariables {
@@ -40,10 +40,20 @@ export interface LoggerVariables {
  * ```
  */
 export interface AuthVariables {
+  /** The verified Cloudflare Access identity for the selected request credential. */
+  Cloudflare_Access_Identity: CloudflareAccessIdentity;
+}
+
+/**
+ * Identity verified by {@link cloudflareAccess}.
+ */
+export interface CloudflareAccessIdentity {
+  /** The request input selected for authentication. */
+  source: "cookie" | "header";
   /** Authenticated user's email address (from the JWT `email` claim). */
-  userEmail: string;
+  email: string;
   /** Authenticated user's unique identifier (from the JWT `sub` claim). */
-  userSub: string;
+  sub: string;
 }
 
 /**

@@ -115,7 +115,7 @@ describe("GET /api/me", () => {
 });
 ```
 
-[`signDevJwt`](/reference/lib/testing/functions/signDevJwt.md)'s second argument accepts overrides when the default won't do: `secret` (must match the Worker's `devSecret`, if it overrode the default), `lifetime` (seconds, default `86400`), and `sub` (pin a stable subject claim instead of a random one per call — handy if a test asserts on `userSub` specifically):
+[`signDevJwt`](/reference/lib/testing/functions/signDevJwt.md)'s second argument accepts overrides when the default won't do: `secret` (must match the Worker's `devSecret`, if it overrode the default), `lifetime` (seconds, default `86400`), and `sub` (pin a stable subject claim instead of a random one per call — handy if a test asserts on `Cloudflare_Access_Identity.sub` specifically):
 
 ```ts
 const token = await signDevJwt("alice@example.com", { sub: "user-123", lifetime: 3600 });

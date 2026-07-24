@@ -195,8 +195,9 @@ app.onError(problemDetailsErrorHandler());
 app.notFound(notFoundHandler());
 
 app.get("/api/me", (c) => {
-  c.var.LOGGER.info("Received /api/me request", { user: c.var.userSub });
-  return c.json({ email: c.var.userEmail });
+  const identity = c.get("Cloudflare_Access_Identity");
+  c.var.LOGGER.info("Received /api/me request", { user: identity.sub });
+  return c.json({ email: identity.email });
 });
 
 app.get("/api/error", (c) => {
@@ -207,7 +208,9 @@ app.get("/api/error", (c) => {
 export default app;
 ```
 
-The `CloudflareToolkitVariables` contains the variable names `userEmail` and `userSub` that can be used in your application to support authorization requests.
+The `CloudflareToolkitVariables` contains `Cloudflare_Access_Identity`, which holds the JWT
+`email` and `sub` claims plus the selected credential `source` (`"header"` or `"cookie"`) for
+authorization requests.
 
 ## Automate type generation
 

@@ -52,7 +52,7 @@ function createWorker() {
   // The Worker under `vite dev` enables dev tokens (e.g. via import.meta.env.DEV) so the
   // plugin's HS256 token validates over HMAC.
   app.use(cloudflareAccess({ policies, enableDevTokens: true }));
-  app.get("/api/me", (c) => c.json({ email: c.get("userEmail"), sub: c.get("userSub") }));
+  app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity")));
   return app;
 }
 
@@ -72,7 +72,8 @@ describe("vite plugin → cloudflareAccess() handshake", () => {
     const res = await createWorker().fetch(workerReq, MOCK_ENV);
 
     expect(res.status).toBe(200);
-    const body = await res.json<{ email: string; sub: string }>();
+    const body = await res.json<{ source: string; email: string; sub: string }>();
+    expect(body.source).toBe("header");
     expect(body.email).toBe("alice@example.com");
     expect(body.sub).toBe("alice-uuid");
   });
