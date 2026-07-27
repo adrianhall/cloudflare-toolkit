@@ -52,4 +52,4 @@ A set of utility functions to make coverage targets easier to meet.
 
 </div>
 
-The [`cloudflare-toolkit` Agent Skill](https://www.npmjs.com/package/skills) (`npx skills add adrianhall/cloudflare-toolkit`) documents the same API surface in a form built for coding agents, and is kept in sync with the source on every release.
+The repository's [Agent Skills](https://www.npmjs.com/package/skills) (`npx skills add adrianhall/cloudflare-toolkit`) cover the toolkit API, deployment CLIs, and Cloudflare Terraform patterns in a form built for coding agents.

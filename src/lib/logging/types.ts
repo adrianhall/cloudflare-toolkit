@@ -5,8 +5,8 @@
  * fixed once released; the string `LogLevel` union is the primary API surface for TypeScript
  * consumers.
  *
- * Note: `src/cli/generate-wrangler-types/logger.ts` defines its own, deliberately separate
- * `Logger`/`LogLevel` pair for colored stderr CLI output — it is not a consumer of this
+ * Note: `src/cli/internal/logger.ts` defines a deliberately separate `Logger`/`LogLevel` pair
+ * shared by the Node-only bins for colored stderr CLI output — it is not a consumer of this
  * `Transport`-based contract. See that file's header for why the split is intentional
  * (ARCH-003, `docs/specs/SPECv2.md` §12.3).
  */

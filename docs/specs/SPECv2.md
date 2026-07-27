@@ -46,16 +46,17 @@ never bundles them.
 Declared in `package.json#dependencies` — installed regardless of which subpath a consumer
 actually imports.
 
-| Package                                                    | Version   | Why                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`jose`](https://www.npmjs.com/package/jose)               | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                                 |
-| [`commander`](https://www.npmjs.com/package/commander)     | `^15.0.0` | CLI argument parsing for `generate-wrangler-types` (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                                                                                                                                                                                         |
-| [`chalk`](https://www.npmjs.com/package/chalk)             | `^5.6.2`  | Colorized stderr log output for `generate-wrangler-types`'s internal CLI logger (§5.7) — carried over as-is from `cloudflare-scripts`'s own existing dependency on it                                                                                                                                                            |
-| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn) | `^7.0.6`  | Safely spawns `npx wrangler types` for `generate-wrangler-types` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly (`wrangler.ts`, `defaultExecRunner`) |
+| Package                                                                  | Version     | Why                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`jose`](https://www.npmjs.com/package/jose)                             | `^6.2.3`    | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                                 |
+| [`commander`](https://www.npmjs.com/package/commander)                   | `^15.0.0`   | Argument parsing for all package CLI bins (§5.7)                                                                                                                                                                                                                                                                                 |
+| [`chalk`](https://www.npmjs.com/package/chalk)                           | `^5.6.2`    | Colorized stderr output from the private shared CLI logger (§5.7)                                                                                                                                                                                                                                                                |
+| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn)               | `^7.0.6`    | Safely spawns `npx wrangler types` for `generate-wrangler-types` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly (`wrangler.ts`, `defaultExecRunner`) |
+| [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3) | `^3.1056.0` | R2's S3-compatible list and batch-delete APIs for `empty-r2-bucket` (§5.7)                                                                                                                                                                                                                                                       |
+| [`dotenv`](https://www.npmjs.com/package/dotenv)                         | `^17.4.2`   | Loads optional credential files for the two cleanup CLIs without overriding existing environment variables (§5.7)                                                                                                                                                                                                                |
 
-Only `generate-wrangler-types` (a `bin`, not an import subpath — §5.7) pulls in `commander`/
-`chalk`/`cross-spawn`; nothing under `package.json#exports` depends on any of them, so
-tree-shaking a consumer's own bundle of one of the importable subpaths never pays for the CLI's
+Only CLI bins (not import subpaths — §5.7) pull in these CLI dependencies; nothing under
+`package.json#exports` depends on them, so tree-shaking a consumer's own bundle never pays for the CLI's
 dependencies. The vendored `hono-problem-details` primitives (§5.4) are pure TypeScript with no
 dependencies of their own, and everything else (`guards`, `errors`, the `logging` core) is
 self-contained.
@@ -150,7 +151,6 @@ collision, not a theoretical one.
 - **Data Access Patterns** (repositories, RBAC, valibot-validated CRUDL, HATEOAS) — a distinct, larger future effort; not designed here.
 - **WebSocket Durable Object patterns** — same reasoning; tracked as future work.
 - **Full RFC 9110 conditional-request handling** (computing ETags from resource state, parsing `If-Match`/`If-None-Match`, cache-revalidation semantics, and the `notModified()`/`conflict()`/`preconditionFailed()` error generators that would pair with it) — this overlaps with Data Access Patterns above. Rather than ship a placeholder shape now and guess wrong, v1 ships no 304/409/412-specific generators at all (§5.3); the real design work happens once Data Access Patterns actually needs it, informed by what that work learns.
-- **Reworking `cloudflare-scripts`'s other CLIs** (`generate-wrangler`, `empty-r2-bucket`, `destroy-containers`) or its Terraform skill — this toolkit is wrangler-only; only `generate-types` (§5.7) is relevant.
 - **Modifying, deprecating, or archiving `cloudflare-auth`, `cloudflare-logger`, `cloudflare-scripts`, or `hono-problem-details`** — see §10. Source is read from those repos to port functionality into this one; nothing is written back to them.
 - **Documenting a migration path** from the four source repos to this toolkit (e.g. an old-import → new-import mapping table, or a `docs/MIGRATION.md`). This is a **deliberate** omission, not an oversight — the toolkit ships fresh, and mapping any existing consumer's imports is left to whoever undertakes that migration later, using this spec and the source repos directly.
 - **React support.** `cloudflare-logger/react` is not carried over.
@@ -178,8 +178,8 @@ The toolkit consists of four parts:
 | `@adrianhall/cloudflare-toolkit/logging`         | `createLogger`, `resolveLoggerConfig`, transports, logging types                                                                                                                                                            | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps                                                                                                                                                                                      |
 | `@adrianhall/cloudflare-toolkit/testing`         | Dev-JWT signing + cookie helpers for Vitest/Playwright tests                                                                                                                                                                | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment                                                                                                                                                            |
 
-Separately, the package ships a `generate-wrangler-types` **CLI** (`bin`, not an import subpath) —
-see §5.7.
+Separately, the package ships four **CLI bins**, not import subpaths: `generate-wrangler`,
+`generate-wrangler-types`, `empty-r2-bucket`, and `destroy-containers` — see §5.7.
 
 ### 5.2 Defensive Guards
 
@@ -353,28 +353,52 @@ entirely at the Vite dev-server layer instead of inside the Worker. Concretely, 
 dropped; `vite-login-page.ts` (the dev login form rendered by the Vite plugin itself) is kept,
 moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 
-### 5.7 NPM Scripts
+### 5.7 Command Line Tools
 
-Most of the scripts within `cloudflare-scripts` are relevant only in Terraform deployments. This toolkit is explicitly for wrangler-only deployments. The only script that is relevant is the `generate-types` script, which generates the `worker-configuration.d.ts` file only when the `wrangler.jsonc` file changes.
+Four npm `bin` entries are ported from `cloudflare-scripts`; `generate-types` alone is renamed to
+`generate-wrangler-types`. The interface remains source-compatible except for additive R2
+jurisdiction configuration and deliberate fail-closed safety fixes described below.
 
-This script will be ported from `cloudflare-scripts/src/cli/generate-types/*` with only the bin name changed (`generate-types` → `generate-wrangler-types`) and the CLI's internal `--help`/`--version` banner text updated to match. Behavior, flags (`-c/--config`, `-d/--dir`, `-f/--force`, `-o/--output`, `-q/--quiet`, `-v/--verbose`, `--` passthrough to `wrangler types`), and exit codes are unchanged — this is a rename, not a rewrite. Its runtime dependencies are [`commander`](https://www.npmjs.com/package/commander) (§2.2) for argument parsing and [`chalk`](https://www.npmjs.com/package/chalk) (§2.2) for colorized stderr log output, both carried over from `cloudflare-scripts`; testing it end-to-end needs [`wrangler`](https://www.npmjs.com/package/wrangler) (§2.3) as a devDependency, since the whole script wraps `wrangler types`. Wired into a consuming project:
+- `generate-wrangler` substitutes strict `{{output_name}}` markers in `wrangler.jsonc.tpl` from
+  `terraform output -json`, with check and overwrite modes. Verbose logs redact values marked
+  sensitive by Terraform.
+- `generate-wrangler-types` runs `wrangler types` only when `wrangler.jsonc` is newer than
+  `worker-configuration.d.ts`, while retaining force, path, logging, and passthrough flags.
+- `empty-r2-bucket` resolves R2 credentials from Terraform outputs or flags/environment, lists all
+  object pages, confirms, batch-deletes at most 1,000 keys per S3 request, requires every response
+  to account for every requested key, and verifies the bucket is empty before success. It supports
+  `auto`, `eu`, and `fedramp` endpoint jurisdictions.
+- `destroy-containers` discovers worker-name-matching container applications and OCI tags, confirms,
+  then deletes image tags before applications. Discovery failures are fail-closed and map to the
+  same application/registry/both exit-code classes as deletion failures.
+
+The Terraform and Cloudflare adapters, terminal logger, dotenv loader, and prompt live in private
+`src/cli/internal/` modules. They are shared by bins but are not package exports. Wired into a
+consuming project:
 
 ```jsonc
 // package.json
 {
   "scripts": {
-    "prebuild": "generate-wrangler-types",
+    "postprovision": "generate-wrangler -cf -d src/worker -t infra",
+    "prebuild": "generate-wrangler-types -d src/worker",
+    "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
+    "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
+    "preteardown:r2": "empty-r2-bucket -t infra --yes",
+    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
     "build": "vite build"
     /* ... */
   }
 }
 ```
 
-Scripts will be stored in `src/cli/generate-wrangler-types`.
+Command-specific orchestration is stored under `src/cli/<bin-name>`.
 
 ### 5.8 AI Skills
 
-Installable via `npx skills add adrianhall/cloudflare-toolkit`. Must:
+Installable via `npx skills add adrianhall/cloudflare-toolkit`. The repository ships three skills:
+`cloudflare-toolkit` for library APIs and type generation, `cloudflare-deploy-scripts` for CLI
+orchestration, and `cloudflare-terraform-best-practices` for provider and teardown patterns. They must:
 
 - Document every export above with a short "when to use" and a copy-pasteable example, in the same
   style as `cloudflare-logger`'s existing `SKILL.md` (front-matter `name`/`description`, then
@@ -390,7 +414,7 @@ Installable via `npx skills add adrianhall/cloudflare-toolkit`. Must:
   `cloudflareAccessPlugin`, and (b) a Vitest suite using `@cloudflare/vitest-pool-workers` against
   that same Worker.
 
-AI Skill will be stored in `skills/cloudflare-toolkit/SKILL.md`.
+AI Skills are stored in `skills/<skill-name>/SKILL.md`.
 
 ### 5.9 Repository Structure (hint, not a mandate)
 
@@ -431,14 +455,19 @@ src/
     testing/
       index.ts                  # dev-JWT signing + cookie helpers
   cli/
+    internal/                    # private shared Node-only adapters and CLI logger
+    generate-wrangler/
     generate-wrangler-types/
-      index.ts run.ts types.ts fs.ts wrangler.ts __tests__/
+    empty-r2-bucket/
+    destroy-containers/
 test/
   node/       # errors, guards, problem-details, logging, vite plugin (mock req/res), CLI
   workers/    # workerd via @cloudflare/vitest-pool-workers: hono/* middleware
   package/    # built dist/ import/export surface smoke test
 skills/
   cloudflare-toolkit/SKILL.md
+  cloudflare-deploy-scripts/SKILL.md
+  cloudflare-terraform-best-practices/SKILL.md
 docs/                            # separate package.json — VitePress + TypeDoc site (§2.4, §6.1)
 AGENTS.md
 ```
@@ -478,7 +507,7 @@ through source or this spec to figure out how to use the toolkit:
     and how RFC 9457 problem details show up in a response)
   - Defensive Guards (why `throwIfNull`/`valueOrDefault`/`sqlCount` exist, tied to the
     100%-coverage philosophy in §7/§8)
-  - The `generate-wrangler-types` CLI
+  - The four deployment CLIs from §5.7
   - Testing a toolkit-based app (`/testing` helpers, the `vite.config.ts`/`vitest.config.ts`
     pairing for `@cloudflare/vite-plugin` + `@cloudflare/vitest-pool-workers` against the same
     Worker, and `@cloudflare/vitest-pool-workers` recipes — this Vite + Vitest configuration
@@ -532,17 +561,16 @@ The toolkit's own repo needs an `AGENTS.md` (distinct from the installable skill
 - Global thresholds: 100% statements/branches/functions/lines, enforced in `vitest.config.ts`
   (`coverage.thresholds`), not merely reported. A drop below 100% must fail CI, not just print a
   warning.
-- Coverage `exclude`: `src/**/*.d.ts`, `src/**/index.ts` (barrels), and the CLI's `index.ts`
-  shebang entry (mirrors `cloudflare-scripts`'s exclude comment convention — the shebang file is a
-  1-line re-export of `run()`, and `run()` itself is fully covered).
+- Coverage `exclude`: `src/**/*.d.ts` and `src/**/index.ts` (barrels and CLI shebang entries). CLI
+  orchestration and adapters outside the entry points remain fully covered.
 
 ### 7.2 Test projects (proposed, adjustable in the implementation plan)
 
-| Project        | Runtime                                                                                                          | Covers                                                                                                                                                                                                                                                                                                |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/node`    | Plain Node                                                                                                       | `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects, same technique `cloudflare-auth` already uses), `cli/generate-wrangler-types/*` (injected `WranglerRunner`/`FileSystem` fakes, same technique `cloudflare-scripts` already uses) |
-| `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them                                                                                                        |
-| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` (not `src/`) for every subpath in §5.1 and asserts the expected named exports exist with the expected runtime type (`typeof x === "function"`, etc.) — catches `package.json#exports`/`tsdown` entry-point misconfiguration before publish                              |
+| Project        | Runtime                                                                                                          | Covers                                                                                                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/node`    | Plain Node                                                                                                       | `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects), and all CLI orchestration/adapters with injected filesystem, process, Terraform, R2, and Cloudflare fakes |
+| `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them                                  |
+| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` for every subpath and executes each built CLI's help/version path — catches `package.json#exports`, `bin`, and `tsdown` entry-point misconfiguration before publish                               |
 
 A `browser` project (present in `cloudflare-logger` for its `/react` subpath) is **not** included,
 since nothing in this package's scope runs in a browser. If a future subpath changes that, add the
@@ -793,14 +821,14 @@ downloading and running it (via `npm pack`) against this module's actual contrac
 `bigint`/`symbol`/`function` replacer hook (their README invites "pull request welcome" for a
 replacer option) that closes gaps 1–3 above without requiring a pre-pass on the toolkit's side.
 
-### 12.3 ARCH-003 (Issue #62): Second `Logger`/`LogLevel`/`LogSink` abstraction in `generate-wrangler-types`
+### 12.3 ARCH-003 (Issue #62): Private CLI `Logger`/`LogLevel`/`LogSink` abstraction
 
 **Source:** [Issue #62](https://github.com/adrianhall/cloudflare-toolkit/issues/62), severity low,
 `Architecture` + `dev-only` labels.
 
 **Files:**
 
-- `src/cli/generate-wrangler-types/logger.ts:12-47` — CLI-only `LogLevel` (4 levels: `debug`,
+- `src/cli/internal/logger.ts` — CLI-only `LogLevel` (4 levels: `debug`,
   `info`, `warn`, `error`), `LogSink`, and `Logger` types, plus `createLogger()`.
 - `src/lib/logging/types.ts:15,98` — the flagship `LogLevel` (6 levels: `trace`, `debug`, `info`,
   `warn`, `error`, `fatal`) and `Logger` types, plus the `Transport`-based `createLogger()` in
@@ -815,34 +843,27 @@ indication a second exists.
 **Why accepted as-is (not unified into one shared implementation):**
 
 1. **Different bounded context.** The CLI logger exists solely to print colored, leveled,
-   human-readable progress/error output to a developer's terminal for the `generate-wrangler-types`
-   `bin` entry point — a Node-only, synchronous, TTY-aware concern. The flagship `logging`
+   human-readable progress/error output to a developer's terminal for the Node-only `bin` entry
+   points. The flagship `logging`
    subpath's `Transport`-based `Logger` is the structured, runtime-agnostic (Worker/browser/Node)
    core the rest of the toolkit (`hono/cloudflare-access.ts`, `vite/plugin.ts`, and consumer
    Workers) builds on. A `Transport` implementation that writes chalk-colored lines to `stderr`
    would be the wrong shape for that contract, and forcing the CLI onto `Transport` would add
    structured-record construction and transport plumbing for a feature that only ever needs
    "print this line, in this color, to stderr."
-2. **Verbatim, intentionally-unmodified port.** The CLI logger is a direct port from
-   `cloudflare-scripts` (see the file's own header), where it already existed as this exact shape.
+2. **Intentionally source-compatible port.** The CLI logger is ported from
+   `cloudflare-scripts`, where it already existed as this shape.
    Reworking it onto the flagship `Transport` contract during the port would have been an
    unrelated, unrequested redesign.
 3. **Zero deployed-Worker impact.** Per the `dev-only` label, this logger is exclusively consumed
-   by the `generate-wrangler-types` CLI and never ships inside, or executes as part of, a deployed
+   by Node-only CLIs and never executes as part of a deployed
    Worker — the duplication is confined to build/dev tooling, not the runtime surface the rest of
    `docs/specs/SPECv2.md` governs.
 
-**Resolution:** Rather than unify the two abstractions, discoverability was addressed directly
-with a cross-reference note in each file's `@file` header: `src/lib/logging/types.ts` now points
-at `src/cli/generate-wrangler-types/logger.ts` (and this section) explaining the CLI logger is not
-a `Transport` consumer, and the CLI logger's header now names the flagship file path explicitly.
-Both headers cite this §12.3 entry so a reader who finds either logger first can find the other
-and understand why they remain separate.
-
-**Revisit if:** a second Node-only CLI `bin` entry point is added to this toolkit and would also
-need colored `stderr` output — at that point, factoring the CLI logger into a small shared
-"CLI logging" helper (still distinct from the `Transport` contract) becomes worth the cost of a
-third file depending on it.
+**Resolution:** Issue #165 added three Node-only bins, satisfying the documented revisit trigger.
+The logger moved to `src/cli/internal/logger.ts` and is now shared by all four CLIs while remaining
+separate from the public `Transport` contract. Cross-reference notes in both logger type files
+preserve discoverability.
 
 ### 12.4 SEC-006: `enableDevTokens` runtime hard-gate evaluated and rejected
 

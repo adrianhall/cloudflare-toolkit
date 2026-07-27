@@ -1,101 +1,183 @@
-# The `generate-wrangler-types` CLI
+# Command Line Tools
 
-Wrangler can generate a `worker-configuration.d.ts` file describing your bindings
-(`wrangler types`), but nothing regenerates it automatically as `wrangler.jsonc` changes.
-`generate-wrangler-types` — installed as this package's `bin` — wraps that command with a cheap
-freshness check, so you can run it on every build without wastefully re-invoking `wrangler` when
-nothing changed.
+Installing `@adrianhall/cloudflare-toolkit` adds four binaries. They are package `bin` entries,
+not JavaScript import subpaths.
 
-## How the freshness check works
+| Command                   | Purpose                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| `generate-wrangler`       | Build `wrangler.jsonc` from a template and Terraform outputs       |
+| `generate-wrangler-types` | Run `wrangler types` only when its output is stale                 |
+| `empty-r2-bucket`         | Empty an R2 bucket before Terraform destroys it                    |
+| `destroy-containers`      | Remove matching container applications and OCI registry image tags |
 
-Before running `wrangler types`, the CLI compares the **file modification time** of your output
-`.d.ts` file against your wrangler config file:
+## Deployment Workflow
 
-- If the output file doesn't exist yet, it generates it.
-- If the config file is newer than the output file, it regenerates.
-- If the output file is newer than the config file, it skips regeneration entirely (exit code
-  `0`) — this is the common case on most builds, where `wrangler.jsonc` hasn't changed since the
-  last run.
-- `--force` skips this comparison and always regenerates.
-
-This is a plain mtime comparison, not a content hash — touching `wrangler.jsonc` without
-changing its content (e.g. `touch wrangler.jsonc`) is enough to trigger a regeneration on the
-next run.
-
-## Wiring it into your build
+A Terraform-managed project can wire the commands into npm lifecycle scripts:
 
 ```jsonc
-// package.json
 {
   "scripts": {
-    "prebuild": "generate-wrangler-types",
-    "build": "vite build"
+    "provision": "terraform -chdir=infra apply",
+    "postprovision": "generate-wrangler -cf -d src/worker -t infra",
+    "generate:types": "generate-wrangler-types -d src/worker -- --strict-vars=false",
+    "prebuild": "npm run generate:types",
+    "build": "vite build",
+    "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
+    "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
+    "preteardown:r2": "empty-r2-bucket -t infra --yes",
+    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
+    "teardown": "terraform -chdir=infra destroy"
   }
 }
 ```
 
-Because `npm run build` runs `prebuild` first automatically, and the freshness check makes an
-unnecessary run essentially free, this is safe to leave wired into every build — local dev
-builds, CI, and deploys — without a separate "did the config change?" step of your own.
+Use `--yes` only for an intentional non-interactive cleanup. Both cleanup commands otherwise ask
+for confirmation.
 
-## Flags
+## `generate-wrangler`
 
-| Flag            | Meaning                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| `-c, --config`  | Wrangler config file to watch (default `wrangler.jsonc`)                        |
-| `-d, --dir`     | Base directory for resolving relative `--config`/`--output` paths (default `.`) |
-| `-f, --force`   | Force regeneration even if types are already fresh                              |
-| `-o, --output`  | Output `.d.ts` path, relative to `--dir` (default `worker-configuration.d.ts`)  |
-| `-q, --quiet`   | Quiet logging (minimum level `warn`)                                            |
-| `-v, --verbose` | Verbose logging (minimum level `debug`)                                         |
-| `--`            | Everything after this separator is forwarded verbatim to `wrangler types`       |
+`generate-wrangler` reads `terraform output -json`, replaces strict `{{output_name}}` markers in
+`wrangler.jsonc.tpl`, and writes `wrangler.jsonc`.
 
-`-v` and `-q` are mutually exclusive — passing both is an argument error (exit code `6`, see
-below), not a silent "last one wins."
+```jsonc
+{
+  "name": "{{worker_name}}",
+  "account_id": "{{account_id}}",
+  "d1_databases": [{ "binding": "DB", "database_id": "{{database_id}}" }]
+}
+```
+
+Only Terraform `string` and `number` outputs are supported. Markers are case-sensitive and cannot
+contain whitespace. Missing or null outputs are left unchanged with a warning; `--check` turns
+those warnings into a validation failure before writing. Unsupported output types always fail.
+Verbose substitution logs show `[REDACTED]` instead of values whose Terraform output has
+`sensitive = true`.
+
+| Flag                    | Meaning                                      |
+| ----------------------- | -------------------------------------------- |
+| `-c, --check`           | Validate every marker before substitution    |
+| `-d, --dir <dir>`       | Base input/output directory (default `.`)    |
+| `-f, --force`           | Overwrite an existing output                 |
+| `-i, --input <file>`    | Template path (default `wrangler.jsonc.tpl`) |
+| `-o, --output <file>`   | Output path (default `wrangler.jsonc`)       |
+| `-t, --terraform <dir>` | Terraform state directory (default `.`)      |
+| `-q, --quiet`           | Emit warnings and errors only                |
+| `-v, --verbose`         | Emit debug logs                              |
+
+Exit codes: `0` success, `1` input read failure, `2` output exists/write failure, `3` missing
+Terraform directory, `4` Terraform output failure, `5` check failure, `6` argument error, `7`
+unsupported Terraform type, `99` unexpected internal error.
+
+## `generate-wrangler-types`
+
+This command wraps `wrangler types`. It compares the modification times of `wrangler.jsonc` and
+`worker-configuration.d.ts`: a newer output is skipped with exit code `0`; a missing or stale
+output is regenerated. `--force` always regenerates.
+
+| Flag                  | Meaning                                                       |
+| --------------------- | ------------------------------------------------------------- |
+| `-c, --config <file>` | Wrangler config to watch (default `wrangler.jsonc`)           |
+| `-d, --dir <dir>`     | Base directory for config/output paths (default `.`)          |
+| `-f, --force`         | Bypass the freshness check                                    |
+| `-o, --output <file>` | Output path (default `worker-configuration.d.ts`)             |
+| `-q, --quiet`         | Emit warnings and errors only                                 |
+| `-v, --verbose`       | Emit debug logs                                               |
+| `--`                  | Forward every following argument verbatim to `wrangler types` |
 
 ```sh
-# Force regeneration even though the output looks fresh.
 generate-wrangler-types --force
-
-# A staging config that writes its types somewhere other than the default location.
-generate-wrangler-types -c wrangler.staging.jsonc -o types/worker-configuration.d.ts
-
-# Forward an extra flag straight through to `wrangler types` itself.
-generate-wrangler-types -- --strict-vars=false
+generate-wrangler-types -c wrangler.staging.jsonc -o types/staging.d.ts
+generate-wrangler-types -- --include-runtime=false --strict-vars=false
 ```
 
-### Multiple environments
+Exit codes: `0` fresh/success, `1` config missing, `2` Wrangler could not launch, `3` `wrangler
+types` failed, `6` argument error, `99` unexpected internal error.
 
-If your project has more than one Wrangler config (e.g. one per environment), give each its own
-npm script rather than trying to make a single invocation cover both — each `-c`/`-o` pair is
-independent:
+## `empty-r2-bucket`
 
-```jsonc
-// package.json
-{
-  "scripts": {
-    "generate-types": "generate-wrangler-types",
-    "generate-types:staging": "generate-wrangler-types -c wrangler.staging.jsonc -o types/staging-configuration.d.ts"
-  }
-}
+R2 refuses deletion of a non-empty bucket. This command uses R2's S3-compatible API to list every
+object with pagination, delete keys in batches of at most 1,000, and verify the bucket is empty.
+
+Terraform mode reads these string outputs: `account_id`, `r2_bucket_name`, `r2_token_id`, and
+`r2_token_value`. An optional string output named `r2_jurisdiction` selects `auto`, `eu`, or
+`fedramp`; absent output defaults to `auto`.
+
+```sh
+empty-r2-bucket --terraform infra
+empty-r2-bucket -t infra --yes
 ```
 
-## Exit codes
+Per-value mode accepts flags or environment variables:
 
-| Code | Meaning                                                                       |
-| ---- | ----------------------------------------------------------------------------- |
-| `0`  | Types are already fresh (skipped), or `wrangler types` completed successfully |
-| `1`  | Wrangler config file not found                                                |
-| `2`  | The `wrangler` binary could not be executed (not on `PATH`, `ENOENT`, ...)    |
-| `3`  | `wrangler types` itself exited with a non-zero code (that code is logged)     |
-| `6`  | Argument error — e.g. `--verbose` and `--quiet` passed together               |
-| `99` | Unexpected internal error                                                     |
+| Flag                        | Environment variable    |
+| --------------------------- | ----------------------- |
+| `--account-id <id>`         | `CLOUDFLARE_ACCOUNT_ID` |
+| `--bucket <name>`           | `R2_BUCKET_NAME`        |
+| `--access-key-id <id>`      | `R2_ACCESS_KEY_ID`      |
+| `--secret-access-key <key>` | `R2_SECRET_ACCESS_KEY`  |
+| `--jurisdiction <value>`    | `R2_JURISDICTION`       |
 
-A non-zero exit code fails the `prebuild` step (and therefore `npm run build`), so a genuinely
-broken `wrangler.jsonc` or missing `wrangler` binary stops the build rather than silently
-shipping stale binding types.
+`--terraform` and per-value flags are mutually exclusive. `--env-file <path>` loads dotenv
+defaults without overriding existing environment variables. `-y/--yes` skips confirmation;
+`-q/--quiet` and `-v/--verbose` control logging.
 
-## See also
+Jurisdiction defaults to `auto`. `eu` uses
+`https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com`; `fedramp` uses
+`https://<ACCOUNT_ID>.fedramp.r2.cloudflarestorage.com`. A CLI jurisdiction overrides the optional
+Terraform output. In per-value mode, the CLI option overrides `R2_JURISDICTION`.
 
-- [Getting Started](/getting-started) — wiring this CLI into a from-scratch project alongside
-  the rest of the toolkit.
+Exit codes: `0` empty/verified success, `1` declined, `2` credential/configuration failure, `3`
+initial listing failure, `4` deletion or final-verification failure, `6` argument error, `99`
+unexpected internal error.
+
+Cloudflare documents S3 region `auto`. Dashboard-created R2 tokens provide an access key ID and
+secret access key directly. The Terraform skill's account-token recipe outputs the token ID and
+SHA-256 token-value hash as that S3 pair. See [R2 authentication][r2-auth].
+
+## `destroy-containers`
+
+This command discovers container applications and Cloudflare Registry image tags whose names or
+image references contain the required worker name, prints the matches, then deletes image tags
+before applications.
+
+```sh
+destroy-containers my-worker --env-file .env
+CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... destroy-containers my-worker --yes
+```
+
+| Flag                      | Meaning                                              |
+| ------------------------- | ---------------------------------------------------- |
+| `-a, --account-id <id>`   | Discouraged compatibility option; prefer environment |
+| `-k, --api-token <token>` | Discouraged compatibility option; prefer environment |
+| `--env-file <path>`       | Load dotenv defaults before credential resolution    |
+| `-y, --yes`               | Skip confirmation                                    |
+| `-q, --quiet`             | Emit warnings and errors only                        |
+| `-v, --verbose`           | Emit debug logs                                      |
+
+Matching deliberately preserves the source command's substring behavior. Use a specific worker
+name and inspect the summary before confirming. Discovery is fail closed: application or registry
+API/network failures produce nonzero exits before prompting or deleting anything. A successful
+discovery with no matching resources exits `0`.
+
+Exit codes: `0` nothing found/success, `1` declined, `2` credential failure, `3` application
+discovery/deletion failure, `4` registry discovery/deletion failure, `5` both resource classes
+failed discovery/deletion, `6` argument error, `99` unexpected internal error.
+
+Cloudflare currently documents `wrangler containers images delete` as the normal interactive
+image cleanup path. This command retains the direct application and OCI adapters so one
+non-interactive preteardown step can clean both resource types.
+
+## Skills
+
+Install the repository skills with:
+
+```sh
+npx skills add adrianhall/cloudflare-toolkit
+```
+
+Use `cloudflare-deploy-scripts` for the full provision/deploy/teardown pattern and
+`cloudflare-terraform-best-practices` for Terraform provider schemas, token setup, and ordering.
+The general `cloudflare-toolkit` skill stays focused on library APIs and
+`generate-wrangler-types`.
+
+[r2-auth]: https://developers.cloudflare.com/r2/api/tokens/

@@ -14,28 +14,13 @@
  */
 import { isAbsolute, resolve } from "node:path";
 import { Command, CommanderError } from "commander";
-import type { LogLevel, LogSink } from "./logger.js";
-import { createLogger } from "./logger.js";
+import type { LogLevel, LogSink } from "../internal/logger.js";
+import { createLogger } from "../internal/logger.js";
+import { getErrorMessage } from "../internal/utils.js";
 import type { FileSystem, WranglerRunner } from "./types.js";
 
 // CLI_VERSION is replaced at build time by tsdown's `define` option (tsdown.config.ts).
 declare const CLI_VERSION: string;
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Extracts a human-readable message from an unknown `catch` value.
- *
- * Returns `err.message` when the value is an `Error`, otherwise stringifies it with `String()`.
- *
- * @param err - The caught value (may be anything).
- * @returns A string suitable for log messages or user-facing error output.
- */
-function getErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 // ---------------------------------------------------------------------------
 // Public types

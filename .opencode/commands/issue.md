@@ -93,7 +93,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
 8. Determine whether a changeset is required.
 
-   Per `CONTRIBUTING.md`'s "Adding a changeset" section, decide based on the actual diff produced in steps 6–7 — not just the issue title or description — whether this PR touches **published surface area**: the root export or any of the `guards`/`errors`/`problem-details`/`logging`/`hono`/`vite`/`testing` subpaths, or the `generate-wrangler-types` CLI. An issue that sounds docs- or test-only can still touch a public export's JSDoc or behavior and need one; an issue that edits `package.json` devDependencies, CI config, or internal tooling (no consumer-visible change) does not.
+   Per `CONTRIBUTING.md`'s "Adding a changeset" section, decide based on the actual diff produced in steps 6–7 — not just the issue title or description — whether this PR touches **published surface area**: the root export or any of the `guards`/`errors`/`problem-details`/`logging`/`hono`/`vite`/`testing` subpaths, or any of the `generate-wrangler`/`generate-wrangler-types`/`empty-r2-bucket`/`destroy-containers` CLIs. An issue that sounds docs- or test-only can still touch a public export's JSDoc or behavior and need one; an issue that edits `package.json` devDependencies, CI config, or internal tooling (no consumer-visible change) does not.
 
    If a changeset **is** required, add one before opening the PR:
 
