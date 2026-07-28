@@ -79,8 +79,8 @@ jobs:
               - 'docs/**'
 
   # PR-time verification for the VitePress docs site (AGENTS.md, docs/specs/SPECv2.md §2.4/§6.1)
-  # — distinct from the release-triggered `build-docs` job in release.yml, which publishes the
-  # site only after a real npm publish. This job instead builds the site whenever docs/** changes
+  # — distinct from release.yml's tag-triggered validation build, whose artifact is deployed only
+  # after npm publication/confirmation. This job instead builds the site whenever docs/** changes
   # (see docs-changes above), so a broken change (dead link, unresolved image) is caught in
   # review rather than only surfacing after publish.
   docs-check:
@@ -100,7 +100,7 @@ jobs:
       # TypeDoc's entry points live under ../src (§2.4), and type-check against imports like
       # `hono`, `vite`, and `@cloudflare/workers-types` that only exist in the ROOT dependency
       # tree — not docs/'s own separate one below. Without this, `npm run docs` fails with dozens
-      # of "Cannot find module" errors. Matches release.yml's `build-docs` job, which installs
+      # of "Cannot find module" errors. Matches release.yml's `validate` job, which installs
       # both dependency trees for the same reason.
       - name: Install root dependencies
         run: npm ci

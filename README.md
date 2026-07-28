@@ -57,7 +57,7 @@ npx skills add adrianhall/cloudflare-toolkit
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the PR/changeset process,
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the PR and release-preparation process,
 [`RELEASING.md`](./RELEASING.md) for how releases are cut, and [`AGENTS.md`](./AGENTS.md) for
 engineering conventions.
 
