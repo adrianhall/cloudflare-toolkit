@@ -11,7 +11,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const commandNames = [
   "generate-wrangler",
   "generate-wrangler-types",
-  "empty-r2-bucket",
   "destroy-containers"
 ] as const;
 

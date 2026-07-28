@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/unbound-method -- Vitest mocks are intentionally extracted for assertions. */
 import { Command } from "commander";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ContainersApi,
-  R2Client,
   RegistryClient,
   RepoInfo
 } from "../../../src/cli/internal/cloudflare.js";
@@ -14,9 +13,6 @@ import { createLogger, type LogSink } from "../../../src/cli/internal/logger.js"
 import type { TerraformOutputMap, TerraformRunner } from "../../../src/cli/internal/terraform.js";
 import type { EnvLoader, Prompter } from "../../../src/cli/internal/utils.js";
 import { run as runDestroy } from "../../../src/cli/destroy-containers/run.js";
-import { createFileSystem as createEmptyFs } from "../../../src/cli/empty-r2-bucket/fs.js";
-import { run as runEmpty } from "../../../src/cli/empty-r2-bucket/run.js";
-import { extractR2Credentials } from "../../../src/cli/empty-r2-bucket/terraform.js";
 import { createFileSystem as createGenerateFs } from "../../../src/cli/generate-wrangler/fs.js";
 import { run as runGenerate } from "../../../src/cli/generate-wrangler/run.js";
 import {
@@ -30,13 +26,6 @@ const argv = (name: string, ...args: string[]) => ["node", name, ...args];
 const outputs = (value: TerraformOutputMap): TerraformRunner => ({
   getOutputs: vi.fn().mockResolvedValue(value)
 });
-const r2Outputs: TerraformOutputMap = {
-  account_id: { value: "account", type: "string", sensitive: false },
-  r2_bucket_name: { value: "bucket", type: "string", sensitive: false },
-  r2_token_id: { value: "key", type: "string", sensitive: true },
-  r2_token_value: { value: "secret", type: "string", sensitive: true }
-};
-
 afterEach(() => vi.restoreAllMocks());
 
 describe("generate-wrangler template", () => {
@@ -196,212 +185,6 @@ describe("generate-wrangler", () => {
       expect(await fs.directoryExists(dir)).toBe(true);
       expect(await fs.directoryExists(file)).toBe(false);
       expect(await fs.directoryExists(join(dir, "missing"))).toBe(false);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  });
-});
-
-describe("R2 credential extraction", () => {
-  it("extracts valid credentials", () => {
-    expect(extractR2Credentials(r2Outputs)).toEqual({
-      accountId: "account",
-      bucketName: "bucket",
-      accessKeyId: "key",
-      secretAccessKey: "secret",
-      jurisdiction: "auto"
-    });
-  });
-
-  it("rejects missing and non-string values", () => {
-    expect(() => extractR2Credentials({ ...r2Outputs, account_id: undefined! })).toThrow("missing");
-    expect(() =>
-      extractR2Credentials({
-        ...r2Outputs,
-        account_id: { value: 1, type: "number", sensitive: false }
-      })
-    ).toThrow("string");
-  });
-});
-
-describe("empty-r2-bucket", () => {
-  const envKeys = [
-    "CLOUDFLARE_ACCOUNT_ID",
-    "R2_BUCKET_NAME",
-    "R2_ACCESS_KEY_ID",
-    "R2_SECRET_ACCESS_KEY",
-    "R2_JURISDICTION"
-  ];
-  beforeEach(() => envKeys.forEach((key) => delete process.env[key]));
-  afterEach(() => envKeys.forEach((key) => delete process.env[key]));
-
-  function deps(keys = ["a"]) {
-    const r2: R2Client = {
-      listAllObjects: vi.fn().mockResolvedValueOnce(keys).mockResolvedValue([]),
-      deleteObjects: vi.fn().mockResolvedValue({ deleted: keys.length, errors: 0 })
-    };
-    return {
-      terraform: outputs(r2Outputs),
-      r2,
-      prompter: { confirm: vi.fn().mockResolvedValue(true) } as Prompter,
-      envLoader: { load: vi.fn().mockResolvedValue(undefined) } as EnvLoader,
-      fs: { directoryExists: vi.fn().mockResolvedValue(true) },
-      logSink: quietSink
-    };
-  }
-
-  it("supports Terraform, default Terraform directory, empty buckets, prompt, and per-value modes", async () => {
-    const yes = deps();
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "infra", "-y", "-v"), yes)).toBe(0);
-    expect(yes.prompter.confirm).not.toHaveBeenCalled();
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "-y"), deps([]))).toBe(0);
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), deps())).toBe(0);
-    expect(
-      await runEmpty(
-        argv(
-          "empty-r2-bucket",
-          "--account-id",
-          "a",
-          "--bucket",
-          "b",
-          "--access-key-id",
-          "k",
-          "--secret-access-key",
-          "s",
-          "-y",
-          "-q"
-        ),
-        deps()
-      )
-    ).toBe(0);
-  });
-
-  it("loads env files and environment credentials with CLI precedence", async () => {
-    Object.assign(process.env, {
-      CLOUDFLARE_ACCOUNT_ID: "env-a",
-      R2_BUCKET_NAME: "env-b",
-      R2_ACCESS_KEY_ID: "env-k",
-      R2_SECRET_ACCESS_KEY: "env-s",
-      R2_JURISDICTION: "eu"
-    });
-    const d = deps([]);
-    expect(
-      await runEmpty(argv("empty-r2-bucket", "--env-file", ".env", "--account-id", "cli-a"), d)
-    ).toBe(0);
-    expect(d.envLoader.load).toHaveBeenCalledWith(".env");
-    expect(d.r2.listAllObjects).toHaveBeenCalledWith(
-      expect.objectContaining({ accountId: "cli-a", bucketName: "env-b", jurisdiction: "eu" })
-    );
-  });
-
-  it("resolves and validates CLI, environment, and Terraform jurisdictions", async () => {
-    const cli = deps([]);
-    Object.assign(process.env, {
-      CLOUDFLARE_ACCOUNT_ID: "a",
-      R2_BUCKET_NAME: "b",
-      R2_ACCESS_KEY_ID: "k",
-      R2_SECRET_ACCESS_KEY: "s"
-    });
-    expect(await runEmpty(argv("empty-r2-bucket", "--jurisdiction", "fedramp"), cli)).toBe(0);
-    expect(cli.r2.listAllObjects).toHaveBeenCalledWith(
-      expect.objectContaining({ jurisdiction: "fedramp" })
-    );
-
-    const terraformJurisdiction = deps([]);
-    terraformJurisdiction.terraform = outputs({
-      ...r2Outputs,
-      r2_jurisdiction: { value: "eu", type: "string", sensitive: false }
-    });
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), terraformJurisdiction)).toBe(0);
-    expect(terraformJurisdiction.r2.listAllObjects).toHaveBeenCalledWith(
-      expect.objectContaining({ jurisdiction: "eu" })
-    );
-    const terraformOverride = deps([]);
-    expect(
-      await runEmpty(argv("empty-r2-bucket", "-t", "--jurisdiction", "fedramp"), terraformOverride)
-    ).toBe(0);
-    expect(terraformOverride.r2.listAllObjects).toHaveBeenCalledWith(
-      expect.objectContaining({ jurisdiction: "fedramp" })
-    );
-
-    expect(await runEmpty(argv("empty-r2-bucket", "--jurisdiction", "invalid"), deps())).toBe(6);
-    process.env.R2_JURISDICTION = "invalid";
-    expect(await runEmpty(argv("empty-r2-bucket"), deps())).toBe(2);
-    const invalidTerraform = deps();
-    invalidTerraform.terraform = outputs({
-      ...r2Outputs,
-      r2_jurisdiction: { value: "invalid", type: "string", sensitive: false }
-    });
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), invalidTerraform)).toBe(2);
-  });
-
-  it("returns documented failure codes", async () => {
-    const declined = deps();
-    vi.mocked(declined.prompter.confirm).mockResolvedValue(false);
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), declined)).toBe(1);
-    expect(declined.r2.deleteObjects).not.toHaveBeenCalled();
-    const missingDir = deps();
-    vi.mocked(missingDir.fs.directoryExists).mockResolvedValue(false);
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "bad"), missingDir)).toBe(2);
-    const badTerraform = deps();
-    vi.mocked(badTerraform.terraform.getOutputs).mockRejectedValue("bad");
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), badTerraform)).toBe(2);
-    const badTerraformCredentials = deps();
-    badTerraformCredentials.terraform = outputs({});
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), badTerraformCredentials)).toBe(2);
-    const badList = deps();
-    vi.mocked(badList.r2.listAllObjects).mockReset().mockRejectedValue("bad");
-    expect(await runEmpty(argv("empty-r2-bucket", "-t"), badList)).toBe(3);
-    expect(badList.r2.deleteObjects).not.toHaveBeenCalled();
-    const badDelete = deps();
-    vi.mocked(badDelete.r2.deleteObjects).mockResolvedValue({ deleted: 0, errors: 1 });
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "-y"), badDelete)).toBe(4);
-    const thrownDelete = deps();
-    vi.mocked(thrownDelete.r2.deleteObjects).mockRejectedValue(new Error("delete failed"));
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "-y"), thrownDelete)).toBe(4);
-    const partialDelete = deps(["a", "b"]);
-    vi.mocked(partialDelete.r2.deleteObjects).mockResolvedValue({ deleted: 1, errors: 0 });
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "-y"), partialDelete)).toBe(4);
-    const failedVerification = deps();
-    vi.mocked(failedVerification.r2.listAllObjects)
-      .mockReset()
-      .mockResolvedValueOnce(["a"])
-      .mockRejectedValueOnce(new Error("verify failed"));
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "-y"), failedVerification)).toBe(4);
-    const remaining = deps();
-    vi.mocked(remaining.r2.listAllObjects).mockReset().mockResolvedValue(["a"]);
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "-y"), remaining)).toBe(4);
-  });
-
-  it("returns credential and argument failures", async () => {
-    expect(await runEmpty(argv("empty-r2-bucket"), deps())).toBe(2);
-    const badEnv = deps();
-    vi.mocked(badEnv.envLoader.load).mockRejectedValue("bad");
-    expect(await runEmpty(argv("empty-r2-bucket", "--env-file", "bad"), badEnv)).toBe(2);
-    expect(await runEmpty(argv("empty-r2-bucket", "-t", "--bucket", "b"), deps())).toBe(6);
-    expect(await runEmpty(argv("empty-r2-bucket", "-v", "-q"), deps())).toBe(6);
-    expect(await runEmpty(argv("empty-r2-bucket", "--bad"), deps())).toBe(6);
-  });
-
-  it("supports help/version and unexpected parse failures", async () => {
-    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    expect(await runEmpty(argv("empty-r2-bucket", "--help"), deps())).toBe(0);
-    expect(await runEmpty(argv("empty-r2-bucket", "--version"), deps())).toBe(0);
-    vi.spyOn(Command.prototype, "parse").mockImplementation(() => {
-      throw new TypeError("bad");
-    });
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    expect(await runEmpty(argv("empty-r2-bucket"), deps())).toBe(99);
-  });
-
-  it("exercises the real filesystem adapter", async () => {
-    const dir = await mkdir(join(tmpdir(), `empty-r2-${Date.now()}`), { recursive: true });
-    const file = join(dir, "file");
-    await writeFile(file, "x");
-    try {
-      expect(await createEmptyFs().directoryExists(dir)).toBe(true);
-      expect(await createEmptyFs().directoryExists(file)).toBe(false);
-      expect(await createEmptyFs().directoryExists(join(dir, "missing"))).toBe(false);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

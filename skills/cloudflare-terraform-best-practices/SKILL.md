@@ -16,8 +16,7 @@ teardown ordering. Patterns are grouped by Cloudflare _service_, not by
 underlying resource name.
 
 **Out of scope:** CLI tooling that bridges Terraform and Wrangler
-(`generate-wrangler`, `generate-wrangler-types`, `empty-r2-bucket`,
-`destroy-containers`) and npm-script wiring. Those live in the sibling
+(`generate-wrangler`, `generate-wrangler-types`, `destroy-containers`) and npm-script wiring. Those live in the sibling
 **`cloudflare-deploy-scripts`** skill.
 
 > The v5 provider made significant breaking changes from v4 — attribute
@@ -551,13 +550,9 @@ configuration on the bucket is not required.
 The Worker reads and writes R2 through its `env.R2_*` binding, which
 uses the platform's built-in service-binding auth (no key/secret
 involved). The `(access_key_id, secret_access_key)` pair exists solely
-for **out-of-band** tools (e.g. an emptying script that calls the R2 S3
-endpoint during teardown). Do not put the S3 pair into `wrangler.jsonc`
+for **out-of-band** tools that call the R2 S3 endpoint. Do not put the S3 pair into `wrangler.jsonc`
 `vars` — it would be dead config the Worker code never touches, and
 broadens the credentials' blast radius unnecessarily.
-
-For the matching out-of-band emptying tool, load the
-**`cloudflare-deploy-scripts`** skill (`empty-r2-bucket`).
 
 ## Cloudflare Queues
 
@@ -761,10 +756,8 @@ In dependency order:
    buckets empty, Terraform can clean up the underlying resources in
    reverse dependency order.
 
-For the CLIs that implement each cleanup step (`empty-r2-bucket` and
-`destroy-containers`) and the recommended
-`preteardown:*` npm script wiring, load the **`cloudflare-deploy-scripts`**
-skill.
+For the container cleanup CLI and recommended `preteardown:*` npm script wiring, load the
+**`cloudflare-deploy-scripts`** skill.
 
 ### Anti-pattern: assuming `terraform destroy` will clean everything
 

@@ -46,14 +46,13 @@ never bundles them.
 Declared in `package.json#dependencies` — installed regardless of which subpath a consumer
 actually imports.
 
-| Package                                                                  | Version     | Why                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`jose`](https://www.npmjs.com/package/jose)                             | `^6.2.3`    | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                                 |
-| [`commander`](https://www.npmjs.com/package/commander)                   | `^15.0.0`   | Argument parsing for all package CLI bins (§5.7)                                                                                                                                                                                                                                                                                 |
-| [`chalk`](https://www.npmjs.com/package/chalk)                           | `^5.6.2`    | Colorized stderr output from the private shared CLI logger (§5.7)                                                                                                                                                                                                                                                                |
-| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn)               | `^7.0.6`    | Safely spawns `npx wrangler types` for `generate-wrangler-types` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly (`wrangler.ts`, `defaultExecRunner`) |
-| [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3) | `^3.1056.0` | R2's S3-compatible list and batch-delete APIs for `empty-r2-bucket` (§5.7)                                                                                                                                                                                                                                                       |
-| [`dotenv`](https://www.npmjs.com/package/dotenv)                         | `^17.4.2`   | Loads optional credential files for the two cleanup CLIs without overriding existing environment variables (§5.7)                                                                                                                                                                                                                |
+| Package                                                    | Version   | Why                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`jose`](https://www.npmjs.com/package/jose)               | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                                 |
+| [`commander`](https://www.npmjs.com/package/commander)     | `^15.0.0` | Argument parsing for all package CLI bins (§5.7)                                                                                                                                                                                                                                                                                 |
+| [`chalk`](https://www.npmjs.com/package/chalk)             | `^5.6.2`  | Colorized stderr output from the private shared CLI logger (§5.7)                                                                                                                                                                                                                                                                |
+| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn) | `^7.0.6`  | Safely spawns `npx wrangler types` for `generate-wrangler-types` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly (`wrangler.ts`, `defaultExecRunner`) |
+| [`dotenv`](https://www.npmjs.com/package/dotenv)           | `^17.4.2` | Loads optional credential files for `destroy-containers` without overriding existing environment variables (§5.7)                                                                                                                                                                                                                |
 
 Only CLI bins (not import subpaths — §5.7) pull in these CLI dependencies; nothing under
 `package.json#exports` depends on them, so tree-shaking a consumer's own bundle never pays for the CLI's
@@ -178,8 +177,8 @@ The toolkit consists of four parts:
 | `@adrianhall/cloudflare-toolkit/logging`         | `createLogger`, `resolveLoggerConfig`, transports, logging types                                                                                                                                                            | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps                                                                                                                                                                                      |
 | `@adrianhall/cloudflare-toolkit/testing`         | Dev-JWT signing + cookie helpers for Vitest/Playwright tests                                                                                                                                                                | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment                                                                                                                                                            |
 
-Separately, the package ships four **CLI bins**, not import subpaths: `generate-wrangler`,
-`generate-wrangler-types`, `empty-r2-bucket`, and `destroy-containers` — see §5.7.
+Separately, the package ships three **CLI bins**, not import subpaths: `generate-wrangler`,
+`generate-wrangler-types`, and `destroy-containers` — see §5.7.
 
 ### 5.2 Defensive Guards
 
@@ -355,19 +354,15 @@ moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 
 ### 5.7 Command Line Tools
 
-Four npm `bin` entries are ported from `cloudflare-scripts`; `generate-types` alone is renamed to
-`generate-wrangler-types`. The interface remains source-compatible except for additive R2
-jurisdiction configuration and deliberate fail-closed safety fixes described below.
+Three npm `bin` entries are ported from `cloudflare-scripts`; `generate-types` alone is renamed to
+`generate-wrangler-types`. The interface remains source-compatible except for deliberate
+fail-closed safety fixes described below.
 
 - `generate-wrangler` substitutes strict `{{output_name}}` markers in `wrangler.jsonc.tpl` from
   `terraform output -json`, with check and overwrite modes. Verbose logs redact values marked
   sensitive by Terraform.
 - `generate-wrangler-types` runs `wrangler types` only when `wrangler.jsonc` is newer than
   `worker-configuration.d.ts`, while retaining force, path, logging, and passthrough flags.
-- `empty-r2-bucket` resolves R2 credentials from Terraform outputs or flags/environment, lists all
-  object pages, confirms, batch-deletes at most 1,000 keys per S3 request, requires every response
-  to account for every requested key, and verifies the bucket is empty before success. It supports
-  `auto`, `eu`, and `fedramp` endpoint jurisdictions.
 - `destroy-containers` discovers worker-name-matching container applications and OCI tags, confirms,
   then deletes image tags before applications. Discovery failures are fail-closed and map to the
   same application/registry/both exit-code classes as deletion failures.
@@ -384,8 +379,7 @@ consuming project:
     "prebuild": "generate-wrangler-types -d src/worker",
     "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
     "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
-    "preteardown:r2": "empty-r2-bucket -t infra --yes",
-    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
+    "preteardown": "run-s preteardown:containers preteardown:worker",
     "build": "vite build"
     /* ... */
   }
@@ -458,7 +452,6 @@ src/
     internal/                    # private shared Node-only adapters and CLI logger
     generate-wrangler/
     generate-wrangler-types/
-    empty-r2-bucket/
     destroy-containers/
 test/
   node/       # errors, guards, problem-details, logging, vite plugin (mock req/res), CLI
@@ -507,7 +500,7 @@ through source or this spec to figure out how to use the toolkit:
     and how RFC 9457 problem details show up in a response)
   - Defensive Guards (why `throwIfNull`/`valueOrDefault`/`sqlCount` exist, tied to the
     100%-coverage philosophy in §7/§8)
-  - The four deployment CLIs from §5.7
+  - The three deployment CLIs from §5.7
   - Testing a toolkit-based app (`/testing` helpers, the `vite.config.ts`/`vitest.config.ts`
     pairing for `@cloudflare/vite-plugin` + `@cloudflare/vitest-pool-workers` against the same
     Worker, and `@cloudflare/vitest-pool-workers` recipes — this Vite + Vitest configuration

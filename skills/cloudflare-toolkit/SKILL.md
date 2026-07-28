@@ -29,7 +29,7 @@ Cloudflare concerns.
   Cloudflare Access deployment — use `/testing`.
 - Keeping `worker-configuration.d.ts` fresh without a manual `wrangler types` step — use the
   `generate-wrangler-types` CLI.
-- For `generate-wrangler`, `empty-r2-bucket`, `destroy-containers`, and Terraform deployment
+- For `generate-wrangler`, `destroy-containers`, and Terraform deployment
   orchestration, load `cloudflare-deploy-scripts` and `cloudflare-terraform-best-practices`.
 
 ## Installation

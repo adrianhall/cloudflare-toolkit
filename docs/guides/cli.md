@@ -1,13 +1,12 @@
 # Command Line Tools
 
-Installing `@adrianhall/cloudflare-toolkit` adds four binaries. They are package `bin` entries,
+Installing `@adrianhall/cloudflare-toolkit` adds three binaries. They are package `bin` entries,
 not JavaScript import subpaths.
 
 | Command                   | Purpose                                                            |
 | ------------------------- | ------------------------------------------------------------------ |
 | `generate-wrangler`       | Build `wrangler.jsonc` from a template and Terraform outputs       |
 | `generate-wrangler-types` | Run `wrangler types` only when its output is stale                 |
-| `empty-r2-bucket`         | Empty an R2 bucket before Terraform destroys it                    |
 | `destroy-containers`      | Remove matching container applications and OCI registry image tags |
 
 ## Deployment Workflow
@@ -24,14 +23,13 @@ A Terraform-managed project can wire the commands into npm lifecycle scripts:
     "build": "vite build",
     "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
     "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
-    "preteardown:r2": "empty-r2-bucket -t infra --yes",
-    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
+    "preteardown": "run-s preteardown:containers preteardown:worker",
     "teardown": "terraform -chdir=infra destroy"
   }
 }
 ```
 
-Use `--yes` only for an intentional non-interactive cleanup. Both cleanup commands otherwise ask
+Use `--yes` only for an intentional non-interactive cleanup. The cleanup command otherwise asks
 for confirmation.
 
 ## `generate-wrangler`
@@ -93,47 +91,6 @@ generate-wrangler-types -- --include-runtime=false --strict-vars=false
 Exit codes: `0` fresh/success, `1` config missing, `2` Wrangler could not launch, `3` `wrangler
 types` failed, `6` argument error, `99` unexpected internal error.
 
-## `empty-r2-bucket`
-
-R2 refuses deletion of a non-empty bucket. This command uses R2's S3-compatible API to list every
-object with pagination, delete keys in batches of at most 1,000, and verify the bucket is empty.
-
-Terraform mode reads these string outputs: `account_id`, `r2_bucket_name`, `r2_token_id`, and
-`r2_token_value`. An optional string output named `r2_jurisdiction` selects `auto`, `eu`, or
-`fedramp`; absent output defaults to `auto`.
-
-```sh
-empty-r2-bucket --terraform infra
-empty-r2-bucket -t infra --yes
-```
-
-Per-value mode accepts flags or environment variables:
-
-| Flag                        | Environment variable    |
-| --------------------------- | ----------------------- |
-| `--account-id <id>`         | `CLOUDFLARE_ACCOUNT_ID` |
-| `--bucket <name>`           | `R2_BUCKET_NAME`        |
-| `--access-key-id <id>`      | `R2_ACCESS_KEY_ID`      |
-| `--secret-access-key <key>` | `R2_SECRET_ACCESS_KEY`  |
-| `--jurisdiction <value>`    | `R2_JURISDICTION`       |
-
-`--terraform` and per-value flags are mutually exclusive. `--env-file <path>` loads dotenv
-defaults without overriding existing environment variables. `-y/--yes` skips confirmation;
-`-q/--quiet` and `-v/--verbose` control logging.
-
-Jurisdiction defaults to `auto`. `eu` uses
-`https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com`; `fedramp` uses
-`https://<ACCOUNT_ID>.fedramp.r2.cloudflarestorage.com`. A CLI jurisdiction overrides the optional
-Terraform output. In per-value mode, the CLI option overrides `R2_JURISDICTION`.
-
-Exit codes: `0` empty/verified success, `1` declined, `2` credential/configuration failure, `3`
-initial listing failure, `4` deletion or final-verification failure, `6` argument error, `99`
-unexpected internal error.
-
-Cloudflare documents S3 region `auto`. Dashboard-created R2 tokens provide an access key ID and
-secret access key directly. The Terraform skill's account-token recipe outputs the token ID and
-SHA-256 token-value hash as that S3 pair. See [R2 authentication][r2-auth].
-
 ## `destroy-containers`
 
 This command discovers container applications and Cloudflare Registry image tags whose names or
@@ -179,5 +136,3 @@ Use `cloudflare-deploy-scripts` for the full provision/deploy/teardown pattern a
 `cloudflare-terraform-best-practices` for Terraform provider schemas, token setup, and ordering.
 The general `cloudflare-toolkit` skill stays focused on library APIs and
 `generate-wrangler-types`.
-
-[r2-auth]: https://developers.cloudflare.com/r2/api/tokens/

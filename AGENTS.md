@@ -19,8 +19,8 @@ be a deliberate, reasoned decision rather than an oversight.
 
 A toolkit of framework-agnostic and Hono/Vite-specific utilities for building Cloudflare Workers
 apps: defensive guards, RFC 9457 HTTP error generators, structured logging, Cloudflare
-Access-aware Hono middleware, a Vite plugin, Vitest testing helpers, and four deployment CLIs:
-`generate-wrangler`, `generate-wrangler-types`, `empty-r2-bucket`, and `destroy-containers`. See
+Access-aware Hono middleware, a Vite plugin, Vitest testing helpers, and three deployment CLIs:
+`generate-wrangler`, `generate-wrangler-types`, and `destroy-containers`. See
 [`README.md`](./README.md) for the consumer-facing quickstart and
 [`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md) §5 for the full contents.
 
@@ -168,7 +168,6 @@ src/
     generate-wrangler/            # Terraform-output template substitution
     generate-wrangler-types/
       index.ts run.ts types.ts fs.ts wrangler.ts
-    empty-r2-bucket/              # R2 preteardown cleanup
     destroy-containers/           # Containers/OCI preteardown cleanup
 test/
   tsconfig.json # extends the root tsconfig with include: ["**/*.ts"] — gives eslint.config.js's
@@ -238,10 +237,9 @@ AGENTS.md                          # this file
   inline defensive `??`/`if (!x) throw` in this repo's own source (`docs/specs/SPECv2.md` §8 rule 8) —
   the toolkit should eat its own dog food, and it keeps ad hoc defensive branches centralized and
   individually testable per the coverage recipe above.
-- **Destructive CLIs fail closed.** Never treat Cloudflare/R2 discovery failures as an empty result.
-  `destroy-containers` must not delete from partial discovery, `empty-r2-bucket` must account for
-  every requested key and verify the final listing, and Terraform values marked `sensitive` must
-  never appear in CLI logs.
+- **Destructive CLIs fail closed.** Never treat Cloudflare discovery failures as an empty result.
+  `destroy-containers` must not delete from partial discovery, and Terraform values marked
+  `sensitive` must never appear in CLI logs.
 - **The Vite + Vitest worked example is deliberately duplicated, not single-sourced, between
   `skills/cloudflare-toolkit/SKILL.md`'s "Vite + Vitest configuration for a Hono/Workers project"
   section and the section of the same name in `docs/guides/testing.md`.** This is an intentional

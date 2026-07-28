@@ -44,7 +44,7 @@ export default app;
 See the [documentation site](https://adrianhall.github.io/cloudflare-toolkit) for guides
 covering every export, including the defensive guards, HTTP error generators, the standalone
 logging core, the Vite plugin, and the `generate-wrangler`, `generate-wrangler-types`,
-`empty-r2-bucket`, and `destroy-containers` CLIs.
+and `destroy-containers` CLIs.
 
 ## AI Skill
 

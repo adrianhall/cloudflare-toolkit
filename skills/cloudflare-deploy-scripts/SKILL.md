@@ -1,6 +1,6 @@
 ---
 name: cloudflare-deploy-scripts
-description: CLI tools and npm-script orchestration for deploying Cloudflare Workers projects with @adrianhall/cloudflare-toolkit. Covers the three-phase provision/deploy/teardown pattern, generate-wrangler templating, generate-wrangler-types freshness checks, empty-r2-bucket and destroy-containers cleanup, template rules, npm scripts, and CLI anti-patterns. Load when wiring deployment scripts for a Cloudflare Workers project. For Terraform schema and service patterns, load the sibling `cloudflare-terraform-best-practices` skill.
+description: CLI tools and npm-script orchestration for deploying Cloudflare Workers projects with @adrianhall/cloudflare-toolkit. Covers the three-phase provision/deploy/teardown pattern, generate-wrangler templating, generate-wrangler-types freshness checks, destroy-containers cleanup, template rules, npm scripts, and CLI anti-patterns. Load when wiring deployment scripts for a Cloudflare Workers project. For Terraform schema and service patterns, load the sibling `cloudflare-terraform-best-practices` skill.
 ---
 
 # Cloudflare Deploy Scripts: CLI Tools and npm-Script Orchestration
@@ -17,9 +17,6 @@ The CLIs:
   `wrangler.jsonc`.
 - **`generate-wrangler-types`** — runs `wrangler types` only when
   `wrangler.jsonc` has changed (cheap pre-script).
-- **`empty-r2-bucket`** — deletes all objects from an R2 bucket before
-  `terraform destroy` (the Cloudflare API rejects deletion of a
-  non-empty bucket).
 - **`destroy-containers`** — deletes container applications and OCI
   registry images that `wrangler deploy` created but Terraform cannot
   see.
@@ -40,11 +37,11 @@ terraform apply          →   wrangler deploy        →   destroy-containers
   ↓ (postprovision)              (uses wrangler.jsonc)     ↓
 generate-wrangler                                      wrangler delete --force
   (writes wrangler.jsonc                                 ↓
-   from terraform outputs)                             empty-r2-bucket
-  ↓ (prebuild/predeploy/prestart)                        ↓
-generate-wrangler-types                                terraform destroy
-  (writes worker-configuration.d.ts                      ↓ (postteardown)
-   from wrangler.jsonc, only when                      remove generated files
+   from terraform outputs)                             terraform destroy
+  ↓ (prebuild/predeploy/prestart)                        ↓ (postteardown)
+generate-wrangler-types                                remove generated files
+  (writes worker-configuration.d.ts
+   from wrangler.jsonc, only when
    wrangler.jsonc has changed)
 ```
 
@@ -59,8 +56,6 @@ generate-wrangler-types                                terraform destroy
 - `generate-wrangler-types` keeps TypeScript bindings in sync by running
   `wrangler types` only when `wrangler.jsonc` has changed — safe to add
   as a `pre` script without slowing down unrelated builds.
-- `empty-r2-bucket` deletes R2 objects before `terraform destroy` (the
-  R2 API refuses non-empty bucket deletion).
 - `destroy-containers` deletes container applications and OCI registry
   images that `wrangler deploy` created but Terraform cannot see.
 - Wrangler handles code and configuration deployment; container cleanup
@@ -185,10 +180,9 @@ automatically when you call `npm run provision`, `npm run deploy`, etc.
     "deploy": "wrangler deploy --config src/worker/wrangler.jsonc",
     "prestart": "run-s generate:types build",
     "start": "wrangler dev --config src/worker/wrangler.jsonc",
-    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
+    "preteardown": "run-s preteardown:containers preteardown:worker",
     "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
     "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
-    "preteardown:r2": "empty-r2-bucket -t infra --yes",
     "teardown": "terraform -chdir=infra destroy -auto-approve",
     "postteardown": "run-s postteardown:wrangler postteardown:types",
     "postteardown:wrangler": "shx rm -f src/worker/wrangler.jsonc",
@@ -205,22 +199,21 @@ automatically when you call `npm run provision`, `npm run deploy`, etc.
 
 ### Script-by-script breakdown
 
-| Script                   | Command                                                          | Notes                                                                                                                                                                                                                     |
-| ------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preprovision`           | `terraform -chdir=infra init`                                    | Runs before every `npm run provision`. Idempotent — safe to always run. Downloads providers on first run; does nothing if already initialized.                                                                            |
-| `provision`              | `terraform -chdir=infra apply -auto-approve`                     | Creates/updates all Cloudflare resources. `-auto-approve` skips the interactive prompt; remove it if you want manual confirmation.                                                                                        |
-| `postprovision`          | `generate-wrangler -cf -d src/worker -t infra`                   | `-c` validates all markers are present before writing. `-f` forces overwrite so re-provisioning doesn't fail if `wrangler.jsonc` already exists.                                                                          |
-| `generate:types`         | `generate-wrangler-types -d src/worker -- ...`                   | Runs `wrangler types` only when `wrangler.jsonc` is newer than `worker-configuration.d.ts`. Invoked by `prebuild`, `predeploy`, `prestart`.                                                                               |
-| `prebuild`               | `npm run generate:types`                                         | Ensures types are fresh before every build.                                                                                                                                                                               |
-| `predeploy`              | `run-s generate:types build`                                     | Runs type generation then build before every deploy.                                                                                                                                                                      |
-| `prestart`               | `run-s generate:types build`                                     | Runs type generation then build before every dev server start.                                                                                                                                                            |
-| `deploy`                 | `wrangler deploy --config src/worker/wrangler.jsonc`             | Deploys worker code. Requires `wrangler.jsonc` to exist (run `provision` first on a fresh checkout).                                                                                                                      |
-| `preteardown`            | `run-s preteardown:containers preteardown:worker preteardown:r2` | Runs cleanup in dependency-safe order and fails fast.                                                                                                                                                                     |
-| `preteardown:containers` | `destroy-containers my-worker --env-file .env --yes`             | Deletes container applications and OCI registry images matching the worker name. Required because `wrangler deploy` creates container resources that Terraform does not track. Replace `my-worker` with your worker name. |
-| `preteardown:worker`     | `wrangler delete --force --config src/worker/wrangler.jsonc`     | Removes the Worker before R2 is emptied.                                                                                                                                                                                  |
-| `preteardown:r2`         | `empty-r2-bucket -t infra --yes`                                 | Empties and verifies R2 after the Worker can no longer write objects.                                                                                                                                                     |
-| `teardown`               | `terraform -chdir=infra destroy -auto-approve`                   | Destroys all Cloudflare resources including the worker.                                                                                                                                                                   |
-| `postteardown`           | `run-s postteardown:*`                                           | Cleans up both generated files after teardown.                                                                                                                                                                            |
+| Script                   | Command                                                      | Notes                                                                                                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preprovision`           | `terraform -chdir=infra init`                                | Runs before every `npm run provision`. Idempotent — safe to always run. Downloads providers on first run; does nothing if already initialized.                                                                            |
+| `provision`              | `terraform -chdir=infra apply -auto-approve`                 | Creates/updates all Cloudflare resources. `-auto-approve` skips the interactive prompt; remove it if you want manual confirmation.                                                                                        |
+| `postprovision`          | `generate-wrangler -cf -d src/worker -t infra`               | `-c` validates all markers are present before writing. `-f` forces overwrite so re-provisioning doesn't fail if `wrangler.jsonc` already exists.                                                                          |
+| `generate:types`         | `generate-wrangler-types -d src/worker -- ...`               | Runs `wrangler types` only when `wrangler.jsonc` is newer than `worker-configuration.d.ts`. Invoked by `prebuild`, `predeploy`, `prestart`.                                                                               |
+| `prebuild`               | `npm run generate:types`                                     | Ensures types are fresh before every build.                                                                                                                                                                               |
+| `predeploy`              | `run-s generate:types build`                                 | Runs type generation then build before every deploy.                                                                                                                                                                      |
+| `prestart`               | `run-s generate:types build`                                 | Runs type generation then build before every dev server start.                                                                                                                                                            |
+| `deploy`                 | `wrangler deploy --config src/worker/wrangler.jsonc`         | Deploys worker code. Requires `wrangler.jsonc` to exist (run `provision` first on a fresh checkout).                                                                                                                      |
+| `preteardown`            | `run-s preteardown:containers preteardown:worker`            | Runs cleanup in dependency-safe order and fails fast.                                                                                                                                                                     |
+| `preteardown:containers` | `destroy-containers my-worker --env-file .env --yes`         | Deletes container applications and OCI registry images matching the worker name. Required because `wrangler deploy` creates container resources that Terraform does not track. Replace `my-worker` with your worker name. |
+| `preteardown:worker`     | `wrangler delete --force --config src/worker/wrangler.jsonc` | Removes the Worker before Terraform teardown.                                                                                                                                                                             |
+| `teardown`               | `terraform -chdir=infra destroy -auto-approve`               | Destroys all Cloudflare resources including the worker.                                                                                                                                                                   |
+| `postteardown`           | `run-s postteardown:*`                                       | Cleans up both generated files after teardown.                                                                                                                                                                            |
 
 For the _why_ behind the preteardown chain (wrangler-managed bindings
 are invisible to Terraform; ordering matters), load the
@@ -265,11 +258,6 @@ npm run provision && npm run deploy
 
 ### Cleanup CLI safety rules
 
-- `empty-r2-bucket --jurisdiction` accepts `auto`, `eu`, or `fedramp`.
-  In per-value mode it falls back to `R2_JURISDICTION`, then `auto`.
-  Terraform mode reads optional `r2_jurisdiction` and defaults to `auto`.
-- `empty-r2-bucket` exits nonzero unless every requested key is
-  accounted for and a final listing verifies the bucket is empty.
 - `destroy-containers` fails closed if application or registry discovery
   fails. It does not prompt or delete from a partial discovery result.
 - Prefer `--env-file` or `CLOUDFLARE_ACCOUNT_ID` and
@@ -453,7 +441,7 @@ they reach production.
 
 ---
 
-### 6. Forgetting to empty R2 buckets before `terraform destroy`
+### 6. Forgetting to clean up container images before teardown
 
 **Wrong:**
 
@@ -466,44 +454,7 @@ they reach production.
 ```json
 "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
 "preteardown:worker":     "wrangler delete --force --config src/worker/wrangler.jsonc",
-"preteardown:r2":         "empty-r2-bucket -t infra --yes",
-"preteardown":            "run-s preteardown:containers preteardown:worker preteardown:r2",
-"teardown":               "terraform -chdir=infra destroy -auto-approve"
-```
-
-**Why.** The Cloudflare API rejects deletion of a non-empty R2 bucket.
-If your Terraform state includes `cloudflare_r2_bucket` resources and
-the bucket contains objects, `terraform destroy` fails part-way through,
-leaving resources in a broken state. The `empty-r2-bucket` command lists,
-deletes, and verifies all objects before destroy begins. As a `preteardown` npm
-lifecycle script, it runs automatically when you call
-`npm run teardown`.
-
-The `--yes` flag skips the interactive confirmation prompt, which is
-required for non-interactive (CI) usage. The `-t infra` flag reads R2
-credentials from Terraform output (the `account_id`, `r2_bucket_name`,
-`r2_token_id`, and `r2_token_value` outputs). For the Terraform side
-of those outputs (the v5 token derivation rule), load the
-`cloudflare-terraform-best-practices` skill ("Cloudflare R2" section).
-
----
-
-### 7. Forgetting to clean up container images before teardown
-
-**Wrong:**
-
-```json
-"preteardown": "empty-r2-bucket -t infra --yes",
-"teardown":    "terraform -chdir=infra destroy -auto-approve"
-```
-
-**Correct:**
-
-```json
-"preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
-"preteardown:worker":     "wrangler delete --force --config src/worker/wrangler.jsonc",
-"preteardown:r2":         "empty-r2-bucket -t infra --yes",
-"preteardown":            "run-s preteardown:containers preteardown:worker preteardown:r2",
+"preteardown":            "run-s preteardown:containers preteardown:worker",
 "teardown":               "terraform -chdir=infra destroy -auto-approve"
 ```
 

@@ -2,4 +2,4 @@
 "@adrianhall/cloudflare-toolkit": minor
 ---
 
-Add Terraform-to-Wrangler generation and fail-closed R2/container preteardown CLIs, including R2 jurisdiction support, deployment documentation, and Terraform Agent Skills.
+Add Terraform-to-Wrangler generation and a fail-closed container preteardown CLI, including deployment documentation and Terraform Agent Skills.

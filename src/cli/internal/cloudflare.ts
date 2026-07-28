@@ -1,5 +1,4 @@
 /** @file Private Cloudflare and OCI adapters used by cleanup CLIs. */
-import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import type { Logger } from "./logger.js";
 
 /** Minimal container application shape returned by Cloudflare. */
@@ -20,23 +19,6 @@ export interface RepoInfo {
   tags: string[];
 }
 
-/** R2 S3-compatible connection details. */
-export interface R2Credentials {
-  /** Cloudflare account ID. */
-  accountId: string;
-  /** Bucket name. */
-  bucketName: string;
-  /** S3 access key ID. */
-  accessKeyId: string;
-  /** S3 secret access key. */
-  secretAccessKey: string;
-  /** R2 data jurisdiction. */
-  jurisdiction: R2Jurisdiction;
-}
-
-/** R2 jurisdictions supported by Cloudflare's S3 endpoints. */
-export type R2Jurisdiction = "auto" | "eu" | "fedramp";
-
 /** Injectable container REST API adapter. */
 export interface ContainersApi {
   /** Lists applications, rejecting when discovery fails. */
@@ -54,24 +36,6 @@ export interface RegistryClient {
   /** Deletes one tag's manifest. */
   deleteTag(auth: string, repoName: string, tag: string): Promise<boolean>;
 }
-
-/** Injectable R2 S3 adapter. */
-export interface R2Client {
-  /** Lists all object keys with pagination. */
-  listAllObjects(credentials: R2Credentials): Promise<string[]>;
-  /** Deletes object keys in API-sized batches. */
-  deleteObjects(
-    credentials: R2Credentials,
-    keys: string[]
-  ): Promise<{ deleted: number; errors: number }>;
-}
-
-/** Injectable S3 client factory. */
-export type S3ClientFactory = (
-  endpoint: string,
-  accessKeyId: string,
-  secretAccessKey: string
-) => S3Client;
 
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts";
 const REGISTRY_BASE = "https://registry.cloudflare.com";
@@ -212,108 +176,6 @@ export function createRegistryClient(
         logger.error(`Failed to delete ${repoName}:${tag}: ${String(error)}`);
         return false;
       }
-    }
-  };
-}
-
-/** Creates an AWS SDK client configured for Cloudflare's R2 S3 endpoint. */
-export function createS3Client(
-  endpoint: string,
-  accessKeyId: string,
-  secretAccessKey: string
-): S3Client {
-  return new S3Client({ region: "auto", endpoint, credentials: { accessKeyId, secretAccessKey } });
-}
-
-/** Returns the jurisdiction-specific R2 S3 endpoint for an account. */
-export function getR2Endpoint(accountId: string, jurisdiction: R2Jurisdiction): string {
-  const jurisdictionSegment = jurisdiction === "auto" ? "" : `.${jurisdiction}`;
-  return `https://${accountId}${jurisdictionSegment}.r2.cloudflarestorage.com`;
-}
-
-/** Creates the R2 S3-compatible object adapter. */
-export function createR2Client(
-  logger: Logger,
-  s3ClientFactory: S3ClientFactory = createS3Client
-): R2Client {
-  return {
-    async listAllObjects(credentials) {
-      const endpoint = getR2Endpoint(credentials.accountId, credentials.jurisdiction);
-      logger.debug(`S3 endpoint: ${endpoint}`);
-      const client = s3ClientFactory(
-        endpoint,
-        credentials.accessKeyId,
-        credentials.secretAccessKey
-      );
-      const keys: string[] = [];
-      let continuationToken: string | undefined;
-      let pageCount = 0;
-      do {
-        const response = await client.send(
-          new ListObjectsV2Command({
-            Bucket: credentials.bucketName,
-            ContinuationToken: continuationToken
-          })
-        );
-        const pageKeys = (response.Contents ?? [])
-          .map((object) => object.Key)
-          .filter((key): key is string => key !== undefined);
-        keys.push(...pageKeys);
-        pageCount++;
-        logger.debug(
-          `Listing page ${pageCount}: ${pageKeys.length} objects (total so far: ${keys.length})`
-        );
-        if (response.IsTruncated && !response.NextContinuationToken)
-          throw new Error("R2 returned a truncated object listing without a continuation token");
-        continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
-      } while (continuationToken !== undefined);
-      logger.debug(`Listing complete: ${keys.length} objects across ${pageCount} page(s)`);
-      return keys;
-    },
-    async deleteObjects(credentials, keys) {
-      const endpoint = getR2Endpoint(credentials.accountId, credentials.jurisdiction);
-      const client = s3ClientFactory(
-        endpoint,
-        credentials.accessKeyId,
-        credentials.secretAccessKey
-      );
-      let deleted = 0;
-      let errors = 0;
-      const totalBatches = Math.ceil(keys.length / 1000);
-      for (let index = 0; index < keys.length; index += 1000) {
-        const batch = keys.slice(index, index + 1000);
-        const batchNumber = Math.floor(index / 1000) + 1;
-        logger.debug(
-          `Deleting batch ${batchNumber} of ${totalBatches} (keys ${index + 1}..${index + batch.length})`
-        );
-        const response = await client.send(
-          new DeleteObjectsCommand({
-            Bucket: credentials.bucketName,
-            Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: false }
-          })
-        );
-        const deletedKeys = (response.Deleted ?? []).map(({ Key }) => Key);
-        const errorKeys = (response.Errors ?? []).map(({ Key }) => Key);
-        const accountedKeys = [...deletedKeys, ...errorKeys];
-        if (
-          accountedKeys.length !== batch.length
-          || accountedKeys.some((key) => key === undefined || !batch.includes(key))
-          || new Set(accountedKeys).size !== batch.length
-        ) {
-          throw new Error(
-            `R2 delete response did not account for every key in batch ${batchNumber}`
-          );
-        }
-        const deletedCount = deletedKeys.length;
-        const errorCount = errorKeys.length;
-        deleted += deletedCount;
-        errors += errorCount;
-        for (const error of response.Errors ?? []) {
-          logger.error(`Delete error: ${error.Key} - ${error.Code}: ${error.Message}`);
-        }
-        logger.debug(`Batch ${batchNumber} result: ${deletedCount} deleted, ${errorCount} errors`);
-      }
-      return { deleted, errors };
     }
   };
 }
