@@ -1,6 +1,6 @@
 {
   "name": "@adrianhall/cloudflare-toolkit",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform",
   "keywords": [
     "cloudflare",
@@ -135,6 +135,6 @@
     "esbuild@0.28.1": true,
     "fsevents@2.3.3": true,
     "sharp@0.34.5": true,
-    "workerd@1.20260708.1": true
+    "workerd@1.20260722.1": true
   }
 }
