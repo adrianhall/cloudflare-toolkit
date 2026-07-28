@@ -9,7 +9,9 @@ Publishing (OIDC): there is no long-lived `NPM_TOKEN`, local publish command, or
 1. Choose the next stable semver version. Prerelease and build metadata are not supported by this
    pipeline.
 2. Create a dedicated release PR from current `main`. Update `package.json#version`, both root
-   version fields in `package-lock.json`, and `CHANGELOG.md`. Do not include unrelated code.
+   version fields in `package-lock.json`, and `CHANGELOG.md` by replacing the `Next release`
+   header with the release version and creating a new empty `Next release` header. Do not include
+   unrelated code.
 3. Let the normal PR checks pass, review the version and release notes, and merge the release PR.
 4. Record the merge commit and create an annotated tag whose name is exactly `v` plus the package
    version:
