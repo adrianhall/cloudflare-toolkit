@@ -360,7 +360,12 @@ deliberate fail-closed safety fixes described below.
 
 - `generate-wrangler` substitutes strict `{{output_name}}` markers in `wrangler.jsonc.tpl` from
   `terraform output -json`, with check and overwrite modes. Verbose logs redact values marked
-  sensitive by Terraform.
+  sensitive by Terraform. `--local <file>` (issue #167) substitutes from a flat strict-JSON
+  `name -> value` file instead, for local development before any Terraform state exists;
+  unlike terraform mode, it fails soft — exiting `0` without reading the file — when
+  `wrangler.jsonc` already exists and `--force` is not given, so it is safe to wire into a
+  `predev`/`pretest` script unconditionally. `--local` and an explicit `--terraform` are mutually
+  exclusive.
 - `generate-wrangler-types` runs `wrangler types` only when `wrangler.jsonc` is newer than
   `worker-configuration.d.ts`, while retaining force, path, logging, and passthrough flags.
 - `destroy-containers` discovers worker-name-matching container applications and OCI tags, confirms,

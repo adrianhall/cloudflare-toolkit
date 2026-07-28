@@ -140,11 +140,12 @@ ingestion mechanics via `data.dotenv.env.env.*`, see the
 ```
 
 Each `{{name}}` marker is replaced by the value of the Terraform output
-with the same name. Outputs must be `string` or `number` — any other
-type causes `generate-wrangler` to exit with code 7. For the Terraform
-side of this (writing the outputs), load the
-`cloudflare-terraform-best-practices` skill ("Outputs and secrets flow"
-section).
+with the same name (or, in `--local` mode, the same key in the local
+variables file — see "Local development without Terraform" below).
+Values must be `string` or `number` — any other type causes
+`generate-wrangler` to exit with code 7. For the Terraform side of this
+(writing the outputs), load the `cloudflare-terraform-best-practices`
+skill ("Outputs and secrets flow" section).
 
 ### Template syntax rules
 
@@ -237,7 +238,56 @@ npm run provision && npm run deploy
 -d   --dir      Base directory for input/output paths.
                 Default input: wrangler.jsonc.tpl; default output: wrangler.jsonc.
 -t   --terraform Directory containing Terraform state files (infra/).
+-l   --local <file>  Read marker values from a flat strict-JSON file instead
+                of terraform outputs. Mutually exclusive with an explicit
+                -t/--terraform. See "Local development without Terraform"
+                below.
 ```
+
+### Local development without Terraform
+
+For `dev`/`start`/tests before any `terraform apply` has run — or for a
+sandbox that intentionally never provisions real infrastructure — point
+`generate-wrangler` at a flat JSON file of placeholder values instead:
+
+```json
+// src/worker/local.vars.json
+{
+  "worker_name": "my-worker-dev",
+  "account_id": "0123456789abcdef0123456789abcdef",
+  "d1_database_id": "00000000-0000-0000-0000-000000000000",
+  "kv_namespace_id": "0000000000000000000000000000000",
+  "r2_bucket_name": "my-worker-dev-bucket"
+}
+```
+
+```json
+{
+  "scripts": {
+    "predev": "generate-wrangler --local src/worker/local.vars.json -d src/worker",
+    "dev": "vite dev"
+  }
+}
+```
+
+This file is a flat `name -> value` map — not the nested
+`terraform output -json` shape — and must be **strict JSON**: no `//`
+comments, no trailing commas, despite the `.jsonc`-suggestive naming
+some projects use for it. Only `string` and `number` values substitute;
+any other JSON value type still exits with code 7 if a template marker
+references it, exactly like an unsupported Terraform output type.
+
+The critical difference from terraform mode: `--local` **fails soft**
+when `wrangler.jsonc` already exists and `--force` is not given — it
+exits `0` and does not even read the variables file, instead of exiting
+2 like terraform mode does. That makes it safe to wire into `predev`
+unconditionally on every run, including runs where a previous
+`postprovision` (or an earlier `--local --force`) already produced a
+`wrangler.jsonc` that should be left alone. Use `--local ... --force`
+only when you explicitly want the placeholder file to take precedence.
+
+`--local` and an explicit `-t`/`--terraform` are mutually exclusive
+(exit code 6) — pick one variable source per invocation.
 
 ### generate-wrangler-types flags and passthrough
 

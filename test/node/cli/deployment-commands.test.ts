@@ -14,6 +14,7 @@ import type { TerraformOutputMap, TerraformRunner } from "../../../src/cli/inter
 import type { EnvLoader, Prompter } from "../../../src/cli/internal/utils.js";
 import { run as runDestroy } from "../../../src/cli/destroy-containers/run.js";
 import { createFileSystem as createGenerateFs } from "../../../src/cli/generate-wrangler/fs.js";
+import { parseLocalVariables } from "../../../src/cli/generate-wrangler/local.js";
 import { run as runGenerate } from "../../../src/cli/generate-wrangler/run.js";
 import {
   scanMarkers,
@@ -66,6 +67,35 @@ describe("generate-wrangler template", () => {
         logger
       })
     ).toEqual({ success: false, exitCode: 7 });
+  });
+
+  it("parses local variables files into a TerraformOutputMap", () => {
+    expect(
+      parseLocalVariables(
+        JSON.stringify({
+          text: "worker",
+          count: 3,
+          flag: true,
+          empty: null,
+          list: [1, 2],
+          nested: { a: 1 }
+        })
+      )
+    ).toEqual({
+      text: { value: "worker", type: "string", sensitive: false },
+      count: { value: 3, type: "number", sensitive: false },
+      flag: { value: true, type: "bool", sensitive: false },
+      empty: { value: null, type: "null", sensitive: false },
+      list: { value: [1, 2], type: "list", sensitive: false },
+      nested: { value: { a: 1 }, type: "object", sensitive: false }
+    });
+  });
+
+  it("rejects invalid JSON and non-object roots", () => {
+    expect(() => parseLocalVariables("not json")).toThrow(/not valid JSON/);
+    expect(() => parseLocalVariables("[1, 2]")).toThrow(/JSON object/);
+    expect(() => parseLocalVariables("null")).toThrow(/JSON object/);
+    expect(() => parseLocalVariables('"text"')).toThrow(/JSON object/);
   });
 
   it("redacts sensitive Terraform values from verbose substitution logs", () => {
@@ -164,6 +194,136 @@ describe("generate-wrangler", () => {
       expect(d.fs.writeFile).not.toHaveBeenCalled();
     }
   );
+
+  function localDeps(fileContents: Record<string, string>) {
+    return {
+      terraform: outputs({}),
+      fs: {
+        readFile: vi.fn().mockImplementation((path: string) => {
+          const content = fileContents[path];
+          return content === undefined ?
+              Promise.reject(new Error(`no fixture for ${path}`))
+            : Promise.resolve(content);
+        }),
+        writeFile: vi.fn().mockResolvedValue(undefined),
+        fileExists: vi
+          .fn()
+          .mockImplementation((path: string) => Promise.resolve(Object.hasOwn(fileContents, path))),
+        directoryExists: vi.fn().mockResolvedValue(true)
+      },
+      logSink: quietSink
+    };
+  }
+
+  it("writes generated output from a local variables file", async () => {
+    const d = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{name}}",
+      "/base/local.json": JSON.stringify({ name: "worker" })
+    });
+    expect(await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json"), d)).toBe(
+      0
+    );
+    expect(d.fs.writeFile).toHaveBeenCalledWith("/base/wrangler.jsonc", "worker");
+  });
+
+  it("skips local generation with exit 0 when the output already exists without --force", async () => {
+    const d = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{name}}",
+      "/base/local.json": JSON.stringify({ name: "worker" }),
+      "/base/wrangler.jsonc": "existing"
+    });
+    expect(await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json"), d)).toBe(
+      0
+    );
+    expect(d.fs.writeFile).not.toHaveBeenCalled();
+    expect(d.fs.readFile).not.toHaveBeenCalled();
+  });
+
+  it("overwrites an existing output with --local --force", async () => {
+    const d = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{name}}",
+      "/base/local.json": JSON.stringify({ name: "worker" }),
+      "/base/wrangler.jsonc": "existing"
+    });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json", "-f"), d)
+    ).toBe(0);
+    expect(d.fs.writeFile).toHaveBeenCalledWith("/base/wrangler.jsonc", "worker");
+  });
+
+  it("rejects --local combined with an explicit --terraform", async () => {
+    expect(
+      await runGenerate(argv("generate-wrangler", "-l", "local.json", "-t", "infra"), deps())
+    ).toBe(6);
+  });
+
+  it("returns 3 when the local variables file does not exist", async () => {
+    const d = localDeps({ "/base/wrangler.jsonc.tpl": "{{name}}" });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "missing.json"), d)
+    ).toBe(3);
+    expect(d.fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it("returns 4 when the local variables file cannot be read or parsed", async () => {
+    const readFails = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{name}}",
+      "/base/local.json": "unused"
+    });
+    readFails.fs.readFile.mockImplementation((path: string) =>
+      path === "/base/local.json" ? Promise.reject(new Error("boom")) : Promise.resolve("{{name}}")
+    );
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json"), readFails)
+    ).toBe(4);
+
+    const invalidJson = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{name}}",
+      "/base/local.json": "not json"
+    });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json"), invalidJson)
+    ).toBe(4);
+    expect(invalidJson.fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it("applies check, unsupported-type, and null-preservation semantics to local variables", async () => {
+    const check = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{missing}}",
+      "/base/local.json": JSON.stringify({ name: "worker" })
+    });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json", "-c"), check)
+    ).toBe(5);
+
+    const invalidType = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{flag}}",
+      "/base/local.json": JSON.stringify({ flag: true })
+    });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json"), invalidType)
+    ).toBe(7);
+
+    const nullValue = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{empty}}",
+      "/base/local.json": JSON.stringify({ empty: null })
+    });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "local.json"), nullValue)
+    ).toBe(0);
+    expect(nullValue.fs.writeFile).toHaveBeenCalledWith("/base/wrangler.jsonc", "{{empty}}");
+  });
+
+  it("resolves an absolute --local path without joining --dir", async () => {
+    const d = localDeps({
+      "/base/wrangler.jsonc.tpl": "{{name}}",
+      "/abs/local.json": JSON.stringify({ name: "worker" })
+    });
+    expect(
+      await runGenerate(argv("generate-wrangler", "-d", "/base", "-l", "/abs/local.json"), d)
+    ).toBe(0);
+    expect(d.fs.readFile).toHaveBeenCalledWith("/abs/local.json");
+  });
 
   it("returns 99 for an unexpected parser error", async () => {
     vi.spyOn(Command.prototype, "parse").mockImplementation(() => {
