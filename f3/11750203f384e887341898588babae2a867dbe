@@ -1,0 +1,21 @@
+src/cli/generate-wrangler/run.ts
+  s_62191014eb242d::t_7499fb1091afef 6,8,28-30,36-39,60,70-73,86-90,92-127
+test/node/cli/deployment-commands.test.ts
+  s_62191014eb242d::t_2d7a1957cd3316 17,72-100,198-327
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f311750203f384e887341898588babae2a867dbe",
+  "prompts": {},
+  "sessions": {
+    "s_62191014eb242d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_056405abbffeSxA5yaKRnhfNVv",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
