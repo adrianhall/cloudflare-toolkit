@@ -3,7 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createContainersApi, createRegistryClient } from "../../../src/cli/internal/cloudflare.js";
+import {
+  createContainersApi,
+  createLocalR2Cleaner,
+  createRegistryClient,
+  createRemoteR2Cleaner,
+  type SleepFn
+} from "../../../src/cli/internal/cloudflare.js";
 import { createLogger, type LogSink } from "../../../src/cli/internal/logger.js";
 import {
   createTerraformRunner,
@@ -220,5 +226,306 @@ describe("OCI registry", () => {
 
   it("constructs with the default fetch adapter", () => {
     expect(createRegistryClient(logger())).toBeDefined();
+  });
+});
+
+describe("R2 remote cleaner", () => {
+  const target = { bucketName: "bucket", accountId: "acct", apiToken: "token" };
+
+  it("detects empty and non-empty buckets with a bearer-token probe", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [] }))
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] }));
+    const cleaner = createRemoteR2Cleaner(logger(), fetchFn);
+    expect(await cleaner.hasObjects(target)).toBe(false);
+    expect(await cleaner.hasObjects(target)).toBe(true);
+    expect(fetchFn.mock.calls[0][0]).toContain("per_page=1");
+    expect(fetchFn.mock.calls[0][1]).toMatchObject({
+      method: "GET",
+      headers: { Authorization: "Bearer token" }
+    });
+  });
+
+  it("rejects on failed, malformed, or unreachable probes", async () => {
+    for (const fetchFn of [
+      vi.fn<typeof fetch>().mockResolvedValue(response(500)),
+      vi.fn<typeof fetch>().mockResolvedValue(response(200)),
+      vi.fn<typeof fetch>().mockRejectedValue(new Error("network"))
+    ]) {
+      await expect(createRemoteR2Cleaner(logger(), fetchFn).hasObjects(target)).rejects.toThrow(
+        "probe failed"
+      );
+    }
+  });
+
+  it("empties immediately when the completion probe succeeds on the first poll", async () => {
+    const sleepFn = vi.fn<SleepFn>().mockResolvedValue(undefined);
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200)) // DELETE ?prefix=
+      .mockResolvedValueOnce(response(200, { result: [] })); // poll: already empty
+    await expect(
+      createRemoteR2Cleaner(logger(), fetchFn, sleepFn).empty(target)
+    ).resolves.toBeUndefined();
+    expect(fetchFn.mock.calls[0][0]).toContain("prefix=");
+    expect(fetchFn.mock.calls[0][1]).toMatchObject({ method: "DELETE" });
+    expect(sleepFn).not.toHaveBeenCalled();
+  });
+
+  it("polls with bounded backoff until the bucket is confirmed empty", async () => {
+    const sleepFn = vi.fn<SleepFn>().mockResolvedValue(undefined);
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200)) // DELETE
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // poll 1: still has objects
+      .mockResolvedValueOnce(response(200, { result: [] })); // poll 2: empty
+    await expect(
+      createRemoteR2Cleaner(logger(), fetchFn, sleepFn).empty(target)
+    ).resolves.toBeUndefined();
+    expect(sleepFn).toHaveBeenCalledTimes(1);
+    expect(sleepFn).toHaveBeenCalledWith(2000);
+  });
+
+  it("rejects when the empty request fails or is unreachable", async () => {
+    await expect(
+      createRemoteR2Cleaner(logger(), vi.fn<typeof fetch>().mockResolvedValue(response(500))).empty(
+        target
+      )
+    ).rejects.toThrow("empty request returned HTTP");
+    await expect(
+      createRemoteR2Cleaner(
+        logger(),
+        vi.fn<typeof fetch>().mockRejectedValue(new Error("down"))
+      ).empty(target)
+    ).rejects.toThrow("empty request failed");
+  });
+
+  it("rejects when a completion poll attempt fails", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200)) // DELETE
+      .mockResolvedValueOnce(response(500)); // poll failure
+    await expect(
+      createRemoteR2Cleaner(logger(), fetchFn, vi.fn<SleepFn>().mockResolvedValue(undefined)).empty(
+        target
+      )
+    ).rejects.toThrow("completion poll failed");
+  });
+
+  it("rejects after exhausting the bounded poll budget", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockImplementation((url) =>
+        typeof url === "string" && url.includes("prefix=") ?
+          Promise.resolve(response(200))
+        : Promise.resolve(response(200, { result: [{ key: "a" }] }))
+      );
+    const sleepFn = vi.fn<SleepFn>().mockResolvedValue(undefined);
+    await expect(createRemoteR2Cleaner(logger(), fetchFn, sleepFn).empty(target)).rejects.toThrow(
+      "did not become empty"
+    );
+    expect(sleepFn).toHaveBeenCalledTimes(29);
+  });
+
+  it("constructs with the default fetch and sleep adapters", () => {
+    expect(createRemoteR2Cleaner(logger())).toBeDefined();
+  });
+
+  it("uses the real timer-based sleep between poll attempts", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchFn = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(response(200)) // DELETE
+        .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // poll 1: still has objects
+        .mockResolvedValueOnce(response(200, { result: [] })); // poll 2: empty
+      const emptyPromise = createRemoteR2Cleaner(logger(), fetchFn).empty(target);
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(emptyPromise).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("R2 local cleaner", () => {
+  const target = { bucketName: "bucket", localUrl: "http://local/cdn-cgi/explorer/api" };
+
+  it("detects empty and non-empty buckets without sending Cloudflare credentials", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [] }))
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] }));
+    const cleaner = createLocalR2Cleaner(logger(), fetchFn);
+    expect(await cleaner.hasObjects(target)).toBe(false);
+    expect(await cleaner.hasObjects(target)).toBe(true);
+    expect(fetchFn.mock.calls[0][0]).toContain("per_page=1");
+    expect(fetchFn.mock.calls[0][1]).toEqual({ method: "GET" });
+  });
+
+  it("rejects on failed, malformed, or unreachable probes", async () => {
+    for (const fetchFn of [
+      vi.fn<typeof fetch>().mockResolvedValue(response(500)),
+      vi.fn<typeof fetch>().mockResolvedValue(response(200)),
+      vi.fn<typeof fetch>().mockRejectedValue(new Error("network"))
+    ]) {
+      await expect(createLocalR2Cleaner(logger(), fetchFn).hasObjects(target)).rejects.toThrow(
+        "probe failed"
+      );
+    }
+  });
+
+  it("resolves immediately for an already-empty bucket without issuing a delete", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [] })) // page: empty, not truncated
+      .mockResolvedValueOnce(response(200, { result: [] })); // final probe
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).resolves.toBeUndefined();
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetchFn.mock.calls) expect(init).not.toMatchObject({ method: "DELETE" });
+  });
+
+  it("deletes a single page of keys and verifies completion", async () => {
+    const keys = [{ key: "a" }, { key: "b" }];
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: keys })) // page 1, not truncated
+      .mockResolvedValueOnce(response(200, { result: keys })) // batch delete confirms both keys
+      .mockResolvedValueOnce(response(200, { result: [] })); // final probe: empty
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).resolves.toBeUndefined();
+    expect(fetchFn.mock.calls[1][0]).toContain("/objects");
+    expect(fetchFn.mock.calls[1][1]).toEqual({
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(["a", "b"])
+    });
+  });
+
+  it("paginates across multiple pages using the returned cursor", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        response(200, {
+          result: [{ key: "a" }],
+          result_info: { cursor: "cursor-1", is_truncated: "true" }
+        })
+      ) // page 1
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // delete batch 1
+      .mockResolvedValueOnce(response(200, { result: [{ key: "b" }] })) // page 2, not truncated
+      .mockResolvedValueOnce(response(200, { result: [{ key: "b" }] })) // delete batch 2
+      .mockResolvedValueOnce(response(200, { result: [] })); // final probe: empty
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).resolves.toBeUndefined();
+    expect(fetchFn.mock.calls[2][0]).toContain("cursor=cursor-1");
+    expect(fetchFn).toHaveBeenCalledTimes(5);
+  });
+
+  it("handles the exact 1000-object batch boundary in a single page", async () => {
+    const keys = Array.from({ length: 1000 }, (_, i) => ({ key: `k${i}` }));
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: keys })) // not truncated
+      .mockResolvedValueOnce(response(200, { result: keys })) // batch delete
+      .mockResolvedValueOnce(response(200, { result: [] })); // final probe
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).resolves.toBeUndefined();
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(fetchFn.mock.calls[0][0]).toContain("per_page=1000");
+  });
+
+  it.each([{ is_truncated: "true" }, { is_truncated: "true", cursor: "" }])(
+    "stops the loop on an invalid cursor (%j) and reports failure if objects remain",
+    async (resultInfo) => {
+      const fetchFn = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(response(200, { result: [{ key: "a" }], result_info: resultInfo }))
+        .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })); // final probe
+      await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+        "batch deletion failed and objects remain"
+      );
+    }
+  );
+
+  it("rejects when pagination returns a repeated cursor and objects remain", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        response(200, {
+          result: [{ key: "a" }],
+          result_info: { cursor: "c1", is_truncated: "true" }
+        })
+      ) // page 1
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // delete batch 1
+      .mockResolvedValueOnce(
+        response(200, { result: [], result_info: { cursor: "c1", is_truncated: "true" } })
+      ) // page 2: repeats cursor "c1"
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })); // final probe: still has objects
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+      "batch deletion failed and objects remain"
+    );
+  });
+
+  it("stops the loop on a malformed list entry and reports failure if objects remain", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [{ notKey: "a" }] }))
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })); // final probe
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+      "batch deletion failed and objects remain"
+    );
+  });
+
+  it("stops the loop when a batch delete request fails and reports failure if objects remain", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // not truncated
+      .mockResolvedValueOnce(response(500)) // delete batch fails
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })); // final probe
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+      "batch deletion failed and objects remain"
+    );
+  });
+
+  it("stops the loop when a batch delete response omits a key", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }, { key: "b" }] }))
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // confirms only one of two keys
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })); // final probe
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+      "batch deletion failed and objects remain"
+    );
+  });
+
+  it("rejects when objects remain despite a clean deletion pass", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // not truncated
+      .mockResolvedValueOnce(response(200, { result: [{ key: "a" }] })) // delete confirms the key
+      .mockResolvedValueOnce(response(200, { result: [{ key: "b" }] })); // final probe: unexpectedly non-empty
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+      "still contains objects after batch deletion"
+    );
+  });
+
+  it("succeeds overall when the loop fails outright but final verification confirms empty", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new Error("down")) // listing fails entirely
+      .mockResolvedValueOnce(response(200, { result: [] })); // final probe: empty
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).resolves.toBeUndefined();
+  });
+
+  it("rejects when final verification itself fails", async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(response(200, { result: [] })) // page: empty, not truncated
+      .mockRejectedValueOnce(new Error("down")); // final probe fails
+    await expect(createLocalR2Cleaner(logger(), fetchFn).empty(target)).rejects.toThrow(
+      "final verification failed"
+    );
+  });
+
+  it("constructs with the default fetch adapter", () => {
+    expect(createLocalR2Cleaner(logger())).toBeDefined();
   });
 });

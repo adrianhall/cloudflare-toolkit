@@ -30,6 +30,7 @@ export default defineConfig({
     "vite/index": "src/lib/vite/index.ts",
     "testing/index": "src/lib/testing/index.ts",
     "cli/destroy-containers/index": "src/cli/destroy-containers/index.ts",
+    "cli/empty-r2-bucket/index": "src/cli/empty-r2-bucket/index.ts",
     "cli/generate-wrangler/index": "src/cli/generate-wrangler/index.ts",
     "cli/generate-wrangler-types/index": "src/cli/generate-wrangler-types/index.ts"
   },

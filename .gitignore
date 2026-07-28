@@ -4,6 +4,9 @@ coverage/
 .wrangler/
 *.tsbuildinfo
 
+# Credentials for opt-in live tests (test/live/) — never commit.
+.env
+
 # docs/ site build artifacts (docs/package.json is a separate dependency tree — see AGENTS.md).
 # docs/.vitepress/dist is already covered by the "dist/" pattern above. This pattern contains an
 # internal "/" so, per gitignore semantics, it is rooted relative to this file's directory (repo

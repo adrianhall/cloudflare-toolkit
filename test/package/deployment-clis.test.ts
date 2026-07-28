@@ -11,7 +11,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const commandNames = [
   "generate-wrangler",
   "generate-wrangler-types",
-  "destroy-containers"
+  "destroy-containers",
+  "empty-r2-bucket"
 ] as const;
 
 async function runCli(name: string, args: string[]): Promise<{ code: number; stdout: string }> {

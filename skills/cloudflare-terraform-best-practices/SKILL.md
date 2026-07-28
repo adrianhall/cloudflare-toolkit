@@ -417,6 +417,12 @@ resource "cloudflare_r2_bucket" "exports" {
 
 ### S3-compatible token recipe
 
+> This recipe is for R2's **S3-compatible API** specifically. The
+> `empty-r2-bucket` preteardown CLI (`cloudflare-deploy-scripts` skill)
+> uses the plain bearer-token Cloudflare REST API instead and only needs
+> the `Workers R2 Storage Write` account-level permission group — it
+> never needs the access key ID/secret access key pair derived below.
+
 R2's S3-compatible API requires an `(access_key_id, secret_access_key)`
 pair, not a bearer token. The v5 provider does **not** ship a
 purpose-built resource for this — the credential pair is derived from a
@@ -748,15 +754,19 @@ In dependency order:
    `destroy-containers` while Worker/container discovery is still
    available.
 2. **`wrangler delete --force`** to remove the Worker entirely.
-3. **Empty R2 buckets.** The R2 API refuses to delete a non-empty
-   bucket. Order this after `wrangler delete` so a worker stuck
-   mid-export cannot keep writing objects into the bucket between the
-   listing and the delete passes.
+3. **Empty R2 buckets** with `empty-r2-bucket`. The R2 API refuses to
+   delete a non-empty bucket. Order this after `wrangler delete` so a
+   worker stuck mid-export cannot keep writing objects into the bucket
+   between the listing and the delete passes. `empty-r2-bucket -t infra
+--env-file .env --yes` reads the `account_id` and `r2_bucket_name`
+   Terraform outputs directly and works with only the `Workers R2
+Storage Write` account-level permission group — no S3-compatible
+   access key ID/secret access key pair required.
 4. **`terraform destroy`.** With the wrangler-side state gone and R2
    buckets empty, Terraform can clean up the underlying resources in
    reverse dependency order.
 
-For the container cleanup CLI and recommended `preteardown:*` npm script wiring, load the
+For the container and R2 cleanup CLIs and recommended `preteardown:*` npm script wiring, load the
 **`cloudflare-deploy-scripts`** skill.
 
 ### Anti-pattern: assuming `terraform destroy` will clean everything
