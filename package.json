@@ -67,6 +67,7 @@
   },
   "bin": {
     "destroy-containers": "./dist/cli/destroy-containers/index.js",
+    "empty-r2-bucket": "./dist/cli/empty-r2-bucket/index.js",
     "generate-wrangler": "./dist/cli/generate-wrangler/index.js",
     "generate-wrangler-types": "./dist/cli/generate-wrangler-types/index.js"
   },
@@ -129,7 +130,8 @@
     "pretest": "npm run build",
     "pretest:coverage": "npm run build",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:live:r2": "vitest run --config test/live/vitest.config.ts"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,

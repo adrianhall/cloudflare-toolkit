@@ -6,7 +6,7 @@
  * `stylisticTypeChecked`, plus `@typescript-eslint/no-deprecated`. Requires
  * `parserOptions.projectService` so type-aware rules can run.
  *
- * `test/node/**\/*.ts` and `test/workers/**\/*.ts` get the same type-checked ruleset (including
+ * `test/node/**\/*.ts`, `test/workers/**\/*.ts`, and `test/live/**\/*.ts` get the same type-checked ruleset (including
  * `@typescript-eslint/no-deprecated`, which is never relaxed) plus a narrow set of additional
  * relaxations for patterns that are idiomatic in test doubles rather than production code — see
  * that block below (ARCH-004, issue #122). `test/tsconfig.json` gives `parserOptions.projectService`
@@ -68,7 +68,7 @@ export default tseslint.config(
   },
 
   {
-    files: ["test/node/**/*.ts", "test/workers/**/*.ts"],
+    files: ["test/node/**/*.ts", "test/workers/**/*.ts", "test/live/**/*.ts"],
     extends: [...tseslint.configs.recommendedTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     plugins: { jsdoc },
     languageOptions: {
