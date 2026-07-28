@@ -1,5 +1,11 @@
 # @adrianhall/cloudflare-toolkit
 
+## 2.2.0
+
+### Minor Changes
+
+- 950a368: Add Terraform-to-Wrangler generation and a fail-closed container preteardown CLI, including deployment documentation and Terraform Agent Skills.
+
 ## 2.1.0
 
 ### Minor Changes
