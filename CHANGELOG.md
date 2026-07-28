@@ -1,5 +1,11 @@
 # @adrianhall/cloudflare-toolkit
 
+## 2.2.1
+
+### Patch Changes
+
+- 72d5a52: Updated release pipeline so that it no longer requires two pull requests.
+
 ## 2.2.0
 
 ### Minor Changes
