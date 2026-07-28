@@ -36,8 +36,9 @@ for confirmation.
 
 ## `generate-wrangler`
 
-`generate-wrangler` reads `terraform output -json`, replaces strict `{{output_name}}` markers in
-`wrangler.jsonc.tpl`, and writes `wrangler.jsonc`.
+`generate-wrangler` replaces strict `{{output_name}}` markers in `wrangler.jsonc.tpl` and writes
+`wrangler.jsonc`, reading the marker values from either `terraform output -json` (the default) or
+a local JSON file (`--local`).
 
 ```jsonc
 {
@@ -47,34 +48,73 @@ for confirmation.
 }
 ```
 
-Only Terraform `string` and `number` outputs are supported. Markers are case-sensitive and cannot
-contain whitespace. Missing or null outputs are left unchanged with a warning; `--check` turns
-those warnings into a validation failure before writing. Unsupported output types always fail.
-Verbose substitution logs show `[REDACTED]` instead of values whose Terraform output has
-`sensitive = true`.
+Only `string` and `number` values are supported. Markers are case-sensitive and cannot contain
+whitespace. Missing or null values are left unchanged with a warning; `--check` turns those
+warnings into a validation failure before writing. Unsupported value types always fail. Verbose
+substitution logs show `[REDACTED]` instead of values whose Terraform output has
+`sensitive = true` (local-mode values are never marked sensitive).
 
-| Flag                    | Meaning                                      |
-| ----------------------- | -------------------------------------------- |
-| `-c, --check`           | Validate every marker before substitution    |
-| `-d, --dir <dir>`       | Base input/output directory (default `.`)    |
-| `-f, --force`           | Overwrite an existing output                 |
-| `-i, --input <file>`    | Template path (default `wrangler.jsonc.tpl`) |
-| `-o, --output <file>`   | Output path (default `wrangler.jsonc`)       |
-| `-t, --terraform <dir>` | Terraform state directory (default `.`)      |
-| `-q, --quiet`           | Emit warnings and errors only                |
-| `-v, --verbose`         | Emit debug logs                              |
+| Flag                    | Meaning                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `-c, --check`           | Validate every marker before substitution                       |
+| `-d, --dir <dir>`       | Base input/output directory (default `.`)                       |
+| `-f, --force`           | Overwrite an existing output                                    |
+| `-i, --input <file>`    | Template path (default `wrangler.jsonc.tpl`)                    |
+| `-l, --local <file>`    | Read marker values from a strict-JSON file instead of Terraform |
+| `-o, --output <file>`   | Output path (default `wrangler.jsonc`)                          |
+| `-t, --terraform <dir>` | Terraform state directory (default `.`)                         |
+| `-q, --quiet`           | Emit warnings and errors only                                   |
+| `-v, --verbose`         | Emit debug logs                                                 |
 
 Exit codes:
 
-- `0` success,
+- `0` success — in `--local` mode, this also covers the output already existing without
+  `--force`, in which case nothing is read or written,
 - `1` input read failure,
-- `2` output exists/write failure,
-- `3` missing Terraform directory,
-- `4` Terraform output failure,
+- `2` write failure, or (terraform mode only) the output already exists without `--force`,
+- `3` missing Terraform directory or missing local variables file,
+- `4` Terraform output failure, or local variables file read/parse failure,
 - `5` check failure,
-- `6` argument error,
-- `7` unsupported Terraform type,
+- `6` argument error, including `--local` combined with an explicit `--terraform`,
+- `7` unsupported value type,
 - `99` unexpected internal error.
+
+### Local development
+
+`--local <file>` is for running before local operations (`dev`, tests) where no Terraform state
+exists yet. The file is a flat JSON object mapping marker names to values — not the nested
+`terraform output -json` shape — and does not support JSONC comments or trailing commas. Only
+`string` and `number` values can be substituted, exactly like Terraform mode; other JSON value
+types are accepted by the file format but still fail with exit `7` if referenced by a marker.
+
+```json
+{
+  "worker_name": "my-worker-dev",
+  "account_id": "0123456789abcdef0123456789abcdef"
+}
+```
+
+```sh
+generate-wrangler --local local.vars.json -d src/worker
+```
+
+Unlike terraform mode, `--local` **never overwrites an existing `wrangler.jsonc`** unless
+`--force` is also given — it exits `0` (not an error) and skips reading the variables file
+entirely, so it is safe to run unconditionally from a `predev`/`pretest` script without clobbering
+a `wrangler.jsonc` a prior `generate-wrangler -t infra` (or a previous `--local --force`) already
+produced:
+
+```jsonc
+{
+  "scripts": {
+    "predev": "generate-wrangler --local local.vars.json -d src/worker",
+    "dev": "vite dev"
+  }
+}
+```
+
+`--local` and an explicit `--terraform` are mutually exclusive (exit `6`); `--local` is exit `3`
+if the file is missing, `4` if it cannot be read or fails to parse as strict JSON.
 
 ## `generate-wrangler-types`
 
