@@ -18,8 +18,8 @@ be a deliberate, reasoned decision rather than an oversight.
 
 A toolkit of framework-agnostic and Hono/Vite-specific utilities for building Cloudflare Workers
 apps: defensive guards, RFC 9457 HTTP error generators, structured logging, Cloudflare
-Access-aware Hono middleware, a Vite plugin, Vitest testing helpers, and three deployment CLIs:
-`generate-wrangler`, `generate-wrangler-types`, and `destroy-containers`. See
+Access-aware Hono middleware, a Vite plugin, Vitest testing helpers, and four deployment CLIs:
+`generate-wrangler`, `generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket`. See
 [`README.md`](./README.md) for the consumer-facing quickstart and
 [`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md) §5 for the full contents.
 
@@ -166,6 +166,7 @@ src/
     generate-wrangler-types/
       index.ts run.ts types.ts fs.ts wrangler.ts
     destroy-containers/           # Containers/OCI preteardown cleanup
+    empty-r2-bucket/              # R2 bucket-emptying preteardown cleanup
 test/
   tsconfig.json # extends the root tsconfig with include: ["**/*.ts"] — gives eslint.config.js's
                 # parserOptions.projectService a project to resolve test/node + test/workers
@@ -235,8 +236,9 @@ AGENTS.md                          # this file
   the toolkit should eat its own dog food, and it keeps ad hoc defensive branches centralized and
   individually testable per the coverage recipe above.
 - **Destructive CLIs fail closed.** Never treat Cloudflare discovery failures as an empty result.
-  `destroy-containers` must not delete from partial discovery, and Terraform values marked
-  `sensitive` must never appear in CLI logs.
+  `destroy-containers` must not delete from partial discovery, `empty-r2-bucket` must never prompt
+  or delete after a failed or malformed non-empty probe, and Terraform values marked `sensitive`
+  must never appear in CLI logs.
 - **The Vite + Vitest worked example is deliberately duplicated, not single-sourced, between
   `skills/cloudflare-toolkit/SKILL.md`'s "Vite + Vitest configuration for a Hono/Workers project"
   section and the section of the same name in `docs/guides/testing.md`.** This is an intentional

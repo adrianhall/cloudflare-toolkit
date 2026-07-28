@@ -1,6 +1,6 @@
 # Command Line Tools
 
-Installing `@adrianhall/cloudflare-toolkit` adds three binaries. They are package `bin` entries,
+Installing `@adrianhall/cloudflare-toolkit` adds four binaries. They are package `bin` entries,
 not JavaScript import subpaths.
 
 | Command                   | Purpose                                                            |
@@ -8,6 +8,7 @@ not JavaScript import subpaths.
 | `generate-wrangler`       | Build `wrangler.jsonc` from a template and Terraform outputs       |
 | `generate-wrangler-types` | Run `wrangler types` only when its output is stale                 |
 | `destroy-containers`      | Remove matching container applications and OCI registry image tags |
+| `empty-r2-bucket`         | Delete all objects in an R2 bucket before infrastructure teardown  |
 
 ## Deployment Workflow
 
@@ -23,7 +24,8 @@ A Terraform-managed project can wire the commands into npm lifecycle scripts:
     "build": "vite build",
     "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
     "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
-    "preteardown": "run-s preteardown:containers preteardown:worker",
+    "preteardown:r2": "empty-r2-bucket -t infra --env-file .env --yes",
+    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
     "teardown": "terraform -chdir=infra destroy"
   }
 }
@@ -144,6 +146,59 @@ Exit codes:
 Cloudflare currently documents `wrangler containers images delete` as the normal interactive
 image cleanup path. This command retains the direct application and OCI adapters so one
 non-interactive preteardown step can clean both resource types.
+
+## `empty-r2-bucket`
+
+This command probes an R2 bucket for at least one object (never counting or listing every key),
+prints a summary, then empties it through a mode-appropriate adapter. Exactly one of three modes
+is resolved per invocation: standalone remote, Terraform-driven remote, or local Miniflare.
+
+```sh
+# Standalone remote, loading credentials from .env
+empty-r2-bucket application-exports --env-file .env
+
+# Terraform-provisioned bucket, reading account_id and r2_bucket_name outputs
+empty-r2-bucket --terraform infra --env-file .env --yes
+
+# Local Miniflare bucket via a running Wrangler or Vite dev server
+empty-r2-bucket application-exports --local
+empty-r2-bucket application-exports --local --local-url http://localhost:8787/cdn-cgi/explorer/api
+```
+
+| Flag                      | Meaning                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------- |
+| `-a, --account-id <id>`   | Cloudflare account ID; prefer `CLOUDFLARE_ACCOUNT_ID`                                       |
+| `-k, --api-token <token>` | Cloudflare API token; prefer `CLOUDFLARE_API_TOKEN` or `--env-file`                         |
+| `--env-file <path>`       | Load dotenv defaults before resolving remote credentials                                    |
+| `-t, --terraform <dir>`   | Read `account_id` and `r2_bucket_name` from `terraform output -json`                        |
+| `--local`                 | Use the Miniflare Local Explorer API instead of the Cloudflare REST API                     |
+| `--local-url <url>`       | Override the Local Explorer API URL (default: `http://localhost:5173/cdn-cgi/explorer/api`) |
+| `-y, --yes`               | Skip the destructive confirmation prompt                                                    |
+| `-q, --quiet`             | Emit warnings and errors only                                                               |
+| `-v, --verbose`           | Emit debug logs                                                                             |
+
+`bucket-name` is a required positional argument in standalone remote and local modes, and is
+omitted in Terraform mode (`--terraform` and a positional `bucket-name` are mutually exclusive).
+`--local` requires a positional `bucket-name` and is mutually exclusive with `--terraform`,
+`--account-id`, `--api-token`, and `--env-file`; local mode sends no Cloudflare credentials.
+
+The production adapter issues one `GET .../r2/buckets/{bucket}/objects?per_page=1` probe, then one
+`DELETE .../objects?prefix=` request, then polls the same probe with bounded backoff until
+Cloudflare confirms the bucket is empty — the initial `DELETE` response is treated as acceptance,
+not completion. This bearer-token-only flow works with just the `Workers R2 Storage Write`
+permission group; it never uses the S3-compatible API or AWS Signature Version 4. The local
+adapter instead paginates and batch-deletes through Miniflare's Local Explorer API, since that API
+has no prefix-delete operation.
+
+Exit codes:
+
+- `0` bucket already empty, or emptying completed and final verification passed,
+- `1` declined,
+- `2` environment file, credential, Terraform directory/output, or mode-resolution failure,
+- `3` the initial non-empty check failed or returned an invalid/incomplete response,
+- `4` emptying, local batch deletion, completion polling, or final verification failed,
+- `6` argument error,
+- `99` unexpected internal error.
 
 ## Skills
 

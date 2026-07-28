@@ -176,8 +176,8 @@ The toolkit consists of four parts:
 | `@adrianhall/cloudflare-toolkit/logging`         | `createLogger`, `resolveLoggerConfig`, transports, logging types                                                                                                                                                            | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps                                                                                                                                                                                      |
 | `@adrianhall/cloudflare-toolkit/testing`         | Dev-JWT signing + cookie helpers for Vitest/Playwright tests                                                                                                                                                                | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment                                                                                                                                                            |
 
-Separately, the package ships three **CLI bins**, not import subpaths: `generate-wrangler`,
-`generate-wrangler-types`, and `destroy-containers` — see §5.7.
+Separately, the package ships four **CLI bins**, not import subpaths: `generate-wrangler`,
+`generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket` — see §5.7.
 
 ### 5.2 Defensive Guards
 
@@ -353,9 +353,10 @@ moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 
 ### 5.7 Command Line Tools
 
-Three npm `bin` entries are ported from `cloudflare-scripts`; `generate-types` alone is renamed to
-`generate-wrangler-types`. The interface remains source-compatible except for deliberate
-fail-closed safety fixes described below.
+Three npm `bin` entries were originally ported from `cloudflare-scripts`; `generate-types` alone
+was renamed to `generate-wrangler-types`. `empty-r2-bucket` (issue #168) is a fourth, toolkit-native
+addition following the same conventions. The interface remains source-compatible except for
+deliberate fail-closed safety fixes described below.
 
 - `generate-wrangler` substitutes strict `{{output_name}}` markers in `wrangler.jsonc.tpl` from
   `terraform output -json`, with check and overwrite modes. Verbose logs redact values marked
@@ -365,6 +366,15 @@ fail-closed safety fixes described below.
 - `destroy-containers` discovers worker-name-matching container applications and OCI tags, confirms,
   then deletes image tags before applications. Discovery failures are fail-closed and map to the
   same application/registry/both exit-code classes as deletion failures.
+- `empty-r2-bucket` resolves a standalone, Terraform-driven, or local Miniflare target; probes for
+  at least one object (never counting or listing every key) before prompting; and empties the
+  bucket through a mode-appropriate adapter. The production adapter issues a single
+  `DELETE .../objects?prefix=` request against the Cloudflare REST API and polls a one-object list
+  probe with bounded backoff until completion is confirmed — it never depends on the S3-compatible
+  API or AWS Signature Version 4, so it works with only the `Workers R2 Storage Write` permission
+  group. The local adapter paginates and batch-deletes through Miniflare's Local Explorer API
+  (`/cdn-cgi/explorer/api`) instead, since that API has no equivalent prefix-delete operation. See
+  `docs/specs/EMPTY_R2_BUCKET.md` for the full design rationale and API investigation notes.
 
 The Terraform and Cloudflare adapters, terminal logger, dotenv loader, and prompt live in private
 `src/cli/internal/` modules. They are shared by bins but are not package exports. Wired into a
@@ -378,7 +388,8 @@ consuming project:
     "prebuild": "generate-wrangler-types -d src/worker",
     "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
     "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
-    "preteardown": "run-s preteardown:containers preteardown:worker",
+    "preteardown:r2": "empty-r2-bucket -t infra --env-file .env --yes",
+    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
     "build": "vite build"
     /* ... */
   }
@@ -452,6 +463,7 @@ src/
     generate-wrangler/
     generate-wrangler-types/
     destroy-containers/
+    empty-r2-bucket/
 test/
   node/       # errors, guards, problem-details, logging, vite plugin (mock req/res), CLI
   workers/    # workerd via @cloudflare/vitest-pool-workers: hono/* middleware
@@ -499,7 +511,7 @@ through source or this spec to figure out how to use the toolkit:
     and how RFC 9457 problem details show up in a response)
   - Defensive Guards (why `throwIfNull`/`valueOrDefault`/`sqlCount` exist, tied to the
     100%-coverage philosophy in §7/§8)
-  - The three deployment CLIs from §5.7
+  - The four deployment CLIs from §5.7
   - Testing a toolkit-based app (`/testing` helpers, the `vite.config.ts`/`vitest.config.ts`
     pairing for `@cloudflare/vite-plugin` + `@cloudflare/vitest-pool-workers` against the same
     Worker, and `@cloudflare/vitest-pool-workers` recipes — this Vite + Vitest configuration
