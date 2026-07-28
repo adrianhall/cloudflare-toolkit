@@ -62,9 +62,17 @@ Verbose substitution logs show `[REDACTED]` instead of values whose Terraform ou
 | `-q, --quiet`           | Emit warnings and errors only                |
 | `-v, --verbose`         | Emit debug logs                              |
 
-Exit codes: `0` success, `1` input read failure, `2` output exists/write failure, `3` missing
-Terraform directory, `4` Terraform output failure, `5` check failure, `6` argument error, `7`
-unsupported Terraform type, `99` unexpected internal error.
+Exit codes:
+
+- `0` success,
+- `1` input read failure,
+- `2` output exists/write failure,
+- `3` missing Terraform directory,
+- `4` Terraform output failure,
+- `5` check failure,
+- `6` argument error,
+- `7` unsupported Terraform type,
+- `99` unexpected internal error.
 
 ## `generate-wrangler-types`
 
@@ -88,8 +96,14 @@ generate-wrangler-types -c wrangler.staging.jsonc -o types/staging.d.ts
 generate-wrangler-types -- --include-runtime=false --strict-vars=false
 ```
 
-Exit codes: `0` fresh/success, `1` config missing, `2` Wrangler could not launch, `3` `wrangler
-types` failed, `6` argument error, `99` unexpected internal error.
+Exit codes:
+
+- `0` fresh/success,
+- `1` config missing,
+- `2` Wrangler could not launch,
+- `3` `wrangler types` failed,
+- `6` argument error,
+- `99` unexpected internal error.
 
 ## `destroy-containers`
 
@@ -116,9 +130,16 @@ name and inspect the summary before confirming. Discovery is fail closed: applic
 API/network failures produce nonzero exits before prompting or deleting anything. A successful
 discovery with no matching resources exits `0`.
 
-Exit codes: `0` nothing found/success, `1` declined, `2` credential failure, `3` application
-discovery/deletion failure, `4` registry discovery/deletion failure, `5` both resource classes
-failed discovery/deletion, `6` argument error, `99` unexpected internal error.
+Exit codes:
+
+- `0` nothing found/success,
+- `1` declined,
+- `2` credential failure,
+- `3` application discovery/deletion failure,
+- `4` registry discovery/deletion failure,
+- `5` both resource classes failed discovery/deletion,
+- `6` argument error,
+- `99` unexpected internal error.
 
 Cloudflare currently documents `wrangler containers images delete` as the normal interactive
 image cleanup path. This command retains the direct application and OCI adapters so one

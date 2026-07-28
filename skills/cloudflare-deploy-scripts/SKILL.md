@@ -5,10 +5,7 @@ description: CLI tools and npm-script orchestration for deploying Cloudflare Wor
 
 # Cloudflare Deploy Scripts: CLI Tools and npm-Script Orchestration
 
-This skill describes the **CLI tools** shipped by
-`@adrianhall/cloudflare-toolkit` and the **npm script wiring** that ties
-them together with Terraform and Wrangler to deploy a Cloudflare Workers
-project.
+This skill describes the **CLI tools** shipped by `@adrianhall/cloudflare-toolkit` and the **npm script wiring** that ties them together with Terraform and Wrangler to deploy a Cloudflare Workers project.
 
 The CLIs:
 
@@ -21,12 +18,7 @@ The CLIs:
   registry images that `wrangler deploy` created but Terraform cannot
   see.
 
-> **Terraform schema, HCL conventions, token model, per-service
-> patterns, and teardown ordering principles live in the sibling
-> `cloudflare-terraform-best-practices` skill.** Load it before writing
-> any `cloudflare_*` resource block. This skill assumes the Terraform
-> stack is already designed correctly and focuses on the CLI-side
-> orchestration.
+> **Terraform schema, HCL conventions, token model, per-service patterns, and teardown ordering principles live in the sibling `cloudflare-terraform-best-practices` skill.** Load it before writing any `cloudflare_*` resource block. This skill assumes the Terraform stack is already designed correctly and focuses on the CLI-side orchestration.
 
 ## Overview: The Three-Phase Pattern
 
@@ -215,10 +207,7 @@ automatically when you call `npm run provision`, `npm run deploy`, etc.
 | `teardown`               | `terraform -chdir=infra destroy -auto-approve`               | Destroys all Cloudflare resources including the worker.                                                                                                                                                                   |
 | `postteardown`           | `run-s postteardown:*`                                       | Cleans up both generated files after teardown.                                                                                                                                                                            |
 
-For the _why_ behind the preteardown chain (wrangler-managed bindings
-are invisible to Terraform; ordering matters), load the
-`cloudflare-terraform-best-practices` skill ("Teardown ordering"
-section).
+For the _why_ behind the preteardown chain (wrangler-managed bindings are invisible to Terraform; ordering matters), load the `cloudflare-terraform-best-practices` skill ("Teardown ordering" section).
 
 ### Full provision + deploy in one command
 
@@ -280,10 +269,7 @@ project-level check and format scripts, alongside JavaScript tooling.
 }
 ```
 
-> `terraform validate` requires `terraform init` to have been run first
-> (providers must be downloaded). In CI, run `preprovision` (or
-> `terraform -chdir=infra init -backend=false`) before your check
-> script.
+> `terraform validate` requires `terraform init` to have been run first (providers must be downloaded). In CI, run `preprovision` (or `terraform -chdir=infra init -backend=false`) before your check script.
 
 **Formatting (run alongside prettier/biome):**
 
