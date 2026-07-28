@@ -1,0 +1,21 @@
+docs/specs/SPECv2.md
+  s_c94291e63c3780::t_a95beb4e7310e2 126-135,485-488,534-536,620,688-694
+package-lock.json
+  s_c94291e63c3780::t_f310383754c9c8 3,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "72d5a522f7ef37deac95bb39db0129e5d7f185aa",
+  "prompts": {},
+  "sessions": {
+    "s_c94291e63c3780": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0578586beffeb3HGvWW68PXDIf",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
