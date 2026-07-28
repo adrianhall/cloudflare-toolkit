@@ -1,6 +1,6 @@
 ---
 name: cloudflare-toolkit
-description: Authoritative usage patterns and anti-patterns for @adrianhall/cloudflare-toolkit — a toolkit of framework-agnostic guards, RFC 9457 problem-details errors, a structured logger, Hono middleware (Cloudflare Access auth, logging, error handling), a Vite plugin that emulates Cloudflare Access in local dev, Vitest testing helpers, and a generate-wrangler-types CLI. Use when writing or reviewing a Hono-based Cloudflare Worker, wiring Cloudflare Access auth for a Worker or its Vite dev server, adding structured logging, throwing/handling RFC 9457 problem-details errors, writing Vitest tests against Access-protected routes, or configuring Vite + Vitest for a Hono/Workers project.
+description: Authoritative usage patterns and anti-patterns for @adrianhall/cloudflare-toolkit library APIs and generate-wrangler-types. Covers guards, RFC 9457 errors, structured logging, Hono middleware, Cloudflare Access local development, and testing helpers. Use for Hono Workers and toolkit APIs. For Terraform deployment orchestration and cleanup CLIs, load cloudflare-deploy-scripts and cloudflare-terraform-best-practices.
 ---
 
 # cloudflare-toolkit
@@ -10,7 +10,7 @@ building Cloudflare Workers, focused on Hono-based apps. Its core (`guards`, `er
 `problem-details`, `logging`) is framework-agnostic and dependency-light; `hono` and `vite`
 support live behind their own subpaths so importing them is opt-in.
 
-This skill documents **only this toolkit's own API surface** — see
+This skill documents the toolkit's **library API surface and type-generation CLI** — see
 ["Consult sibling skills first"](#consult-sibling-skills-first) below for platform-level
 Cloudflare concerns.
 
@@ -29,6 +29,8 @@ Cloudflare concerns.
   Cloudflare Access deployment — use `/testing`.
 - Keeping `worker-configuration.d.ts` fresh without a manual `wrangler types` step — use the
   `generate-wrangler-types` CLI.
+- For `generate-wrangler`, `destroy-containers`, and Terraform deployment
+  orchestration, load `cloudflare-deploy-scripts` and `cloudflare-terraform-best-practices`.
 
 ## Installation
 
@@ -98,6 +100,8 @@ to cover them:
 - `workers-best-practices` — Workers-specific code review and anti-patterns (streaming, global
   state, floating promises, observability).
 - `durable-objects` — Durable Object patterns, RPC, alarms, SQLite storage.
+- `cloudflare-deploy-scripts` — the toolkit's Terraform/Wrangler deployment and cleanup CLIs.
+- `cloudflare-terraform-best-practices` — Cloudflare provider v5 schemas and teardown ordering.
 
 If one of those skills isn't installed in your current environment, `npx skills add
 adrianhall/<name>` (for `cloudflare`, use the appropriate published skill source for your setup).

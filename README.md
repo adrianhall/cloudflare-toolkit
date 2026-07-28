@@ -3,8 +3,8 @@
 A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform.
 `@adrianhall/cloudflare-toolkit` replaces the boilerplate historically scattered across
 multiple GitHub-only libraries — defensive guards, HTTP error generators, RFC 9457 problem
-details, structured logging, and Cloudflare Access-aware Hono/Vite middleware — with a single,
-MIT-licensed, npm-installable package.
+details, structured logging, Cloudflare Access-aware Hono/Vite middleware, and deployment CLIs —
+with a single, MIT-licensed, npm-installable package.
 
 **Full documentation, guides, and API reference:**
 https://adrianhall.github.io/cloudflare-toolkit
@@ -43,12 +43,13 @@ export default app;
 
 See the [documentation site](https://adrianhall.github.io/cloudflare-toolkit) for guides
 covering every export, including the defensive guards, HTTP error generators, the standalone
-logging core, the Vite plugin, and the `generate-wrangler-types` CLI.
+logging core, the Vite plugin, and the `generate-wrangler`, `generate-wrangler-types`,
+and `destroy-containers` CLIs.
 
 ## AI Skill
 
-An installable [Agent Skill](https://www.npmjs.com/package/skills) teaches coding agents how to
-use every export in this package:
+Installable [Agent Skills](https://www.npmjs.com/package/skills) teach coding agents how to use
+the library and its Terraform/Wrangler deployment workflow:
 
 ```sh
 npx skills add adrianhall/cloudflare-toolkit

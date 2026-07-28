@@ -10,8 +10,8 @@ and the "always consult live docs via MCP" rule), see [`AGENTS.md`](./AGENTS.md)
 This repo uses [Changesets](https://github.com/changesets/changesets) to version the package and
 generate `CHANGELOG.md`. Every PR that changes the **published surface area** — anything a
 consumer could observe after `npm install @adrianhall/cloudflare-toolkit` (the root export or any
-of the `guards`/`errors`/`problem-details`/`logging`/`hono`/`vite`/`testing` subpaths, or the
-`generate-wrangler-types` CLI) — must include a changeset:
+of the `guards`/`errors`/`problem-details`/`logging`/`hono`/`vite`/`testing` subpaths, or any
+published CLI) — must include a changeset:
 
 ```sh
 npm run changeset

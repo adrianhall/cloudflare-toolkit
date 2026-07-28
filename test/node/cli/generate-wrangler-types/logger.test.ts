@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLogger } from "../../../../src/cli/generate-wrangler-types/logger.js";
-import type { LogLevel, LogSink } from "../../../../src/cli/generate-wrangler-types/logger.js";
+import { createLogger } from "../../../../src/cli/internal/logger.js";
+import type { LogLevel, LogSink } from "../../../../src/cli/internal/logger.js";
 
 /** A single log record captured by the in-memory sink. */
 interface CapturedMessage {

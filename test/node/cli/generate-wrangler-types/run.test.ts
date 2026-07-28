@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { LogLevel, LogSink } from "../../../../src/cli/generate-wrangler-types/logger.js";
+import type { LogLevel, LogSink } from "../../../../src/cli/internal/logger.js";
 import type { GenerateWranglerTypesDeps } from "../../../../src/cli/generate-wrangler-types/run.js";
 import { run } from "../../../../src/cli/generate-wrangler-types/run.js";
 import type {
