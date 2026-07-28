@@ -78,7 +78,6 @@ self-contained.
 | [`npm-run-all2`](https://www.npmjs.com/package/npm-run-all2)                                       | `^9.0.2`                       | `run-s`/`run-p` for composed `npm run check` scripts (§8, rule 1)                                                    |
 | [`tsdown`](https://www.npmjs.com/package/tsdown)                                                   | `^0.22.4`                      | Bundles `src/` into `dist/` (ESM-only, §3) immediately before publish                                                |
 | [`shx`](https://www.npmjs.com/package/shx)                                                         | `^0.4.0`                       | Cross-platform `rm -rf` for the `docs:clean` npm script, so it works identically on Windows/macOS/Linux              |
-| [`@changesets/cli`](https://www.npmjs.com/package/@changesets/cli)                                 | `^2.31.0`                      | Versioning/changelog generation, wired into the release workflow (§3)                                                |
 | [`@types/node`](https://www.npmjs.com/package/@types/node)                                         | `^26.1.1`                      | Types for the Node-only surfaces: `vite/*` (§5.6) and `cli/*` (§5.7)                                                 |
 | [`@types/cross-spawn`](https://www.npmjs.com/package/@types/cross-spawn)                           | `^6.0.6`                       | Type declarations for the `cross-spawn` dependency above — `cross-spawn` itself ships no `.d.ts`                     |
 
@@ -124,16 +123,16 @@ collision, not a theoretical one.
   itself a fork of the MIT-licensed `paveg/hono-problem-details`), and the runtime dependencies
   added in §2.2 (`jose`, `commander`) are MIT too — nothing ported or vendored into this repo
   needs a relicensing or compatibility review.
-- Distributed via CI/CD to the public npm registry on merge to `main`, using
-  [`@changesets/cli`](https://www.npmjs.com/package/@changesets/cli) (§2.3) for
-  versioning/changelog generation and **npm Trusted Publishing (OIDC)** with provenance
-  (`id-token: write`, no long-lived `NPM_TOKEN` secret) — the same pattern already proven in
-  `hono-problem-details`'s `release.yml`.
-- The same release workflow also runs a `build-docs` step that builds and publishes the
-  documentation site (§6.1) immediately after a successful npm publish — not on every push to
-  `main`. This is deliberate: it guarantees the published docs (including the generated API
-  reference) always match the version that's actually on npm, never a `main` HEAD that hasn't
-  shipped yet.
+- Distributed via CI/CD to the public npm registry when a maintainer pushes an annotated canonical
+  `vX.Y.Z` tag at an explicit release PR's merge commit. The tag-triggered workflow validates strict
+  stable semver, package/lockfile version agreement, and containment in `main`, then uses **npm
+  Trusted Publishing (OIDC)** with provenance (`id-token: write`, no long-lived `NPM_TOKEN`).
+- Ordinary PRs carry no release metadata. A dedicated release PR explicitly updates
+  `package.json`, both root version fields in `package-lock.json`, and `CHANGELOG.md`; merging that
+  PR does not itself publish. The release workflow runs full validation and builds the docs before
+  its approval gate, then publishes (or confirms an exact version on a safe rerun), deploys those
+  docs, and creates the GitHub Release in that order. The site therefore matches npm rather than an
+  unreleased `main` HEAD.
 - `dist/` is **not** committed to the repository. Unlike `cloudflare-auth`/`cloudflare-logger`
   (installed via `github:` refs, where a committed `dist/` is necessary because there's no build
   step at install time), this package is npm-native: CI builds `dist/` fresh via `prepack`/a
@@ -483,10 +482,10 @@ exist — one of them (README/CHANGELOG maintenance) was missing from earlier dr
 
 The primary destination for developers is a dedicated, generated `github.io` site
 (`adrianhall.github.io/cloudflare-toolkit`), living in its own `docs/` subfolder with its own
-`package.json` (§2.4, §5.9). It is built and published by the `build-docs` CI step (§3) as part
-of the release workflow — triggered by a successful npm publish, **not** on every push to `main`
-— so the published docs (including the generated API reference) always match the version that's
-actually on npm. It needs to be comprehensive enough that a developer never has to go spelunking
+`package.json` (§2.4, §5.9). It is built and uploaded before the tag-triggered release workflow's
+approval gate, then deployed only after npm publication (or exact-version confirmation on a rerun)
+— never on every push to `main` — so the published docs (including the generated API reference)
+always match the version that's actually on npm. It needs to be comprehensive enough that a developer never has to go spelunking
 through source or this spec to figure out how to use the toolkit:
 
 - **Getting Started** — install (`npm install`, `npx skills add`), a minimal end-to-end Hono +
@@ -532,11 +531,9 @@ this spec:
   `npx skills add` command, the MIT license, §3) with a prominent link to the documentation
   site (§6.1) for everything else. It is explicitly **not** the place for exhaustive API reference
   or guide-length content — that duplication is exactly what the docs site exists to avoid.
-- **`CHANGELOG.md`** is auto-generated by Changesets on every release (§3) — one entry per published
-  version, sourced from the changeset files merged in each contributing PR. This falls out of the
-  CI/CD pipeline already specified in §3 with no extra authoring effort; it just needs to actually
-  be enabled and kept in the release flow, which earlier drafts of this spec didn't call out
-  explicitly.
+- **`CHANGELOG.md`** is updated explicitly in each dedicated release PR (§3), with one user-facing
+  entry for the version selected by the maintainer. Ordinary feature PRs do not carry version or
+  release-note metadata.
 
 ### 6.3 AGENTS.md
 
@@ -620,7 +617,7 @@ which would otherwise block merge, whereas a job that runs and reports `skipped`
 `ci-pass`'s `if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')`
 check normally. This keeps the "single required check" property above intact even after adding
 docs verification — no second required status check needed. See issue #90 for the identified
-gotcha and #23 for the separate release-triggered `build-docs` job this is distinct from.
+gotcha and #23 for the release workflow's separate tag-triggered docs build this is distinct from.
 
 ## 8. Non-Functional Requirements
 
@@ -688,13 +685,13 @@ These repositories will **NOT** be touched as part of this work (see also §4). 
 record of what was asked and where the resolution now lives, in case the reasoning is useful
 later.
 
-| #   | Question                                     | Resolution                                                                                                                                                                                                               | Where it lives now |
-| --- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
-| 1   | TypeScript 6 vs. 7 — when to revisit?        | Stay on TypeScript 6 for the foreseeable future; revisit only once `typescript-eslint` ships a release supporting TypeScript 7 in its peer range                                                                         | §2.3               |
-| 2   | Documentation-site technology                | Locked: VitePress + TypeDoc/`typedoc-plugin-markdown`                                                                                                                                                                    | §6.1               |
-| 3   | Documentation-site location & deploy cadence | `docs/` subfolder, own `package.json`; built and published by the `build-docs` CI step as part of the release workflow (triggered by a successful npm publish), so the published docs always match the published release | §3, §6.1           |
-| 4   | `@cloudflare/workers-types` pinning strategy | Pin exactly (no `^`); bump deliberately                                                                                                                                                                                  | §2.3               |
-| 5   | `@types/node` scope                          | No action needed — confirmed                                                                                                                                                                                             | §2.3               |
+| #   | Question                                     | Resolution                                                                                                                                                                                                   | Where it lives now |
+| --- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| 1   | TypeScript 6 vs. 7 — when to revisit?        | Stay on TypeScript 6 for the foreseeable future; revisit only once `typescript-eslint` ships a release supporting TypeScript 7 in its peer range                                                             | §2.3               |
+| 2   | Documentation-site technology                | Locked: VitePress + TypeDoc/`typedoc-plugin-markdown`                                                                                                                                                        | §6.1               |
+| 3   | Documentation-site location & deploy cadence | `docs/` subfolder, own `package.json`; built before release approval and deployed after npm publication/confirmation in the tag-triggered workflow, so the published docs always match the published release | §3, §6.1           |
+| 4   | `@cloudflare/workers-types` pinning strategy | Pin exactly (no `^`); bump deliberately                                                                                                                                                                      | §2.3               |
+| 5   | `@types/node` scope                          | No action needed — confirmed                                                                                                                                                                                 | §2.3               |
 
 ## 12. Known and Accepted Issues
 

@@ -91,35 +91,11 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    These checks must run with zero warnings or errors. Fix the warnings or errors before continuing. Only bypass these checks if the issue text explicitly tells you they are bypassable.
 
-8. Determine whether a changeset is required.
+8. Confirm release metadata is untouched.
 
-   Per `CONTRIBUTING.md`'s "Adding a changeset" section, decide based on the actual diff produced in steps 6–7 — not just the issue title or description — whether this PR touches **published surface area**: the root export or any of the `guards`/`errors`/`problem-details`/`logging`/`hono`/`vite`/`testing` subpaths, or any of the `generate-wrangler`/`generate-wrangler-types`/`destroy-containers` CLIs. An issue that sounds docs- or test-only can still touch a public export's JSDoc or behavior and need one; an issue that edits `package.json` devDependencies, CI config, or internal tooling (no consumer-visible change) does not.
+   Per `CONTRIBUTING.md`, ordinary feature, fix, docs, test, and tooling PRs do not carry release metadata. Do not change `package.json#version`, either root version field in `package-lock.json`, or `CHANGELOG.md` while implementing an ordinary issue. Maintainers update those three artifacts together in a dedicated release PR after explicitly choosing the next semver version.
 
-   If a changeset **is** required, add one before opening the PR:
-
-   ```sh
-   npx changeset
-   ```
-
-   This prompts interactively for the bump type (patch/minor/major) and a summary. If running non-interactively (e.g. from a sub-agent, or any context without a TTY), write the file directly under `.changeset/` instead, matching the format the CLI itself produces — YAML frontmatter naming the package and semver bump type, followed by a short, user-facing summary of the change:
-
-   ```markdown
-   ---
-   "@adrianhall/cloudflare-toolkit": patch
-   ---
-
-   <one-line, user-facing summary of what changed and why it matters to consumers>
-   ```
-
-   Choose `patch`/`minor`/`major` per standard semver for the actual change being shipped, then verify it was picked up correctly:
-
-   ```sh
-   npx changeset status
-   ```
-
-   Commit the resulting `.changeset/*.md` file along with the rest of the change in step 10.
-
-   If no changeset is required, do not create one — but state the reasoning in the completion response (step-by-step against the "published surface area" definition above) rather than silently skipping this step.
+   If the issue itself explicitly requests a release PR, stop and confirm the intended version with the user before editing release metadata. Never infer a release version from an ordinary issue.
 
 9. Review changes.
 
@@ -130,7 +106,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
    git diff
    ```
 
-   Confirm only intended files changed, including exactly one new `.changeset/*.md` file if step 8 determined one was needed (and none if it determined one wasn't). Check for secrets, generated files, account-specific IDs, and accidental edits to unrelated work.
+   Confirm only intended files changed and that ordinary issue work did not alter release metadata. Check for secrets, generated files, account-specific IDs, and accidental edits to unrelated work.
 
 10. Commit.
 
@@ -159,7 +135,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
     gh pr create --repo adrianhall/cloudflare-toolkit --fill --base main --head issues/$1
     ```
 
-    The PR body must include the issue link, summary, tests run, any known limitations, and whether a changeset was added (or, if not, the one-line reasoning from step 8 for why one wasn't needed).
+    The PR body must include the issue link, summary, tests run, and any known limitations.
 
 ## Worktree Cleanup
 
@@ -171,7 +147,7 @@ When done, report:
 
 - Issue number, branch name, worktree path, and PR URL.
 - Summary of implementation.
-- Whether a changeset was added, and the reasoning either way.
+- Whether release metadata remained untouched, or the explicitly confirmed release version if this was a dedicated release PR.
 - Tests and checks run, and their results.
 - CI run URL and outcome.
 - Any skipped verification with reasons.

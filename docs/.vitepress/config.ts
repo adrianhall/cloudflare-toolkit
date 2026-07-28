@@ -46,7 +46,7 @@ function buildReferenceSidebar() {
  *
  * `base` matches the known GitHub Pages *project* site URL in the root package.json's
  * `homepage` field (https://adrianhall.github.io/cloudflare-toolkit) so asset paths resolve
- * correctly once the release-triggered deploy (a later issue) publishes this site.
+ * correctly when the release-tag workflow publishes this site.
  *
  * `srcExclude` keeps `docs/specs/**` (internal planning docs: SPECv2.md, IDEA.md) out of the
  * published site — those are contributor-facing engineering specs, not site content.
