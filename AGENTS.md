@@ -167,11 +167,18 @@ src/
       index.ts run.ts types.ts fs.ts wrangler.ts
     destroy-containers/           # Containers/OCI preteardown cleanup
     empty-r2-bucket/              # R2 bucket-emptying preteardown cleanup
+scripts/
+  release.ts                      # maintainer-only: `node scripts/release.ts <major|minor|patch>`
+                                   # prepares a release PR (see CONTRIBUTING.md/RELEASING.md). Included
+                                   # in the root tsconfig.json (check:types covers it) but excluded from
+                                   # the 100%-coverage gate (vitest.config.ts's coverage.include is
+                                   # src/**/*.ts only) — see test/node/scripts/ below
 test/
   tsconfig.json # extends the root tsconfig with include: ["**/*.ts"] — gives eslint.config.js's
                 # parserOptions.projectService a project to resolve test/node + test/workers
-                # files against (root tsconfig.json's own include is src/**/*.ts only)
+                # files against (root tsconfig.json's own include is src/**/*.ts + scripts/**/*.ts)
   node/       # plain Node — guards, errors, problem-details, logging, auth-internal, vite (mock req/res), CLI
+    scripts/  # targeted tests for scripts/release.ts (fake CommandRunner; not held to the 100% gate)
   workers/    # workerd via @cloudflare/vitest-pool-workers — hono/* middleware
   package/    # plain Node — imports the built dist/ for every subpath, asserts expected exports/types
               # (NOT type-checked by eslint.config.js — dist/ doesn't exist pre-build, so these

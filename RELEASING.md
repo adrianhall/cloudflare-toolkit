@@ -8,10 +8,15 @@ Publishing (OIDC): there is no long-lived `NPM_TOKEN`, local publish command, or
 
 1. Choose the next stable semver version. Prerelease and build metadata are not supported by this
    pipeline.
-2. Create a dedicated release PR from current `main`. Update `package.json#version`, both root
-   version fields in `package-lock.json`, and `CHANGELOG.md` by replacing the `Next release`
-   header with the release version and creating a new empty `Next release` header. Do not include
-   unrelated code.
+2. From a clean, up-to-date `main` checkout, run `node scripts/release.ts <major|minor|patch>`.
+   It validates repository state (on `main`, in sync with `origin/main`, clean worktree, `gh`
+   authenticated, no colliding `release-vX.Y.Z` branch/`vX.Y.Z` tag), computes the next version,
+   then creates a dedicated `release-vX.Y.Z` worktree/branch, updates `package.json#version`, both
+   root version fields in `package-lock.json`, and `CHANGELOG.md` (replacing the `Next release`
+   header with the release version and creating a new empty `Next release` header above it),
+   commits, pushes, and opens the release PR. It carries no other code changes. If any precondition
+   fails, it exits non-zero before touching the repository; make the equivalent edits by hand and
+   open the PR yourself if you need to deviate from what the script does.
 3. Let the normal PR checks pass, review the version and release notes, and merge the release PR.
 4. Record the merge commit and create an annotated tag whose name is exactly `v` plus the package
    version:
