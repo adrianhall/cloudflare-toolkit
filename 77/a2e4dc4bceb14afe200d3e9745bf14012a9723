@@ -1,0 +1,21 @@
+package-lock.json
+  s_ee8d6763b9fa6c::t_eaaf098ab8fcae 29,37,2323-2329
+test/node/scripts/release.test.ts
+  s_ee8d6763b9fa6c::t_cef596163cf957 1-688
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "77a2e4dc4bceb14afe200d3e9745bf14012a9723",
+  "prompts": {},
+  "sessions": {
+    "s_ee8d6763b9fa6c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_05330be40ffeElXK5EaNewHgKC",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
