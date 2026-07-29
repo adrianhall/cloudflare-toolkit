@@ -24,9 +24,9 @@ consumer-facing description.
 
 ## Release pull requests
 
-When maintainers decide to release, they explicitly choose the next stable semver and open a
-dedicated release PR. That PR changes only release metadata and promotes the prepared release
-notes:
+When maintainers decide to release, they explicitly choose the next stable semver and run
+`node scripts/release.ts <major|minor|patch>`, which prepares a dedicated release PR that changes
+only release metadata and promotes the prepared release notes:
 
 - `package.json#version`
 - `package-lock.json` top-level `version` and `packages[""]#version`
@@ -37,6 +37,6 @@ The release PR uses the same review and `ci-pass` requirements as every other PR
 not publish anything. After merge, a maintainer creates an annotated `vX.Y.Z` tag at that release
 PR's merge commit; the tag starts [the release pipeline](./RELEASING.md).
 
-Publishing is CI-only. The repository intentionally has no local `release` or `npm publish`
-wrapper script. See [`RELEASING.md`](./RELEASING.md) for release, recovery, and one-time setup
-instructions.
+Publishing is CI-only. `scripts/release.ts` only prepares the release PR — it never publishes, and
+the repository intentionally has no local `npm publish` wrapper. See [`RELEASING.md`](./RELEASING.md)
+for release, recovery, and one-time setup instructions.

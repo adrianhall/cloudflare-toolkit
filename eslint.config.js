@@ -67,6 +67,23 @@ export default tseslint.config(
     rules: typeCheckedRules
   },
 
+  // scripts/ holds maintainer-only tooling (currently just release.ts) that is included in the
+  // root tsconfig.json (so check:types covers it) but excluded from the 100%-coverage gate
+  // (vitest.config.ts's coverage.include is src/**/*.ts only). It still gets the same
+  // type-checked ruleset as src/ so it is held to the same static-analysis bar.
+  {
+    files: ["scripts/**/*.ts"],
+    extends: [...tseslint.configs.recommendedTypeChecked, ...tseslint.configs.stylisticTypeChecked],
+    plugins: { jsdoc },
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname
+      }
+    },
+    rules: typeCheckedRules
+  },
+
   {
     files: ["test/node/**/*.ts", "test/workers/**/*.ts", "test/live/**/*.ts"],
     extends: [...tseslint.configs.recommendedTypeChecked, ...tseslint.configs.stylisticTypeChecked],

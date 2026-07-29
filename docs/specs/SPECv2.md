@@ -80,6 +80,8 @@ self-contained.
 | [`shx`](https://www.npmjs.com/package/shx)                                                         | `^0.4.0`                       | Cross-platform `rm -rf` for the `docs:clean` npm script, so it works identically on Windows/macOS/Linux              |
 | [`@types/node`](https://www.npmjs.com/package/@types/node)                                         | `^26.1.1`                      | Types for the Node-only surfaces: `vite/*` (§5.6) and `cli/*` (§5.7)                                                 |
 | [`@types/cross-spawn`](https://www.npmjs.com/package/@types/cross-spawn)                           | `^6.0.6`                       | Type declarations for the `cross-spawn` dependency above — `cross-spawn` itself ships no `.d.ts`                     |
+| [`semver`](https://www.npmjs.com/package/semver)                                                   | `^7.8.5`                       | Computes the next version in `scripts/release.ts` (release-PR preparation, §3)                                       |
+| [`@types/semver`](https://www.npmjs.com/package/@types/semver)                                     | `^7.7.1`                       | Type declarations for `semver` above — `semver` itself ships no `.d.ts`                                              |
 
 `@cloudflare/vite-plugin` and `@hono/cloudflare-access` are **not** devDependencies of this repo —
 see §5.6 and §5.5 respectively for why each is referenced without being installed here.
@@ -129,10 +131,15 @@ collision, not a theoretical one.
   Trusted Publishing (OIDC)** with provenance (`id-token: write`, no long-lived `NPM_TOKEN`).
 - Ordinary PRs carry no release metadata. A dedicated release PR explicitly updates
   `package.json`, both root version fields in `package-lock.json`, and `CHANGELOG.md`; merging that
-  PR does not itself publish. The release workflow runs full validation and builds the docs before
-  its approval gate, then publishes (or confirms an exact version on a safe rerun), deploys those
-  docs, and creates the GitHub Release in that order. The site therefore matches npm rather than an
-  unreleased `main` HEAD.
+  PR does not itself publish. A maintainer prepares that release PR by running
+  `node scripts/release.ts <major|minor|patch>` (§2.3, `semver`) from `main`, which validates
+  repository state, computes the next version, and opens the PR from a dedicated
+  `release-vX.Y.Z` worktree/branch — it never publishes anything itself, and is not part of the
+  published package (`package.json#files` excludes `scripts/`, and it is exempt from the
+  100%-coverage gate per §7.1's `coverage.include`). The release workflow runs full validation and
+  builds the docs before its approval gate, then publishes (or confirms an exact version on a safe
+  rerun), deploys those docs, and creates the GitHub Release in that order. The site therefore
+  matches npm rather than an unreleased `main` HEAD.
 - `dist/` is **not** committed to the repository. Unlike `cloudflare-auth`/`cloudflare-logger`
   (installed via `github:` refs, where a committed `dist/` is necessary because there's no build
   step at install time), this package is npm-native: CI builds `dist/` fresh via `prepack`/a
