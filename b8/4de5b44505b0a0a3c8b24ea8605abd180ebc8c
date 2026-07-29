@@ -1,0 +1,19 @@
+README.md
+  s_ee8d6763b9fa6c::t_48092289276e6b 67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b84de5b44505b0a0a3c8b24ea8605abd180ebc8c",
+  "prompts": {},
+  "sessions": {
+    "s_ee8d6763b9fa6c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_05330be40ffeElXK5EaNewHgKC",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
