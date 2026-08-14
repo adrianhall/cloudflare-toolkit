@@ -85,4 +85,90 @@ describe("vite plugin → cloudflareAccess() handshake", () => {
     const res = await createWorker().fetch(workerReq, MOCK_ENV);
     expect(res.status).toBe(401);
   });
+
+  // -------------------------------------------------------------------------
+  // #181: path-specific PathPolicy.audience must agree between the plugin's dev-emulation layer
+  // and the Worker's own cloudflareAccess — a session accepted by one but rejected by the other
+  // would be a dev/prod parity bug.
+  // -------------------------------------------------------------------------
+  describe("path-specific audience parity", () => {
+    const audiencePolicies: PathPolicy[] = [
+      {
+        pattern: /^\/api\/contributor/,
+        authenticate: true,
+        redirect: false,
+        audience: "contrib-aud"
+      },
+      { pattern: /^\/api\/reviewer/, authenticate: true, redirect: false, audience: "review-aud" }
+    ];
+
+    function createAudienceWorker() {
+      const app = new Hono<{ Bindings: typeof MOCK_ENV; Variables: AuthVariables }>();
+      app.use(cloudflareAccess({ policies: audiencePolicies, enableDevTokens: true }));
+      app.get("/api/contributor/docs", (c) => c.json(c.get("Cloudflare_Access_Identity")));
+      app.get("/api/reviewer/docs", (c) => c.json(c.get("Cloudflare_Access_Identity")));
+      return app;
+    }
+
+    it("a session minted for the contributor audience reaches the contributor route in both layers", async () => {
+      const token = await signDevJwt("alice@example.com", { audience: "contrib-aud" });
+      const cookie = buildCookieHeader(token, false).split(";")[0];
+
+      const req = makeReq("/api/contributor/docs", cookie);
+      const mw = createAccessDevMiddleware({ policies: audiencePolicies });
+      await new Promise<void>((resolve, reject) => {
+        mw(req, makeRes(), (err?: unknown) => (err ? reject(err) : resolve()));
+      });
+      expect(req.rawHeaders).toContain("cf-access-jwt-assertion");
+
+      const workerReq = requestFromRawHeaders(req);
+      const res = await createAudienceWorker().fetch(workerReq, MOCK_ENV);
+      expect(res.status).toBe(200);
+    });
+
+    it("a session minted for the contributor audience is rejected by both layers on the reviewer route", async () => {
+      const token = await signDevJwt("alice@example.com", { audience: "contrib-aud" });
+      const cookie = buildCookieHeader(token, false).split(";")[0];
+
+      // Plugin layer: the dev-emulation middleware treats the wrong-audience session as
+      // unauthenticated for this path and returns 401 directly (redirect: false) — it never
+      // calls `next()` in that case, so the response's own `end()` (not the `next` callback)
+      // is what signals completion here.
+      const req = makeReq("/api/reviewer/docs", cookie);
+      const res = makeRes();
+      let pluginNextCalled = false;
+      const mw = createAccessDevMiddleware({ policies: audiencePolicies });
+      await new Promise<void>((resolve, reject) => {
+        const originalEnd = res.end.bind(res);
+        res.end = ((body?: string) => {
+          originalEnd(body);
+          resolve();
+          return res;
+        }) as typeof res.end;
+        mw(req, res, (err?: unknown) => {
+          pluginNextCalled = true;
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+      expect(pluginNextCalled).toBe(false);
+      expect(res.statusCode).toBe(401);
+
+      // Worker layer: even if the request reached it directly with the same cookie (bypassing
+      // the plugin), cloudflareAccess independently rejects the wrong audience too. A
+      // deliberately non-conforming team domain (matching the pattern used in
+      // test/workers/hono/cloudflare-access.test.ts) forces the fallback real-JWKS branch to
+      // fail synchronously on team-domain validation instead of attempting a real network fetch
+      // once the dev-token fast path rejects the mismatched audience.
+      const INVALID_ENV = { CLOUDFLARE_TEAM_DOMAIN: "cloudflare-toolkit-test.invalid" };
+      const workerReq = new Request("http://localhost/api/reviewer/docs", {
+        headers: { cookie }
+      });
+      const workerRes = await createAudienceWorker().fetch(workerReq, INVALID_ENV);
+      expect(workerRes.status).toBe(401);
+    });
+  });
 });

@@ -56,6 +56,22 @@ export interface PathPolicy {
    * Only meaningful when `authenticate` is `true`.
    */
   redirect?: boolean;
+  /**
+   * Application Audience Tag required for this specific path. Only meaningful when
+   * `authenticate` is `true`.
+   *
+   * A matched policy's `audience` **overrides** the consumer's top-level
+   * `CloudflareAccessOptions.audience`/`CloudflareAccessPluginOptions` fallback for that request
+   * — it does not merge with it. This lets one middleware instance protect several
+   * path-prefixed Cloudflare Access applications on the same hostname, each with its own
+   * Audience Tag, instead of validating every protected path against a single flat allowlist
+   * (which would let a token minted for one application pass audience validation on another
+   * application's routes).
+   *
+   * When omitted on an authenticated policy, the top-level fallback audience is used instead —
+   * see `CloudflareAccessOptions.audience`'s security remarks for what omitting both means.
+   */
+  audience?: string;
 }
 
 /**
@@ -71,4 +87,10 @@ export interface PolicyMatch {
    * specify a value.
    */
   redirect: boolean;
+  /**
+   * Application Audience Tag selected by the matched {@link PathPolicy}, or `undefined` when the
+   * matched policy did not specify one (in which case the caller's own top-level fallback
+   * audience, if any, applies instead).
+   */
+  audience?: string;
 }

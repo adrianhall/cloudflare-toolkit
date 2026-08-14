@@ -76,6 +76,13 @@ export interface CloudflareAccessPluginOptions {
    *   form; API routes with `redirect: false` receive a 401.
    *
    * When omitted, **all** non-internal paths are treated as protected.
+   *
+   * A policy's own `audience` (see `PathPolicy.audience`, `../auth-internal/types.js`) is
+   * enforced here too: an existing session cookie whose dev token doesn't carry the matched
+   * path's audience is treated as unauthenticated for that request, mirroring `cloudflareAccess`
+   * in the Worker (#181). The dev login form issues one session token whose `aud` claim covers
+   * every audience referenced across `policies`, so a single local sign-in can still reach every
+   * role-specific page rather than requiring a separate login per audience.
    */
   policies?: PathPolicy[];
 
@@ -154,6 +161,11 @@ export function createAccessDevMiddleware(
   const users = options.users ?? [];
   const loginPath = options.loginPath ?? DEFAULT_LOGIN_PATH;
   const tokenLifetime = options.tokenLifetime;
+  // Every distinct audience referenced by an authenticated policy, computed once up front. A
+  // single dev-login session is issued with all of them on its `aud` claim (#181) so the one
+  // session can traverse every role-specific page the configured `policies` protect, instead of
+  // requiring a separate login per path-scoped audience.
+  const devAudiences = collectPolicyAudiences(policies);
 
   return (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction): void => {
     void handle(req, res, next).catch((err) => next(err as Error));
@@ -185,16 +197,22 @@ export function createAccessDevMiddleware(
       return handleGetIdentity(req, res);
     }
 
-    // 3. Authenticated session → inject Access headers and hand off.
+    // 3. Evaluate the path policy up front so the session check below can enforce the same
+    // path-specific audience `cloudflareAccess` would in the Worker (SEC-001/#181): a session
+    // token that doesn't carry the audience this path requires is treated as unauthenticated
+    // for this request, exactly like a missing/invalid token.
+    const policyMatch = policies ? matchPolicy(pathname, policies) : undefined;
+
+    // 4. Authenticated session → inject Access headers and hand off.
     const token = parseCookie(req.headers.cookie);
-    const verified = token ? await verifyDevJwt(token, devSecret) : null;
+    const verified = token ? await verifyDevJwt(token, devSecret, policyMatch?.audience) : null;
     if (token && verified) {
       injectAccessHeaders(req, token, verified.email);
       return next();
     }
 
-    // 4. Unauthenticated. Decide based on policy + request type.
-    const policyMatch = policies ? matchPolicy(pathname, policies) : undefined;
+    // 5. Unauthenticated (or authenticated for a different audience). Decide based on policy +
+    // request type.
 
     // Explicitly public → pass through (no gating, no injection).
     if (policyMatch?.authenticate === false) {
@@ -256,7 +274,12 @@ export function createAccessDevMiddleware(
     // Pin the subject for a configured identity (stable, realistic sub); free-text / unknown
     // emails fall back to a generated UUID.
     const sub = users.find((u) => u.email === email)?.sub;
-    const token = await signDevJwt(email, { secret: devSecret, lifetime: tokenLifetime, sub });
+    const token = await signDevJwt(email, {
+      secret: devSecret,
+      lifetime: tokenLifetime,
+      sub,
+      audience: devAudiences
+    });
     res.setHeader("Set-Cookie", buildCookieHeader(token, isSecure(req)));
     redirectTo(res, redirect);
   }
@@ -322,6 +345,38 @@ function buildIdentity(email: string, sub: string, name?: string): Record<string
     geo: { country: "US" },
     type: "dev"
   };
+}
+
+// ---------------------------------------------------------------------------
+// Policy audience helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect every distinct `audience` referenced by an authenticated {@link PathPolicy} in
+ * `policies`, in first-occurrence order.
+ *
+ * Used to mint one dev-login session (see `handleLoginSubmit` above) whose `aud` claim covers
+ * every path-scoped audience the configured policies protect, so a single local sign-in can
+ * traverse all of them instead of requiring a separate login per audience (#181).
+ *
+ * @param policies - The configured path policies, if any.
+ * @returns The distinct audiences in encounter order, or `undefined` when none of the policies
+ *   specify one (so `signDevJwt` omits the `aud` claim entirely, matching prior behavior).
+ */
+function collectPolicyAudiences(policies: PathPolicy[] | undefined): string[] | undefined {
+  if (!policies) return undefined;
+
+  const audiences: string[] = [];
+  for (const policy of policies) {
+    if (
+      policy.authenticate
+      && policy.audience !== undefined
+      && !audiences.includes(policy.audience)
+    ) {
+      audiences.push(policy.audience);
+    }
+  }
+  return audiences.length > 0 ? audiences : undefined;
 }
 
 // ---------------------------------------------------------------------------

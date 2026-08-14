@@ -669,13 +669,18 @@ disagree with each other on a given point.
   why a runtime hard-gate beyond this fail-closed default was evaluated and rejected, and §12.5 for
   why `cloudflareAccess`'s silent-by-default logger (which would otherwise carry this warning) was
   also accepted as-is rather than changed.
-- `cloudflareAccess`'s `audience` option is opt-in, not fail-closed: omitting it skips `aud`
-  validation entirely and allows cross-application Access token replay within the same team
-  (every app in a team shares the same JWKS). Rather than making `audience` required (a breaking
-  change), `cloudflareAccess` logs a one-time warning at construction time whenever `audience` is
-  omitted **and** `enableDevTokens` is not `true` — i.e. in the default, production-shaped
-  configuration — and stays silent when `enableDevTokens` signals a local-development posture.
-  This warning must be preserved (SEC-001).
+- `cloudflareAccess`'s `audience` option is opt-in, not fail-closed: a request whose matched
+  `PathPolicy` (or the top-level `audience` fallback, when no policy matches) has no audience
+  configured skips `aud` validation entirely for that request and allows cross-application Access
+  token replay within the same team (every app in a team shares the same JWKS). A matched
+  policy's own `audience` (issue #181) **overrides** the top-level fallback for that request
+  rather than merging with it, so several path-scoped Access applications on one hostname can
+  each be validated against their own Audience Tag. Rather than making an audience required
+  everywhere (a breaking change), `cloudflareAccess` logs a one-time warning at construction time
+  whenever some authenticated request path could still reach verification with no audience
+  configured at all **and** `enableDevTokens` is not `true` — i.e. in the default,
+  production-shaped configuration — and stays silent when `enableDevTokens` signals a
+  local-development posture. This warning must be preserved (SEC-001).
 - `includeStack` on `problemDetailsErrorHandler` must default to `false`. Since `problemDetailsErrorHandler`
   is now a **direct re-export** of the vendored handler (§5.4/§5.5) with no toolkit-authored wrapper
   at all, there is no code path that could silently flip this default — the only place it changes

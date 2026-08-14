@@ -110,6 +110,48 @@ describe("JWT utilities", () => {
       const result = await verifyDevJwt(token);
       expect(result).toBeNull();
     });
+
+    // -----------------------------------------------------------------------
+    // Path-specific audience support (#181)
+    // -----------------------------------------------------------------------
+
+    describe("audience", () => {
+      it("verifies successfully when no audience is expected and none is checked", async () => {
+        const token = await signDevJwt("alice@example.com");
+        const result = await verifyDevJwt(token);
+        expect(result).not.toBeNull();
+      });
+
+      it("verifies successfully when the expected audience matches a single-string aud claim", async () => {
+        const token = await signDevJwt("alice@example.com", { audience: "contributor-aud" });
+        const result = await verifyDevJwt(token, undefined, "contributor-aud");
+        expect(result).not.toBeNull();
+      });
+
+      it("rejects when the expected audience does not match the token's aud claim", async () => {
+        const token = await signDevJwt("alice@example.com", { audience: "contributor-aud" });
+        const result = await verifyDevJwt(token, undefined, "reviewer-aud");
+        expect(result).toBeNull();
+      });
+
+      it("rejects when an audience is expected but the token has no aud claim at all", async () => {
+        const token = await signDevJwt("alice@example.com");
+        const result = await verifyDevJwt(token, undefined, "contributor-aud");
+        expect(result).toBeNull();
+      });
+
+      it("verifies successfully when the expected audience is contained in an array aud claim", async () => {
+        // Mirrors a single dev-login session minted with multiple audiences so it can traverse
+        // several role-specific pages.
+        const token = await signDevJwt("alice@example.com", {
+          audience: ["contributor-aud", "reviewer-aud"]
+        });
+
+        expect(await verifyDevJwt(token, undefined, "contributor-aud")).not.toBeNull();
+        expect(await verifyDevJwt(token, undefined, "reviewer-aud")).not.toBeNull();
+        expect(await verifyDevJwt(token, undefined, "publisher-aud")).toBeNull();
+      });
+    });
   });
 
   // -----------------------------------------------------------------------

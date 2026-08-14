@@ -87,6 +87,25 @@ app.use(
 
 See [`CloudflareAccessOptions`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md) for the full option surface.
 
+### Path-specific audiences
+
+A single Worker can front several path-scoped Cloudflare Access applications on the same hostname — for example a contributor API, a reviewer API, and a publisher API, each with its own Access Application and Audience (AUD) Tag. Give a policy its own [`audience`](/reference/lib/hono/interfaces/PathPolicy.md#audience) so each path is validated against the exact application it belongs to, instead of one flat allowlist that would let a token minted for one application pass audience validation on another application's routes:
+
+```ts
+app.use(
+  cloudflareAccess({
+    policies: [
+      { pattern: /^\/api\/version$/, authenticate: false },
+      { pattern: /^\/api\/contributor/, authenticate: true, audience: contributorAud },
+      { pattern: /^\/api\/reviewer/, authenticate: true, audience: reviewerAud },
+      { pattern: /^\/api\/publisher/, authenticate: true, audience: publisherAud }
+    ]
+  })
+);
+```
+
+A matched policy's `audience` **overrides** the top-level [`audience`](/reference/lib/hono/interfaces/CloudflareAccessOptions.md#audience) fallback for that request rather than merging with it. Keep the top-level `audience` set as a fallback for any authenticated path that doesn't need its own override (including an unmatched path when `defaultAction` is `"block"`) — `cloudflareAccess` logs a one-time warning at construction time whenever some authenticated request path could still reach verification with no audience configured at all, whether that's because neither a fallback nor a per-policy override was set.
+
 ## Developing locally
 
 Register [`cloudflareAccessPlugin`](/reference/lib/vite/functions/cloudflareAccessPlugin.md) in `vite.config.ts`, and pass it the **same** policy array you gave the Worker:
@@ -111,6 +130,8 @@ export default defineConfig({
 Define `authPolicies` in its own module and import it into both configs — that single shared array is what keeps dev and production agreeing on which routes are protected (see the [Testing guide](/guides/testing#vite-vitest-configuration-for-a-hono-workers-project)'s Vite + Vitest configuration section for the full `wrangler.jsonc`/`vite.config.ts`/`vitest.config.ts` pairing).
 
 During `vite dev`, visiting a protected route redirects the browser to a login form the plugin serves at [`loginPath`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#loginpath) (default `/cdn-cgi/access/login`). Submitting it mints a dev-signed JWT and hands you back to your app, now authenticated. The plugin also serves `/cdn-cgi/access/logout` and `/cdn-cgi/access/get-identity`, mirroring the real Access edge endpoints.
+
+If your `policies` use [path-specific audiences](#path-specific-audiences), the plugin's login form issues one session token whose `aud` claim covers every audience referenced across `policies` — so a single local sign-in can still traverse every role-specific page, exactly like a real Cloudflare Access session that's been granted access to several applications. A session token that doesn't carry the audience a given path requires is treated as unauthenticated for that specific request (redirected to the login form, or `401` for an API route), the same way `cloudflareAccess` would reject it in production.
 
 By default the login form is a free-text email box. Supply [`users`](/reference/lib/vite/interfaces/CloudflareAccessPluginOptions.md#users) to pick from named accounts instead:
 
@@ -185,6 +206,12 @@ const res = await app.fetch(
   new Request("http://localhost/api/me", { headers: { [JWT_HEADER]: token } }),
   env
 );
+```
+
+Pass `audience` to exercise a [path-specific audience](#path-specific-audiences) policy directly, without a real Cloudflare Access deployment:
+
+```ts
+const contributorToken = await signDevJwt("alice@example.com", { audience: contributorAud });
 ```
 
 Both paths require `enableDevTokens` on the Worker for the tokens they produce to be accepted. See [Testing](/guides/testing) for

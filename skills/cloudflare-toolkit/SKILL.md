@@ -456,19 +456,39 @@ Validates a Cloudflare Access JWT (from the `CF_Authorization` cookie or the
 Hono context. The identity contains `email`, `sub`, and `source`; `source` is `"header"` when the
 header is selected and `"cookie"` otherwise. The header takes precedence when both are present.
 
-- `policies?: PathPolicy[]` — `{ pattern: RegExp, authenticate: boolean }`, evaluated in order,
-  first match wins.
+- `policies?: PathPolicy[]` — `{ pattern: RegExp, authenticate: boolean, redirect?: boolean,
+audience?: string }`, evaluated in order, first match wins.
 - `defaultAction?: "block" | "bypass"` — behavior for a path matching no policy. Defaults to
   `"block"` (401 if no valid JWT).
-- `teamDomain?` / `audience?` — Cloudflare Access team domain and Application Audience Tag. When
-  omitted, `teamDomain` is read from `c.env.CLOUDFLARE_TEAM_DOMAIN` at request time, and `aud`
-  validation is skipped entirely if `audience` is not supplied.
+- `teamDomain?` / `audience?` — Cloudflare Access team domain and top-level fallback Application
+  Audience Tag. When omitted, `teamDomain` is read from `c.env.CLOUDFLARE_TEAM_DOMAIN` at request
+  time, and `aud` validation is skipped entirely for a request whose matched policy (or this
+  fallback, when no policy matches) has no audience configured.
 
-  **Always set `audience` outside local development.** Every Access application in a team shares
-  the same JWKS, so without an `aud` check a token minted for _any other Access application in
-  the same team_ is accepted here too (cross-application token replay). Unless
-  `enableDevTokens` is `true`, omitting `audience` logs a one-time warning at construction time
-  for exactly this reason.
+  **Path-specific audiences (#181)**: a matched `PathPolicy`'s own `audience` **overrides** this
+  top-level fallback for that request — not merged with it — so one middleware instance can
+  protect several path-scoped Cloudflare Access applications on the same hostname, each validated
+  against its own Audience Tag:
+
+  ```ts
+  app.use(
+    cloudflareAccess({
+      policies: [
+        { pattern: /^\/api\/contributor/, authenticate: true, audience: contributorAud },
+        { pattern: /^\/api\/reviewer/, authenticate: true, audience: reviewerAud }
+      ]
+    })
+  );
+  ```
+
+  **Always configure an audience — either this fallback or a per-policy override — outside
+  local development.** Every Access application in a team shares the same JWKS, so without an
+  `aud` check a token minted for _any other Access application in the same team_ is accepted
+  here too (cross-application token replay). Unless `enableDevTokens` is `true`, any
+  authenticated path that could still reach verification with no audience configured at all logs
+  a one-time warning at construction time for exactly this reason — a fully audience-covered
+  policy set (every authenticated policy sets its own `audience`, with `defaultAction: "bypass"`
+  for anything unmatched) does not trigger it even without a top-level fallback.
 
 - `enableDevTokens?: boolean` — **defaults to `false` (fail-closed)**. When `false`, only real
   Cloudflare Access JWKS verification is attempted; a developer-signed HS256 token is rejected
@@ -611,6 +631,13 @@ itself, and issues a dev-signed JWT accepted by the Worker's own `cloudflareAcce
 the same `DEFAULT_DEV_SECRET`/verification code internally) — no separate verification logic to
 keep in sync.
 
+**Path-specific audiences (#181)**: when a policy's `audience` is set, the login form issues one
+session token whose `aud` claim covers every distinct audience referenced across `policies`, so a
+single local sign-in still reaches every role-specific page. A session that doesn't carry the
+audience the matched path requires is treated as unauthenticated for that request — redirected to
+the login form, or `401` for a `redirect: false` API route — exactly mirroring how
+`cloudflareAccess` would reject it in production.
+
 See ["Vite + Vitest configuration"](#vite--vitest-configuration-for-a-honoworkers-project) below
 for a full working pair with `@cloudflare/vite-plugin` and `@cloudflare/vitest-pool-workers`.
 
@@ -647,6 +674,10 @@ const res = await app.request("/api/me", { headers: { cookie: buildCookieHeader(
 
 // Simulate logout:
 const loggedOut = await app.request("/api/me", { headers: { cookie: clearCookieHeader() } });
+
+// Exercise a path-specific audience policy (#181) without a real Cloudflare Access deployment.
+// A string[] mints a token valid for several role-specific audiences at once.
+const contributorToken = await signDevJwt("alice@example.com", { audience: contributorAud });
 ```
 
 `JWT_HEADER` and `COOKIE_NAME` are the exact header/cookie names `cloudflareAccess` reads, so

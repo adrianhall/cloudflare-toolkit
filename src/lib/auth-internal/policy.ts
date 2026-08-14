@@ -11,12 +11,14 @@ import type { PathPolicy, PolicyMatch } from "./types.js";
  * policy matches (the caller decides what to do in that case).
  *
  * The `redirect` field defaults to `true` when the matching {@link PathPolicy} does not specify
- * one.
+ * one. The `audience` field is passed through verbatim (`undefined` when the matching policy
+ * does not specify one) — the caller decides whether to fall back to its own top-level audience
+ * in that case.
  */
 export function matchPolicy(pathname: string, policies: PathPolicy[]): PolicyMatch | undefined {
-  for (const { pattern, authenticate, redirect } of policies) {
+  for (const { pattern, authenticate, redirect, audience } of policies) {
     if (pattern.test(pathname)) {
-      return { authenticate, redirect: redirect ?? true };
+      return { authenticate, redirect: redirect ?? true, audience };
     }
   }
   return undefined;
