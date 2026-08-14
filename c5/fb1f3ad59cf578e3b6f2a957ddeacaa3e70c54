@@ -1,0 +1,27 @@
+skills/cloudflare-toolkit/SKILL.md
+  s_2f79ac122d4020::t_e9df32f940be20 459-460,463-466,468-491,634-640,677-680
+src/lib/vite/plugin.ts
+  s_2f79ac122d4020::t_d1e1d11f59ce59 79-85,164-168,200-206,208,214-215,277-282,350-381
+test/node/auth-internal/policy.test.ts
+  s_2f79ac122d4020::t_0a624031aa708f 52-85
+test/node/vite/handshake.test.ts
+  s_2f79ac122d4020::t_9845b1f5126e27 88-173
+test/node/vite/plugin.test.ts
+  s_2f79ac122d4020::t_1a2873b954eb51 415-544
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c5fb1f3ad59cf578e3b6f2a957ddeacaa3e70c54",
+  "prompts": {},
+  "sessions": {
+    "s_2f79ac122d4020": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_00094f658ffe7sukvLl3JbaEuB",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
