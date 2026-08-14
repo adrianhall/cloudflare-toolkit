@@ -88,10 +88,15 @@ function generateDevSub(): string {
  * @param options.sub - Subject claim. When provided it is used **verbatim**; when omitted a
  *   random UUID is generated (matching the shape of a real Cloudflare Access `sub`) instead of
  *   an email-derived value.
+ * @param options.audience - `aud` claim to set on the token. Pass an array to mint a single
+ *   developer session that satisfies several path-specific Access-application audiences at
+ *   once (e.g. `cloudflareAccessPlugin`'s login flow issuing one token that can traverse every
+ *   role-specific page a dev-configured `PathPolicy[]` protects). When omitted, no `aud` claim
+ *   is set at all — matching prior behavior for callers that don't validate audience.
  */
 export async function signDevJwt(
   email: string,
-  options: { secret?: string; lifetime?: number; sub?: string } = {}
+  options: { secret?: string; lifetime?: number; sub?: string; audience?: string | string[] } = {}
 ): Promise<string> {
   const secret = options.secret ?? DEFAULT_DEV_SECRET;
   const lifetime = options.lifetime ?? 86_400; // 24 h
@@ -99,7 +104,7 @@ export async function signDevJwt(
   const now = Math.floor(Date.now() / 1000);
   const sub = options.sub ?? generateDevSub();
 
-  return new SignJWT({
+  const builder = new SignJWT({
     email,
     sub,
     type: "dev",
@@ -107,8 +112,13 @@ export async function signDevJwt(
   } satisfies Omit<AccessJwtPayload, "iat" | "exp">)
     .setProtectedHeader({ alg: DEV_ALG })
     .setIssuedAt(now)
-    .setExpirationTime(now + lifetime)
-    .sign(secretToBytes(secret));
+    .setExpirationTime(now + lifetime);
+
+  if (options.audience !== undefined) {
+    builder.setAudience(options.audience);
+  }
+
+  return builder.sign(secretToBytes(secret));
 }
 
 // ---------------------------------------------------------------------------
@@ -128,14 +138,23 @@ export interface VerifiedToken {
  *
  * Returns `null` if verification fails (wrong key, expired, missing claims, etc.) — the caller
  * can then fall back to Cloudflare JWKS verification.
+ *
+ * @param token - The compact JWS to verify.
+ * @param secret - HMAC signing secret (default `DEFAULT_DEV_SECRET`).
+ * @param audience - Expected `aud` claim value, mirroring {@link verifyAccessJwt}'s `audience`
+ *   parameter so path-specific audience selection (a matched `PathPolicy.audience`, or a
+ *   consumer's top-level fallback) behaves identically on the dev-token path. When omitted, the
+ *   `aud` claim is not checked at all (unchanged prior behavior).
  */
 export async function verifyDevJwt(
   token: string,
-  secret: string = DEFAULT_DEV_SECRET
+  secret: string = DEFAULT_DEV_SECRET,
+  audience?: string
 ): Promise<VerifiedToken | null> {
   try {
     const { payload } = await jwtVerify(token, secretToBytes(secret), {
-      algorithms: [DEV_ALG]
+      algorithms: [DEV_ALG],
+      audience
     });
     return extractClaims(payload);
   } catch {

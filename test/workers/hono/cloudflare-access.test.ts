@@ -444,6 +444,167 @@ describe("cloudflareAccess", () => {
 
       expect(capture.find("warn")).toHaveLength(0);
     });
+
+    // ---------------------------------------------------------------------
+    // #181: path-specific PathPolicy.audience widens/narrows this warning's coverage analysis.
+    // ---------------------------------------------------------------------
+
+    it("does not warn when every authenticated policy sets its own audience and unmatched paths bypass", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({
+        logger,
+        defaultAction: "bypass",
+        policies: [
+          { pattern: /^\/api\/contributor/, authenticate: true, audience: "contrib-aud" },
+          { pattern: /^\/api\/reviewer/, authenticate: true, audience: "review-aud" }
+        ]
+      });
+
+      expect(capture.find("warn")).toHaveLength(0);
+    });
+
+    it("warns when one authenticated policy has no audience and there is no top-level fallback", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({
+        logger,
+        defaultAction: "bypass",
+        policies: [
+          { pattern: /^\/api\/contributor/, authenticate: true, audience: "contrib-aud" },
+          { pattern: /^\/api\/reviewer/, authenticate: true }
+        ]
+      });
+
+      const warnings = capture.find("warn");
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.message).toContain("audience");
+    });
+
+    it("warns when every listed policy has its own audience but defaultAction is 'block' with no fallback (unmatched paths are still a gap)", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({
+        logger,
+        policies: [{ pattern: /^\/api\/contributor/, authenticate: true, audience: "contrib-aud" }]
+      });
+
+      expect(capture.find("warn")).toHaveLength(1);
+    });
+
+    it("does not warn when a top-level fallback audience is set even if a policy omits its own", () => {
+      const capture = createCaptureTransport();
+      const logger = createLogger({ transport: capture, level: "warn" });
+
+      cloudflareAccess({
+        logger,
+        audience: "fallback-aud",
+        policies: [{ pattern: /^\/api\//, authenticate: true }]
+      });
+
+      expect(capture.find("warn")).toHaveLength(0);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // #181: path-specific audience selection
+  // -----------------------------------------------------------------------
+  describe("path-specific audience selection (#181)", () => {
+    it("accepts a dev token whose audience matches the matched policy, overriding a different top-level fallback", async () => {
+      const app = createApp({
+        enableDevTokens: true,
+        audience: "fallback-aud",
+        policies: [{ pattern: /^\/api\/test$/, authenticate: true, audience: "contrib-aud" }]
+      });
+      const token = await signDevJwt("alice@example.com", { audience: "contrib-aud" });
+
+      const res = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: token }
+      });
+
+      expect(res.status).toBe(200);
+    });
+
+    it("rejects a dev token whose audience only matches the top-level fallback, not the matched policy's own audience", async () => {
+      const app = createApp({
+        enableDevTokens: true,
+        audience: "fallback-aud",
+        policies: [{ pattern: /^\/api\/test$/, authenticate: true, audience: "contrib-aud" }]
+      });
+      const token = await signDevJwt("alice@example.com", { audience: "fallback-aud" });
+
+      const res = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: token }
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("rejects a token minted for a different Access application's audience (cross-application replay)", async () => {
+      const app = createApp({
+        enableDevTokens: true,
+        policies: [
+          { pattern: /^\/api\/test$/, authenticate: true, audience: "contrib-aud" },
+          { pattern: /^\/api\/version$/, authenticate: true, audience: "review-aud" }
+        ]
+      });
+      // Token is only valid for the reviewer application's audience.
+      const token = await signDevJwt("attacker@example.com", { audience: "review-aud" });
+
+      const res = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: token }
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("falls back to the top-level audience when the matched policy does not specify one", async () => {
+      const app = createApp({
+        enableDevTokens: true,
+        audience: "fallback-aud",
+        policies: [{ pattern: /^\/api\/test$/, authenticate: true }]
+      });
+      const token = await signDevJwt("alice@example.com", { audience: "fallback-aud" });
+
+      const okRes = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: token }
+      });
+      expect(okRes.status).toBe(200);
+
+      const wrongToken = await signDevJwt("alice@example.com", { audience: "other-aud" });
+      const badRes = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: wrongToken }
+      });
+      expect(badRes.status).toBe(401);
+    });
+
+    it("rejects a token with no audience claim at all when the matched policy requires one (missing audience)", async () => {
+      const app = createApp({
+        enableDevTokens: true,
+        policies: [{ pattern: /^\/api\/test$/, authenticate: true, audience: "contrib-aud" }]
+      });
+      const token = await signDevJwt("alice@example.com"); // no audience option → no aud claim
+
+      const res = await fetchWithEnv(app, `${BASE}/api/test`, {
+        headers: { [JWT_HEADER]: token }
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("still bypasses JWT validation entirely for a public policy regardless of audience configuration", async () => {
+      const app = createApp({
+        enableDevTokens: true,
+        audience: "fallback-aud",
+        policies: [{ pattern: /^\/api\/version$/, authenticate: false, audience: "contrib-aud" }]
+      });
+
+      const res = await fetchWithEnv(app, `${BASE}/api/version`);
+      expect(res.status).toBe(200);
+    });
   });
 
   // -----------------------------------------------------------------------

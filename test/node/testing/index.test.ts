@@ -122,4 +122,47 @@ describe("testing barrel + cloudflareAccess acceptance criteria", () => {
 
     expect(res.status).toBe(401);
   });
+
+  // -------------------------------------------------------------------------
+  // #181: signDevJwt's audience option lets tests exercise path-specific PathPolicy.audience.
+  // -------------------------------------------------------------------------
+  it("accepts a testing-signed token whose audience matches the matched PathPolicy's audience", async () => {
+    const token = await testing.signDevJwt("contributor@example.com", { audience: "contrib-aud" });
+
+    const app = new Hono<AccessEnv>();
+    app.use(
+      cloudflareAccess({
+        enableDevTokens: true,
+        policies: [{ pattern: /^\/api\/me$/, authenticate: true, audience: "contrib-aud" }]
+      })
+    );
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
+
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", { headers: { [testing.JWT_HEADER]: token } }),
+      {}
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a testing-signed token minted for a different application's audience", async () => {
+    const token = await testing.signDevJwt("reviewer@example.com", { audience: "review-aud" });
+
+    const app = new Hono<AccessEnv>();
+    app.use(
+      cloudflareAccess({
+        enableDevTokens: true,
+        policies: [{ pattern: /^\/api\/me$/, authenticate: true, audience: "contrib-aud" }]
+      })
+    );
+    app.get("/api/me", (c) => c.json(c.get("Cloudflare_Access_Identity") ?? null));
+
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", { headers: { [testing.JWT_HEADER]: token } }),
+      {}
+    );
+
+    expect(res.status).toBe(401);
+  });
 });

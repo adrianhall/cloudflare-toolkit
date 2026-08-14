@@ -413,6 +413,136 @@ describe("login submit", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Path-specific audiences (#181)
+// ---------------------------------------------------------------------------
+
+describe("login submit — path-specific audiences (#181)", () => {
+  /** Decode a signed JWT's payload without verifying it, for assertions on its raw claims. */
+  function decodePayload(token: string): Record<string, unknown> {
+    return JSON.parse(Buffer.from(token.split(".")[1], "base64").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
+  }
+
+  const audiencePolicies: PathPolicy[] = [
+    { pattern: /^\/api\/contributor/, authenticate: true, audience: "contrib-aud" },
+    { pattern: /^\/api\/reviewer/, authenticate: true, audience: "review-aud" },
+    { pattern: /^\/api\/reviewer/, authenticate: true, audience: "review-aud" }, // duplicate on purpose
+    { pattern: /^\/api\//, authenticate: true }
+  ];
+
+  it("issues a session token whose aud claim covers every distinct audience referenced by the policies", async () => {
+    const body = new URLSearchParams({ email: "alice@example.com", redirect: "/" }).toString();
+    const req = makeReq({
+      url: "/cdn-cgi/access/login",
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const res = makeRes();
+    await invoke({ policies: audiencePolicies }, req, res);
+
+    const cookie = res._headers["set-cookie"];
+    const token = cookie.split(";")[0].split("=").slice(1).join("=");
+    const payload = decodePayload(token);
+
+    // Duplicate policy audiences are collapsed to a single entry.
+    expect(payload.aud).toEqual(["contrib-aud", "review-aud"]);
+  });
+
+  it("omits the aud claim entirely when no policy specifies an audience", async () => {
+    const body = new URLSearchParams({ email: "alice@example.com", redirect: "/" }).toString();
+    const req = makeReq({
+      url: "/cdn-cgi/access/login",
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body
+    });
+    const res = makeRes();
+    await invoke({}, req, res);
+
+    const cookie = res._headers["set-cookie"];
+    const token = cookie.split(";")[0].split("=").slice(1).join("=");
+    expect(decodePayload(token).aud).toBeUndefined();
+  });
+});
+
+describe("authenticated request — path-specific audiences (#181)", () => {
+  const audiencePolicies: PathPolicy[] = [
+    { pattern: /^\/api\/contributor/, authenticate: true, audience: "contrib-aud" },
+    { pattern: /^\/api\/reviewer/, authenticate: true, audience: "review-aud" }
+  ];
+
+  it("injects Access headers when the session token carries the matched path's audience", async () => {
+    const token = await signDevJwt("alice@example.com", { audience: "contrib-aud" });
+    const req = makeReq({
+      url: "/api/contributor/docs",
+      headers: { cookie: COOKIE(token), accept: "application/json" }
+    });
+    const res = makeRes();
+    const result = await invoke({ policies: audiencePolicies }, req, res);
+
+    expect(result.nextCalled).toBe(true);
+    expect(req.headers[JWT_HEADER]).toBe(token);
+  });
+
+  it("treats a session token missing the matched path's audience as unauthenticated (401 for a redirect:false route)", async () => {
+    const token = await signDevJwt("alice@example.com", { audience: "review-aud" });
+    const req = makeReq({
+      url: "/api/contributor/docs",
+      headers: { cookie: COOKIE(token), accept: "application/json" }
+    });
+    const res = makeRes();
+    const result = await invoke(
+      {
+        policies: [
+          {
+            pattern: /^\/api\/contributor/,
+            authenticate: true,
+            redirect: false,
+            audience: "contrib-aud"
+          },
+          { pattern: /^\/api\/reviewer/, authenticate: true, audience: "review-aud" }
+        ]
+      },
+      req,
+      res
+    );
+
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+    expect(req.headers[JWT_HEADER]).toBeUndefined();
+  });
+
+  it("accepts a multi-audience session token on every role-specific path it was issued for", async () => {
+    const token = await signDevJwt("alice@example.com", {
+      audience: ["contrib-aud", "review-aud"]
+    });
+
+    const contributorReq = makeReq({
+      url: "/api/contributor/docs",
+      headers: { cookie: COOKIE(token), accept: "application/json" }
+    });
+    const contributorRes = makeRes();
+    const contributorResult = await invoke(
+      { policies: audiencePolicies },
+      contributorReq,
+      contributorRes
+    );
+    expect(contributorResult.nextCalled).toBe(true);
+
+    const reviewerReq = makeReq({
+      url: "/api/reviewer/docs",
+      headers: { cookie: COOKIE(token), accept: "application/json" }
+    });
+    const reviewerRes = makeRes();
+    const reviewerResult = await invoke({ policies: audiencePolicies }, reviewerReq, reviewerRes);
+    expect(reviewerResult.nextCalled).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Logout
 // ---------------------------------------------------------------------------
 

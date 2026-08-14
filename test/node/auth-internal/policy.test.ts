@@ -49,4 +49,38 @@ describe("matchPolicy", () => {
     // The first rule { authenticate: false } has no redirect property.
     expect(result?.redirect).toBe(true);
   });
+
+  describe("audience (#181)", () => {
+    const audiencePolicies: PathPolicy[] = [
+      {
+        pattern: /^\/api\/contributor/,
+        authenticate: true,
+        redirect: false,
+        audience: "contrib-aud"
+      },
+      { pattern: /^\/api\/reviewer/, authenticate: true, redirect: false, audience: "review-aud" },
+      { pattern: /^\/api\//, authenticate: true }
+    ];
+
+    it("returns the audience selected by the first matching policy", () => {
+      const result = matchPolicy("/api/contributor/docs", audiencePolicies);
+      expect(result).toEqual({ authenticate: true, redirect: false, audience: "contrib-aud" });
+    });
+
+    it("selects a different audience for a different matching policy", () => {
+      const result = matchPolicy("/api/reviewer/docs", audiencePolicies);
+      expect(result?.audience).toBe("review-aud");
+    });
+
+    it("leaves audience undefined when the matched policy does not specify one", () => {
+      const result = matchPolicy("/api/other", audiencePolicies);
+      expect(result?.authenticate).toBe(true);
+      expect(result?.audience).toBeUndefined();
+    });
+
+    it("leaves audience undefined for public policies without one", () => {
+      const result = matchPolicy("/api/version", policies);
+      expect(result?.audience).toBeUndefined();
+    });
+  });
 });

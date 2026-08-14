@@ -49,10 +49,17 @@ export interface CloudflareAccessOptions {
    *
    * When omitted, every path is subject to {@link CloudflareAccessOptions.defaultAction}.
    *
+   * Each policy may also set its own `audience` — see {@link PathPolicy.audience} — so a single
+   * middleware instance can protect several path-scoped Cloudflare Access applications on the
+   * same hostname, each validated against its own Audience Tag, instead of one flat allowlist
+   * shared by every protected path.
+   *
    * @example
    * ```ts
    * policies: [
    *   { pattern: /^\/api\/version$/, authenticate: false },
+   *   { pattern: /^\/api\/contributor/, authenticate: true, audience: contributorAud },
+   *   { pattern: /^\/api\/reviewer/, authenticate: true, audience: reviewerAud },
    *   { pattern: /^\/api\//, authenticate: true }
    * ]
    * ```
@@ -73,17 +80,24 @@ export interface CloudflareAccessOptions {
    */
   readonly teamDomain?: string;
   /**
-   * Application Audience Tag. When provided, the middleware verifies the JWT `aud` claim
-   * contains this value.
+   * Fallback Application Audience Tag. Used to verify the JWT `aud` claim for a request whose
+   * matched {@link PathPolicy} does not itself specify an `audience` (including when no policy
+   * matches at all and {@link CloudflareAccessOptions.defaultAction} is `"block"`).
    *
-   * **When omitted, audience validation is skipped** — the `aud` claim is not checked at all.
-   * Every Cloudflare Access application in the same team shares the same JWKS, so without an
-   * `aud` check, a JWT that is valid for *any other Access application in the team* is accepted
-   * here too (cross-application token replay).
+   * A matched policy's own `audience` (see {@link PathPolicy.audience}) **overrides** this
+   * fallback for that request rather than merging with it — this lets path-specific audiences
+   * coexist with one shared fallback for everything else.
    *
-   * Unless {@link CloudflareAccessOptions.enableDevTokens} is `true` (local development),
-   * omitting `audience` logs a one-time warning at construction time — see
-   * {@link cloudflareAccess}'s security remarks.
+   * **When neither this fallback nor the matched policy specify an audience, audience
+   * validation is skipped for that request** — the `aud` claim is not checked at all. Every
+   * Cloudflare Access application in the same team shares the same JWKS, so without an `aud`
+   * check, a JWT that is valid for *any other Access application in the team* is accepted here
+   * too (cross-application token replay).
+   *
+   * Unless {@link CloudflareAccessOptions.enableDevTokens} is `true` (local development), any
+   * authenticated request path that could reach verification without an audience configured —
+   * either this fallback or a per-policy `audience` — logs a one-time warning at construction
+   * time; see {@link cloudflareAccess}'s security remarks.
    */
   readonly audience?: string;
   /**
@@ -160,9 +174,11 @@ async function verifyToken(
   }
 ): Promise<VerifiedToken | null> {
   // Fast path: dev-signed token. Opt-in only — disabled by default so a deployed Worker never
-  // trusts a forgeable HS256 token.
+  // trusts a forgeable HS256 token. The same resolved `audience` (matched policy override, or
+  // the top-level fallback) is enforced here too, so a dev session minted for one path-scoped
+  // Access application is rejected on another's routes exactly like the real JWKS path below.
   if (options.enableDevTokens) {
-    const devResult = await verifyDevJwt(token, options.devSecret);
+    const devResult = await verifyDevJwt(token, options.devSecret, options.audience);
     if (devResult) return devResult;
   }
 
@@ -178,6 +194,47 @@ async function verifyToken(
   }
 
   return verifyAccessJwt(token, teamDomain, options.audience, options.logger);
+}
+
+/**
+ * Determine whether some authenticated request path governed by `options` could reach JWT
+ * verification with no audience configured at all — i.e. neither a per-policy
+ * {@link PathPolicy.audience} nor the top-level {@link CloudflareAccessOptions.audience}
+ * fallback — the SEC-001 gap {@link cloudflareAccess} warns about at construction time.
+ *
+ * A fully audience-covered configuration (every `authenticate: true` policy sets its own
+ * `audience`, with `defaultAction: "bypass"` for anything unmatched) has **no** gap and is not
+ * warned about, even though the top-level fallback itself is omitted. Conversely, an unmatched
+ * path is always a gap when `defaultAction` is `"block"` (the default) and no fallback audience
+ * is configured, since that unmatched path still requires authentication with nothing to
+ * validate `aud` against — regardless of how completely the *listed* policies cover their own
+ * audiences.
+ *
+ * @param policies - The configured path policies, if any.
+ * @param defaultAction - The configured default action for a request matching no policy.
+ * @param audience - The configured top-level fallback audience, if any.
+ * @returns `true` when at least one authenticated request path could skip audience validation.
+ */
+function hasAudienceGap(
+  policies: PathPolicy[] | undefined,
+  defaultAction: "block" | "bypass",
+  audience: string | undefined
+): boolean {
+  if (audience !== undefined) {
+    // The fallback covers every policy that doesn't set its own audience, and every unmatched
+    // path when defaultAction is "block" — no gap possible.
+    return false;
+  }
+
+  const unmatchedPathIsAGap = defaultAction === "block";
+  if (!policies) {
+    return unmatchedPathIsAGap;
+  }
+
+  const hasUncoveredPolicy = policies.some(
+    (policy) => policy.authenticate && policy.audience === undefined
+  );
+  return hasUncoveredPolicy || unmatchedPathIsAGap;
 }
 
 /**
@@ -212,13 +269,23 @@ async function verifyToken(
  * Worker never silently trusts a forgeable HS256 token signed with the public
  * `DEFAULT_DEV_SECRET`. Enable it only in local development.
  *
- * **Audience validation is opt-in, not fail-closed**: omitting
- * {@link CloudflareAccessOptions.audience} skips the `aud` check and allows cross-application
- * token replay within the same Cloudflare Access team (see that option's docs). To surface this
- * without breaking existing deployments, {@link cloudflareAccess} logs a one-time warning at
- * construction time whenever `audience` is omitted **and** `enableDevTokens` is not `true` —
- * i.e. in the default, production-shaped configuration. The warning is intentionally silent
- * when `enableDevTokens` is `true`, since that already signals a local-development posture.
+ * **Path-specific audiences**: a matched {@link PathPolicy}'s own `audience` overrides
+ * {@link CloudflareAccessOptions.audience} for that request, so one middleware instance can
+ * protect several path-scoped Cloudflare Access applications on the same hostname — each
+ * validated against its own Audience Tag — instead of one flat allowlist that would let a token
+ * minted for one application pass audience validation on another application's routes.
+ *
+ * **Audience validation is opt-in, not fail-closed**: a request whose matched policy (or the
+ * top-level fallback, when no policy applies) has no `audience` configured skips the `aud`
+ * check for that request and allows cross-application token replay within the same Cloudflare
+ * Access team (see {@link CloudflareAccessOptions.audience}'s docs). To surface this without
+ * breaking existing deployments, {@link cloudflareAccess} logs a one-time warning at
+ * construction time whenever some authenticated request path could still reach verification
+ * with no audience configured **and** `enableDevTokens` is not `true` — i.e. in the default,
+ * production-shaped configuration. A fully audience-covered policy set (every authenticated
+ * policy sets its own `audience`, and `defaultAction` is `"bypass"`) does not trigger this
+ * warning even without a top-level fallback. The warning is intentionally silent when
+ * `enableDevTokens` is `true`, since that already signals a local-development posture.
  *
  * @remarks Security-critical: this fail-closed default must be preserved exactly — see the
  * "fail-closed" describe block in `test/workers/hono/cloudflare-access.test.ts`.
@@ -261,16 +328,19 @@ export function cloudflareAccess(
     );
   }
 
-  // Loud, one-time warning: no audience was configured, so the JWT `aud` claim is never
-  // checked — any token valid for another Access application in the same team is accepted here
-  // too (cross-application token replay). Silent when enableDevTokens is true, since that
-  // already signals a local-development posture where this gap is a non-issue.
-  if (!enableDevTokens && audience === undefined) {
+  // Loud, one-time warning: some authenticated request path could reach verification with no
+  // audience configured at all (neither a per-policy override nor the top-level fallback), so
+  // the JWT `aud` claim is never checked for it — any token valid for another Access application
+  // in the same team is accepted there too (cross-application token replay). Silent when
+  // enableDevTokens is true, since that already signals a local-development posture where this
+  // gap is a non-issue.
+  if (!enableDevTokens && hasAudienceGap(policies, defaultAction, audience)) {
     log.warn(
-      "No audience was provided; the JWT 'aud' claim will not be validated. Any Cloudflare "
-        + "Access application in the same team can mint a token accepted here (cross-application "
-        + "token replay). Set the 'audience' option to this app's Audience Tag, or set "
-        + "enableDevTokens to silence this warning in local development."
+      "No audience was provided for one or more authenticated paths; the JWT 'aud' claim will "
+        + "not be validated for those requests. Any Cloudflare Access application in the same "
+        + "team can mint a token accepted here (cross-application token replay). Set the "
+        + "top-level 'audience' option as a fallback, set 'audience' on each authenticated "
+        + "PathPolicy, or set enableDevTokens to silence this warning in local development."
     );
   }
 
@@ -316,10 +386,14 @@ export function cloudflareAccess(
     // -----------------------------------------------------------------
     // 3. Verify the token.
     // -----------------------------------------------------------------
+    // A matched policy's own audience overrides the top-level fallback for this request; when
+    // neither is set, `resolvedAudience` is `undefined` and `aud` is not checked (see the
+    // security remarks on `CloudflareAccessOptions.audience` above).
+    const resolvedAudience = policyMatch?.audience ?? audience;
     const result = await verifyToken(c, token, {
       enableDevTokens,
       devSecret,
-      audience,
+      audience: resolvedAudience,
       teamDomainOverride,
       logger: log
     });
