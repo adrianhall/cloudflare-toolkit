@@ -2,6 +2,8 @@
 
 ## Next release
 
+## 2.4.0
+
 - 400fbae (minor): Added path-specific audience checking to the cloudflareAccess() middleware.
 
 ## 2.3.0
