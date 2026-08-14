@@ -2,6 +2,8 @@
 
 ## Next release
 
+- 400fbae (minor): Added path-specific audience checking to the cloudflareAccess() middleware.
+
 ## 2.3.0
 
 - 59fca9e (minor): Added `empty-r2-bucket` CLI command to empty an R2 bucket using an undocumented dashboard API
