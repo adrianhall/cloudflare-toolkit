@@ -229,13 +229,15 @@ Each status code in the [HTTP Status Code 300-599](https://developer.mozilla.org
 | `contentTooLarge(input?)`      | 413    |
 | `unsupportedMediaType(input?)` | 415    |
 | `unprocessableContent(input?)` | 422    |
+| `preconditionFailed(input?)`   | 412    |
+| `preconditionRequired(input?)` | 428    |
 | `internalServerError(input?)`  | 500    |
 | `notImplemented(input?)`       | 501    |
 | `serviceUnavailable(input?)`   | 503    |
 
 `429 Too Many Requests` is deliberately **not** included — rate limiting is a Cloudflare Workers platform concern, not this toolkit's.
 
-`304 Not Modified`, `409 Conflict`, and `412 Precondition Failed` are also deliberately **not** included in v1 — these are RFC 9110 conditional-request status codes whose useful shape (a 304 with no body, a 409/412 optionally carrying the conflicting resource and its ETag) is a Data Access Patterns concern (§4), not a generic error-generator concern. Rather than guess at that shape now, v1 ships nothing for these three; the future Data Access Patterns work will introduce them once it's clear what they actually need to carry.
+`304 Not Modified` and `409 Conflict` are also deliberately **not** included in v1. `304` isn't an error at all — an empty body, no problem-details payload — so it doesn't fit the `ProblemDetailsError` generator shape and needs a different mechanism entirely. `409` stays deferred because `api-guidelines` resolves resource conflicts to `422` (`unprocessableContent`) instead of `409`, precisely because this toolkit has no `conflict()` generator. `412 Precondition Failed` and `428 Precondition Required` were previously deferred alongside these two for the same "might need a bespoke conflicting-resource-plus-ETag shape" reasoning, but that reasoning didn't hold once RFC 9110 conditional requests were actually implemented: `HttpErrorInput.extensions` already lets any generator carry arbitrary fields (e.g. `preconditionFailed({ extensions: { currentETag } })`), so no new shape was needed — just the same generator pattern used everywhere else ([issue #186](https://github.com/adrianhall/cloudflare-toolkit/issues/186)).
 
 `contentTooLarge` (413) was added after v1 to support capping request-body reads outside a Hono
 context — specifically the Vite dev-login plugin's `readFormBody` (§5.6), which previously

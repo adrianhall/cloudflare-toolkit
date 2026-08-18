@@ -10,8 +10,7 @@
  * HTTP response.
  *
  * `429 Too Many Requests` is intentionally not included (a platform concern, not an
- * application-level one). `304 Not Modified`, `409 Conflict`, and `412 Precondition Failed` are
- * also not included.
+ * application-level one). `304 Not Modified` and `409 Conflict` are also not included.
  */
 import { problemDetails } from "../problem-details/factory.js";
 import type { ProblemDetailsError } from "../problem-details/error.js";
@@ -87,6 +86,16 @@ export function gone(input?: HttpErrorInput): ProblemDetailsError {
 }
 
 /**
+ * Create a `412 Precondition Failed` {@link ProblemDetailsError}.
+ *
+ * @param input - Optional problem details fields (`detail`, `type`, `instance`, `extensions`).
+ * @returns A `412`-status {@link ProblemDetailsError} ready to `throw`.
+ */
+export function preconditionFailed(input?: HttpErrorInput): ProblemDetailsError {
+  return problemDetails({ ...input, status: 412 });
+}
+
+/**
  * Create a `413 Content Too Large` {@link ProblemDetailsError}.
  *
  * @param input - Optional problem details fields (`detail`, `type`, `instance`, `extensions`).
@@ -114,6 +123,16 @@ export function unsupportedMediaType(input?: HttpErrorInput): ProblemDetailsErro
  */
 export function unprocessableContent(input?: HttpErrorInput): ProblemDetailsError {
   return problemDetails({ ...input, status: 422 });
+}
+
+/**
+ * Create a `428 Precondition Required` {@link ProblemDetailsError}.
+ *
+ * @param input - Optional problem details fields (`detail`, `type`, `instance`, `extensions`).
+ * @returns A `428`-status {@link ProblemDetailsError} ready to `throw`.
+ */
+export function preconditionRequired(input?: HttpErrorInput): ProblemDetailsError {
+  return problemDetails({ ...input, status: 428 });
 }
 
 /**

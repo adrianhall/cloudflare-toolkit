@@ -2,6 +2,8 @@
 
 ## Next release
 
+- (minor): Added `preconditionFailed` (412) and `preconditionRequired` (428) HTTP error generators to `@adrianhall/cloudflare-toolkit/errors`, matching the signature/shape of every other generator.
+
 ## 2.4.0
 
 - 400fbae (minor): Added path-specific audience checking to the cloudflareAccess() middleware.
