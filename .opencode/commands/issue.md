@@ -79,6 +79,10 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    Do not duplicate a sub-agent's work while it is running. Continue only with non-overlapping tasks or wait for results.
 
+   - **DON'T** update the "version" of the package.
+   - **DON'T** directly edit `package.json` - use `npm install` to install packages.
+   - **DON'T** directly edit `package-lock.json` - run `npm ci` or `npm install`.
+
 7. Test.
 
    Run targeted tests first, then full verification required by the issue, from within the worktree. At minimum, run:
@@ -123,7 +127,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
     ```sh
     git add CHANGELOG.md
-    git commit -m "(#$1) CHANGELOG.md update for this feature"
+    git commit -m "(#$1) docs: CHANGELOG.md update for this feature"
     ```
 
 11. Push.
