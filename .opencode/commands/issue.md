@@ -91,11 +91,11 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    These checks must run with zero warnings or errors. Fix the warnings or errors before continuing. Only bypass these checks if the issue text explicitly tells you they are bypassable.
 
-8. Confirm release metadata is untouched.
+8. Update the `CHANGELOG.md`
 
-   Per `CONTRIBUTING.md`, ordinary feature, fix, docs, test, and tooling PRs do not carry release metadata. Do not change `package.json#version`, either root version field in `package-lock.json`, or `CHANGELOG.md` while implementing an ordinary issue. Maintainers update those three artifacts together in a dedicated release PR after explicitly choosing the next semver version.
-
-   If the issue itself explicitly requests a release PR, stop and confirm the intended version with the user before editing release metadata. Never infer a release version from an ordinary issue.
+   Add an entry for this feature in `CHANGELOG.md#next-release` for the issue. Tag the
+   issue either 'major' for breaking changes, 'minor' for additive features, or 'patch'
+   for pure bug fixes with no user-visible changes.
 
 9. Review changes.
 
