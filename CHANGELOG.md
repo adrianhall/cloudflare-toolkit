@@ -2,7 +2,7 @@
 
 ## Next release
 
-- (minor): Added `preconditionFailed` (412) and `preconditionRequired` (428) HTTP error generators to `@adrianhall/cloudflare-toolkit/errors`, matching the signature/shape of every other generator.
+- 4f1d2a8 (minor): Added `preconditionFailed` (412) and `preconditionRequired` (428) HTTP error generators to `@adrianhall/cloudflare-toolkit/errors`, matching the signature/shape of every other generator.
 
 ## 2.4.0
 
