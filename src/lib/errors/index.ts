@@ -13,6 +13,8 @@ export {
   methodNotAllowed,
   notFound,
   notImplemented,
+  preconditionFailed,
+  preconditionRequired,
   serviceUnavailable,
   unauthorized,
   unprocessableContent,

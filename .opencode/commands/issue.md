@@ -79,6 +79,10 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    Do not duplicate a sub-agent's work while it is running. Continue only with non-overlapping tasks or wait for results.
 
+   - **DON'T** update the "version" of the package.
+   - **DON'T** directly edit `package.json` - use `npm install` to install packages.
+   - **DON'T** directly edit `package-lock.json` - run `npm ci` or `npm install`.
+
 7. Test.
 
    Run targeted tests first, then full verification required by the issue, from within the worktree. At minimum, run:
@@ -91,13 +95,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    These checks must run with zero warnings or errors. Fix the warnings or errors before continuing. Only bypass these checks if the issue text explicitly tells you they are bypassable.
 
-8. Confirm release metadata is untouched.
-
-   Per `CONTRIBUTING.md`, ordinary feature, fix, docs, test, and tooling PRs do not carry release metadata. Do not change `package.json#version`, either root version field in `package-lock.json`, or `CHANGELOG.md` while implementing an ordinary issue. Maintainers update those three artifacts together in a dedicated release PR after explicitly choosing the next semver version.
-
-   If the issue itself explicitly requests a release PR, stop and confirm the intended version with the user before editing release metadata. Never infer a release version from an ordinary issue.
-
-9. Review changes.
+8. Review changes.
 
    Inspect, from within the worktree:
 
@@ -108,16 +106,29 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    Confirm only intended files changed and that ordinary issue work did not alter release metadata. Check for secrets, generated files, account-specific IDs, and accidental edits to unrelated work.
 
-10. Commit.
+9. Commit.
 
-    Use a conventional commit message scoped to the issue from within the worktree, for example:
+   Use a conventional commit message scoped to the issue from within the worktree, for example:
+
+   ```sh
+   git add INTENDED_FILES
+   git commit -m "(#$1) feat: implement issue summary"
+   ```
+
+   Do not amend existing commits unless explicitly asked.
+
+10. Update the `CHANGELOG.md`
+
+    Add an entry for this feature in `CHANGELOG.md#next-release` for the issue. Tag the
+    issue either 'major' for breaking changes, 'minor' for additive features, or 'patch'
+    for pure bug fixes with no user-visible changes.
+
+    Add the change to `CHANGELOG.md` to the commit set by commiting just that file.
 
     ```sh
-    git add INTENDED_FILES
-    git commit -m "(#$1) feat: implement issue summary"
+    git add CHANGELOG.md
+    git commit -m "(#$1) docs: CHANGELOG.md update for this feature"
     ```
-
-    Do not amend existing commits unless explicitly asked.
 
 11. Push.
 

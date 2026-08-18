@@ -8,6 +8,8 @@ import {
   methodNotAllowed,
   notFound,
   notImplemented,
+  preconditionFailed,
+  preconditionRequired,
   serviceUnavailable,
   unauthorized,
   unprocessableContent,
@@ -32,6 +34,8 @@ const GENERATORS: [
   ["contentTooLarge", contentTooLarge, 413, "Content Too Large"],
   ["unsupportedMediaType", unsupportedMediaType, 415, "Unsupported Media Type"],
   ["unprocessableContent", unprocessableContent, 422, "Unprocessable Content"],
+  ["preconditionFailed", preconditionFailed, 412, "Precondition Failed"],
+  ["preconditionRequired", preconditionRequired, 428, "Precondition Required"],
   ["internalServerError", internalServerError, 500, "Internal Server Error"],
   ["notImplemented", notImplemented, 501, "Not Implemented"],
   ["serviceUnavailable", serviceUnavailable, 503, "Service Unavailable"]
@@ -72,15 +76,10 @@ describe("HTTP error generators", () => {
     }).toThrow(ProblemDetailsError);
   });
 
-  it("429/304/409/412 generators are deliberately not exported", async () => {
+  it("429/304/409 generators are deliberately not exported", async () => {
     const generatorsModule: Record<string, unknown> =
       await import("../../../src/lib/errors/generators.js");
-    for (const forbiddenName of [
-      "tooManyRequests",
-      "notModified",
-      "conflict",
-      "preconditionFailed"
-    ]) {
+    for (const forbiddenName of ["tooManyRequests", "notModified", "conflict"]) {
       expect(generatorsModule[forbiddenName]).toBeUndefined();
     }
   });

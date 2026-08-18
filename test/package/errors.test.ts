@@ -12,6 +12,8 @@ const GENERATORS: [name: string, status: number][] = [
   ["contentTooLarge", 413],
   ["unsupportedMediaType", 415],
   ["unprocessableContent", 422],
+  ["preconditionFailed", 412],
+  ["preconditionRequired", 428],
   ["internalServerError", 500],
   ["notImplemented", 501],
   ["serviceUnavailable", 503]
