@@ -91,13 +91,7 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    These checks must run with zero warnings or errors. Fix the warnings or errors before continuing. Only bypass these checks if the issue text explicitly tells you they are bypassable.
 
-8. Update the `CHANGELOG.md`
-
-   Add an entry for this feature in `CHANGELOG.md#next-release` for the issue. Tag the
-   issue either 'major' for breaking changes, 'minor' for additive features, or 'patch'
-   for pure bug fixes with no user-visible changes.
-
-9. Review changes.
+8. Review changes.
 
    Inspect, from within the worktree:
 
@@ -108,16 +102,29 @@ If that value is blank, stop and ask the user for an issue number before doing a
 
    Confirm only intended files changed and that ordinary issue work did not alter release metadata. Check for secrets, generated files, account-specific IDs, and accidental edits to unrelated work.
 
-10. Commit.
+9. Commit.
 
-    Use a conventional commit message scoped to the issue from within the worktree, for example:
+   Use a conventional commit message scoped to the issue from within the worktree, for example:
+
+   ```sh
+   git add INTENDED_FILES
+   git commit -m "(#$1) feat: implement issue summary"
+   ```
+
+   Do not amend existing commits unless explicitly asked.
+
+10. Update the `CHANGELOG.md`
+
+    Add an entry for this feature in `CHANGELOG.md#next-release` for the issue. Tag the
+    issue either 'major' for breaking changes, 'minor' for additive features, or 'patch'
+    for pure bug fixes with no user-visible changes.
+
+    Add the change to `CHANGELOG.md` to the commit set by commiting just that file.
 
     ```sh
-    git add INTENDED_FILES
-    git commit -m "(#$1) feat: implement issue summary"
+    git add CHANGELOG.md
+    git commit -m "(#$1) CHANGELOG.md update for this feature"
     ```
-
-    Do not amend existing commits unless explicitly asked.
 
 11. Push.
 
