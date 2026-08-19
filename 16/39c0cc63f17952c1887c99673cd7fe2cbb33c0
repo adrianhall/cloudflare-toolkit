@@ -1,0 +1,19 @@
+package-lock.json
+  s_9d49fe54700085::t_2175a230922cb0 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1639c0cc63f17952c1887c99673cd7fe2cbb33c0",
+  "prompts": {},
+  "sessions": {
+    "s_9d49fe54700085": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fe575923fffeMg6zc33pH0zdvA",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
