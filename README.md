@@ -7,7 +7,8 @@ details, structured logging, Cloudflare Access-aware Hono/Vite middleware, typed
 configuration, and deployment CLIs — with a single, MIT-licensed, npm-installable package.
 
 **Full documentation, guides, and API reference:**
-https://adrianhall.github.io/cloudflare-toolkit
+
+<https://adrianhall.github.io/cloudflare-toolkit>
 
 ## Install
 
