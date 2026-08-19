@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_c377b8b4839595::t_44ce6f2c47eb01 5-6
+package-lock.json
+  s_c377b8b4839595::t_953d8ed7f9923c 3,9
+package.json
+  s_c377b8b4839595::t_6d05a14cef452d 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fd5e74adbe39e0a75c3eaddf8036a85356f2155f",
+  "prompts": {},
+  "sessions": {
+    "s_c377b8b4839595": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fe565b821ffen8Hm3SoXbZRhAK",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
