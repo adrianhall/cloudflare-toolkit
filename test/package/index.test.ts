@@ -4,8 +4,32 @@ import * as guards from "@adrianhall/cloudflare-toolkit/guards";
 import * as errors from "@adrianhall/cloudflare-toolkit/errors";
 import * as problemDetails from "@adrianhall/cloudflare-toolkit/problem-details";
 import * as logging from "@adrianhall/cloudflare-toolkit/logging";
+import type {
+  AccessApplication,
+  AccessConfig,
+  AccessPolicy,
+  AccessRule
+} from "@adrianhall/cloudflare-toolkit";
+
+const accessRule: AccessRule = { everyone: {} };
+const accessPolicy: AccessPolicy = {
+  name: "all",
+  decision: "allow",
+  include: [accessRule]
+};
+const accessApplication: AccessApplication = {
+  name: "app",
+  domain: "app.example.com",
+  policies: [{ name: accessPolicy.name, precedence: 1 }]
+};
+const accessConfig: AccessConfig = {
+  policies: [accessPolicy],
+  applications: [accessApplication]
+};
 
 const EXPECTED_RUNTIME_EXPORTS = [
+  // access config
+  "defineAccessConfig",
   // guards
   "sqlCount",
   "throwIfNull",
@@ -48,9 +72,13 @@ describe("dist/index.js — root barrel exports", () => {
     expect(typeof root[name]).toBe("function");
   });
 
-  it("exports exactly the 31 documented runtime symbols (guards + errors + problem-details + logging)", () => {
+  it("exports exactly the 32 documented runtime symbols", () => {
     expect(Object.keys(root).sort()).toStrictEqual([...EXPECTED_RUNTIME_EXPORTS].sort());
-    expect(Object.keys(root)).toHaveLength(31);
+    expect(Object.keys(root)).toHaveLength(32);
+  });
+
+  it("exports the public Access config types alongside defineAccessConfig", () => {
+    expect(root.defineAccessConfig(accessConfig)).toBe(accessConfig);
   });
 
   it("does not leak hono/vite/testing symbols", () => {

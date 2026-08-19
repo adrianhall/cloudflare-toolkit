@@ -18,21 +18,22 @@ be a deliberate, reasoned decision rather than an oversight.
 
 A toolkit of framework-agnostic and Hono/Vite-specific utilities for building Cloudflare Workers
 apps: defensive guards, RFC 9457 HTTP error generators, structured logging, Cloudflare
-Access-aware Hono middleware, a Vite plugin, Vitest testing helpers, and four deployment CLIs:
-`generate-wrangler`, `generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket`. See
+Access-aware Hono middleware, a Vite plugin, typed Access configuration, Vitest testing helpers,
+and five deployment CLIs: `cf-access-policy`, `generate-wrangler`, `generate-wrangler-types`,
+`destroy-containers`, and `empty-r2-bucket`. See
 [`README.md`](./README.md) for the consumer-facing quickstart and
 [`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md) §5 for the full contents.
 
-| Subpath                                          | Runtime constraint                                                          |
-| ------------------------------------------------ | --------------------------------------------------------------------------- |
-| `@adrianhall/cloudflare-toolkit` (root)          | Any runtime — re-exports `guards`/`errors`/`problem-details`/`logging` only |
-| `@adrianhall/cloudflare-toolkit/guards`          | Any runtime                                                                 |
-| `@adrianhall/cloudflare-toolkit/errors`          | Any runtime                                                                 |
-| `@adrianhall/cloudflare-toolkit/problem-details` | Any runtime — Hono-free by design                                           |
-| `@adrianhall/cloudflare-toolkit/logging`         | Any runtime                                                                 |
-| `@adrianhall/cloudflare-toolkit/hono`            | `workerd` (or any Hono runtime) — requires `hono` peer                      |
-| `@adrianhall/cloudflare-toolkit/vite`            | Node only — requires `vite` peer, never imported from Worker code           |
-| `@adrianhall/cloudflare-toolkit/testing`         | Vitest/Playwright test runtime                                              |
+| Subpath                                          | Runtime constraint                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `@adrianhall/cloudflare-toolkit` (root)          | Any runtime — core modules plus `defineAccessConfig` and Access config types |
+| `@adrianhall/cloudflare-toolkit/guards`          | Any runtime                                                                  |
+| `@adrianhall/cloudflare-toolkit/errors`          | Any runtime                                                                  |
+| `@adrianhall/cloudflare-toolkit/problem-details` | Any runtime — Hono-free by design                                            |
+| `@adrianhall/cloudflare-toolkit/logging`         | Any runtime                                                                  |
+| `@adrianhall/cloudflare-toolkit/hono`            | `workerd` (or any Hono runtime) — requires `hono` peer                       |
+| `@adrianhall/cloudflare-toolkit/vite`            | Node only — requires `vite` peer, never imported from Worker code            |
+| `@adrianhall/cloudflare-toolkit/testing`         | Vitest/Playwright test runtime                                               |
 
 ## Non-negotiable: consult live documentation via MCP
 
@@ -134,8 +135,9 @@ THIRD-PARTY-NOTICES.md             # required MIT attribution for vendored probl
     release.yml                   # validated release tag + OIDC npm publish + docs/release deploy — see
                                      # RELEASING.md, not duplicated here
 src/
-  index.ts                         # root barrel: guards + errors + problem-details + logging ONLY
+  index.ts                         # any-runtime root barrel: core modules + typed Access config
   lib/
+    access-config.ts               # defineAccessConfig + Access policy/application config types
     guards/
       index.ts guards.ts           # throwIfNull, valueOrDefault, sqlCount — depends only on errors
     errors/
@@ -162,6 +164,7 @@ src/
       index.ts                     # dev-JWT signing + cookie helpers for tests against cloudflareAccess
   cli/
     internal/                     # private Node-only logger, Terraform, Cloudflare, and I/O adapters
+    access-policy/                # cf-backed reusable Access policy/application reconciliation
     generate-wrangler/            # Terraform-output template substitution
     generate-wrangler-types/
       index.ts run.ts types.ts fs.ts wrangler.ts
@@ -243,9 +246,10 @@ AGENTS.md                          # this file
   the toolkit should eat its own dog food, and it keeps ad hoc defensive branches centralized and
   individually testable per the coverage recipe above.
 - **Destructive CLIs fail closed.** Never treat Cloudflare discovery failures as an empty result.
-  `destroy-containers` must not delete from partial discovery, `empty-r2-bucket` must never prompt
-  or delete after a failed or malformed non-empty probe, and Terraform values marked `sensitive`
-  must never appear in CLI logs.
+  `cf-access-policy remove` must refuse unverified or unmanaged policy links and delete
+  applications before policies; `destroy-containers` must not delete from partial discovery;
+  `empty-r2-bucket` must never prompt or delete after a failed or malformed non-empty probe; and
+  Terraform values marked `sensitive` must never appear in CLI logs.
 - **The Vite + Vitest worked example is deliberately duplicated, not single-sourced, between
   `skills/cloudflare-toolkit/SKILL.md`'s "Vite + Vitest configuration for a Hono/Workers project"
   section and the section of the same name in `docs/guides/testing.md`.** This is an intentional

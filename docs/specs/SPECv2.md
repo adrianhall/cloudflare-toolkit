@@ -36,29 +36,31 @@ deliberate exceptions (`typescript`, `@cloudflare/workers-types`) explained in �
 Declared in `package.json#peerDependencies`. Consumers install these themselves — the toolkit
 never bundles them.
 
-| Package                                      | Version    | Required?                                           |
-| -------------------------------------------- | ---------- | --------------------------------------------------- |
-| [`hono`](https://www.npmjs.com/package/hono) | `^4.12.28` | Required — everything under `/hono` (§5.5) needs it |
-| [`vite`](https://www.npmjs.com/package/vite) | `^8.1.4`   | Optional — only `/vite` (§5.6) needs it             |
+| Package                                      | Version    | Required?                                                            |
+| -------------------------------------------- | ---------- | -------------------------------------------------------------------- |
+| [`cf`](https://www.npmjs.com/package/cf)     | `^0.6.0`   | Required — `cf-access-policy` delegates Access API/auth to it (§5.7) |
+| [`hono`](https://www.npmjs.com/package/hono) | `^4.12.28` | Required — everything under `/hono` (§5.5) needs it                  |
+| [`vite`](https://www.npmjs.com/package/vite) | `^8.1.4`   | Optional — only `/vite` (§5.6) needs it                              |
 
 ### 2.2 Dependencies
 
 Declared in `package.json#dependencies` — installed regardless of which subpath a consumer
 actually imports.
 
-| Package                                                    | Version   | Why                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`jose`](https://www.npmjs.com/package/jose)               | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                                 |
-| [`commander`](https://www.npmjs.com/package/commander)     | `^15.0.0` | Argument parsing for all package CLI bins (§5.7)                                                                                                                                                                                                                                                                                 |
-| [`chalk`](https://www.npmjs.com/package/chalk)             | `^5.6.2`  | Colorized stderr output from the private shared CLI logger (§5.7)                                                                                                                                                                                                                                                                |
-| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn) | `^7.0.6`  | Safely spawns `npx wrangler types` for `generate-wrangler-types` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly (`wrangler.ts`, `defaultExecRunner`) |
-| [`dotenv`](https://www.npmjs.com/package/dotenv)           | `^17.4.2` | Loads optional credential files for `destroy-containers` without overriding existing environment variables (§5.7)                                                                                                                                                                                                                |
+| Package                                                    | Version   | Why                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`jose`](https://www.npmjs.com/package/jose)               | `^6.2.3`  | JWT signing/verification for `cloudflareAccess`/`cloudflareAccessPlugin` (§5.5/§5.6) — carried over as-is from `cloudflare-auth`'s own existing dependency on it                                                                                                                                                            |
+| [`commander`](https://www.npmjs.com/package/commander)     | `^15.0.0` | Argument parsing for all package CLI bins (§5.7)                                                                                                                                                                                                                                                                            |
+| [`chalk`](https://www.npmjs.com/package/chalk)             | `^5.6.2`  | Colorized stderr output from the private shared CLI logger (§5.7)                                                                                                                                                                                                                                                           |
+| [`cross-spawn`](https://www.npmjs.com/package/cross-spawn) | `^7.0.6`  | Safely spawns `npx wrangler types` for `generate-wrangler-types` and `cf` for `cf-access-policy` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly |
+| [`dotenv`](https://www.npmjs.com/package/dotenv)           | `^17.4.2` | Loads optional credential files for `cf-access-policy`, `destroy-containers`, and `empty-r2-bucket` without overriding existing environment variables (§5.7)                                                                                                                                                                |
 
 Only CLI bins (not import subpaths — §5.7) pull in these CLI dependencies; nothing under
 `package.json#exports` depends on them, so tree-shaking a consumer's own bundle never pays for the CLI's
-dependencies. The vendored `hono-problem-details` primitives (§5.4) are pure TypeScript with no
-dependencies of their own, and everything else (`guards`, `errors`, the `logging` core) is
-self-contained.
+dependencies. The any-runtime root's Access config helper is type-only configuration plus an
+identity function and does not import `cf`. The vendored `hono-problem-details` primitives (§5.4)
+are pure TypeScript with no dependencies of their own, and everything else (`guards`, `errors`,
+the `logging` core) is self-contained.
 
 ### 2.3 DevDependencies (build, lint, test tooling)
 
@@ -174,7 +176,7 @@ The toolkit consists of four parts:
 
 | Subpath                                          | Exports                                                                                                                                                                                                                     | Notes                                                                                                                                                                                                                                                                |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@adrianhall/cloudflare-toolkit` (root)          | Re-exports of `guards`, `errors`, `problem-details`, `logging`                                                                                                                                                              | Framework-agnostic — safe to import from any runtime (Worker, Node, browser). Does **not** re-export anything from `hono`, `vite`, or `testing`, since those pull in a `hono`/`vite`/Node-only runtime dependency                                                    |
+| `@adrianhall/cloudflare-toolkit` (root)          | Re-exports of `guards`, `errors`, `problem-details`, `logging`; `defineAccessConfig`; `AccessConfig`/`AccessPolicy`/`AccessApplication`/`AccessRule` types                                                                  | Framework-agnostic — safe to import from any runtime (Worker, Node, browser). The Access helper is an identity function and does not import the Node-only CLI or `cf`. Does **not** re-export anything from `hono`, `vite`, or `testing`                             |
 | `@adrianhall/cloudflare-toolkit/guards`          | `throwIfNull`, `valueOrDefault`, `sqlCount`                                                                                                                                                                                 | No `hono` dependency. Depends only on `errors` (for `NullError`/`InvalidShapeError`) — never the reverse                                                                                                                                                             |
 | `@adrianhall/cloudflare-toolkit/errors`          | HTTP error generators (§5.3), `NullError`, `InvalidShapeError`, `HttpErrorInput` type                                                                                                                                       | Depends only on `problem-details`                                                                                                                                                                                                                                    |
 | `@adrianhall/cloudflare-toolkit/problem-details` | `ProblemDetailsError`, `problemDetails()`, `statusToPhrase`, `statusToSlug`, `createProblemTypeRegistry`, `ProblemDetails`/`ProblemDetailsInput` types, `ProblemTypeDefinition`/`ProblemTypeRegistry`/`CreateOptions` types | Hono-free by design — see §5.4                                                                                                                                                                                                                                       |
@@ -183,8 +185,9 @@ The toolkit consists of four parts:
 | `@adrianhall/cloudflare-toolkit/logging`         | `createLogger`, `resolveLoggerConfig`, transports, logging types                                                                                                                                                            | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps                                                                                                                                                                                      |
 | `@adrianhall/cloudflare-toolkit/testing`         | Dev-JWT signing + cookie helpers for Vitest/Playwright tests                                                                                                                                                                | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment                                                                                                                                                            |
 
-Separately, the package ships four **CLI bins**, not import subpaths: `generate-wrangler`,
-`generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket` — see §5.7.
+Separately, the package ships five **CLI bins**, not import subpaths: `cf-access-policy`,
+`generate-wrangler`, `generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket` — see
+§5.7.
 
 ### 5.2 Defensive Guards
 
@@ -363,9 +366,30 @@ moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 ### 5.7 Command Line Tools
 
 Three npm `bin` entries were originally ported from `cloudflare-scripts`; `generate-types` alone
-was renamed to `generate-wrangler-types`. `empty-r2-bucket` (issue #168) is a fourth, toolkit-native
-addition following the same conventions. The interface remains source-compatible except for
+was renamed to `generate-wrangler-types`. `empty-r2-bucket` (issue #168) and
+`cf-access-policy` (issue #187) are toolkit-native additions following the same conventions. The
+package therefore has five CLI bins. The ported interfaces remain source-compatible except for
 deliberate fail-closed safety fixes described below.
+
+- `cf-access-policy <apply|remove>` loads a typed TypeScript config (default
+  `access.config.ts`) whose default export is normally wrapped in the root `defineAccessConfig`
+  identity helper. The config declares reusable policies (`name`, `decision`, non-empty `include`,
+  optional `exclude`/`require`/`sessionDuration`) and self-hosted applications (`name`, `domain`,
+  optional public `destinations`/`sessionDuration`, and named policy references with unique
+  positive precedence). A policy can be shared by multiple applications. It deliberately has no
+  JSONC input, interpolation, output file, audience output, direct REST credential flags,
+  `--destroy`, or overlap logic.
+- The CLI delegates API calls, authentication, and account context to the required `cf@^0.6.0`
+  peer. `cf` resolves `CLOUDFLARE_API_TOKEN` first, then a named `--profile`, nearest directory
+  binding, or default OAuth profile. The credential needs `Access: Apps and Policies Write`.
+- Reconciliation keys are exact unique names. `apply` discovers once, plans
+  `create`/`update`/`no-change`, and mutates policies before applications. `remove` is bounded to
+  configured names, verifies each configured policy's complete application linkage, refuses an
+  unmanaged or unverifiable link, and deletes applications before policies. Both operations print
+  a plan before prompting; `--dry-run` never prompts or mutates, `--yes` skips confirmation, and
+  no-change exits successfully without prompting. Stable exits are `0` success/help/version/dry
+  run, `1` decline, `2` env/config failure, `3` discovery or unsafe-removal preflight, `4`
+  mutation failure, `6` arguments, and `99` unexpected internal failure.
 
 - `generate-wrangler` substitutes strict `{{output_name}}` markers in `wrangler.jsonc.tpl` from
   `terraform output -json`, with check and overwrite modes. Verbose logs redact values marked
@@ -398,19 +422,22 @@ consuming project:
 // package.json
 {
   "scripts": {
+    "deploy": "cf deploy",
+    "postdeploy": "cf-access-policy apply --yes",
+    "preteardown:access": "cf-access-policy remove --yes",
     "postprovision": "generate-wrangler -cf -d src/worker -t infra",
     "prebuild": "generate-wrangler-types -d src/worker",
     "preteardown:containers": "destroy-containers my-worker --env-file .env --yes",
     "preteardown:worker": "wrangler delete --force --config src/worker/wrangler.jsonc",
     "preteardown:r2": "empty-r2-bucket -t infra --env-file .env --yes",
-    "preteardown": "run-s preteardown:containers preteardown:worker preteardown:r2",
+    "preteardown": "run-s preteardown:access preteardown:containers preteardown:worker preteardown:r2",
     "build": "vite build"
     /* ... */
   }
 }
 ```
 
-Command-specific orchestration is stored under `src/cli/<bin-name>`.
+Command-specific orchestration is stored under `src/cli/<command-concern>`.
 
 ### 5.8 AI Skills
 
@@ -440,8 +467,9 @@ A starting point for the implementation plan, not a locked-in directory layout:
 
 ```text
 src/
-  index.ts                    # root barrel: guards + errors + problem-details + logging only
+  index.ts                    # any-runtime root barrel: core modules + typed Access config
   lib/
+    access-config.ts           # defineAccessConfig + policy/application config types
     guards/
       index.ts
       guards.ts                # throwIfNull, valueOrDefault, sqlCount
@@ -474,6 +502,7 @@ src/
       index.ts                  # dev-JWT signing + cookie helpers
   cli/
     internal/                    # private shared Node-only adapters and CLI logger
+    access-policy/               # cf-backed Access policy/application reconciliation
     generate-wrangler/
     generate-wrangler-types/
     destroy-containers/
@@ -525,7 +554,7 @@ through source or this spec to figure out how to use the toolkit:
     and how RFC 9457 problem details show up in a response)
   - Defensive Guards (why `throwIfNull`/`valueOrDefault`/`sqlCount` exist, tied to the
     100%-coverage philosophy in §7/§8)
-  - The four deployment CLIs from §5.7
+  - The five deployment CLIs from §5.7
   - Testing a toolkit-based app (`/testing` helpers, the `vite.config.ts`/`vitest.config.ts`
     pairing for `@cloudflare/vite-plugin` + `@cloudflare/vitest-pool-workers` against the same
     Worker, and `@cloudflare/vitest-pool-workers` recipes — this Vite + Vitest configuration
@@ -582,11 +611,11 @@ The toolkit's own repo needs an `AGENTS.md` (distinct from the installable skill
 
 ### 7.2 Test projects (proposed, adjustable in the implementation plan)
 
-| Project        | Runtime                                                                                                          | Covers                                                                                                                                                                                                                          |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/node`    | Plain Node                                                                                                       | `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects), and all CLI orchestration/adapters with injected filesystem, process, Terraform, R2, and Cloudflare fakes |
-| `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them                                  |
-| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` for every subpath and executes each built CLI's help/version path — catches `package.json#exports`, `bin`, and `tsdown` entry-point misconfiguration before publish                               |
+| Project        | Runtime                                                                                                          | Covers                                                                                                                                                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `test/node`    | Plain Node                                                                                                       | `access-config`, `errors/*`, `guards/*`, `problem-details/*`, `logging/*`, `vite/*` (mock `IncomingMessage`/`ServerResponse` objects), and all CLI orchestration/adapters with injected filesystem, process, Terraform, R2, Cloudflare, and `cf` fakes |
+| `test/workers` | `workerd` via [`@cloudflare/vitest-pool-workers`](https://www.npmjs.com/package/@cloudflare/vitest-pool-workers) | `hono/*` (`cloudflareAccess`, `cloudflareLogger`, `problemDetailsErrorHandler`, `notFoundHandler`) — exercises real WebCrypto/JWKS-fetch/`c.env` semantics rather than a Node polyfill of them                                                         |
+| `test/package` | Plain Node                                                                                                       | Imports the **built** `dist/` for every subpath and executes each built CLI's help/version path — catches `package.json#exports`, `bin`, and `tsdown` entry-point misconfiguration before publish                                                      |
 
 A `browser` project (present in `cloudflare-logger` for its `/react` subpath) is **not** included,
 since nothing in this package's scope runs in a browser. If a future subpath changes that, add the
@@ -882,7 +911,7 @@ indication a second exists.
    `docs/specs/SPECv2.md` governs.
 
 **Resolution:** Issue #165 added three Node-only bins, satisfying the documented revisit trigger.
-The logger moved to `src/cli/internal/logger.ts` and is now shared by all four CLIs while remaining
+The logger moved to `src/cli/internal/logger.ts` and is now shared by all five CLIs while remaining
 separate from the public `Transport` contract. Cross-reference notes in both logger type files
 preserve discoverability.
 

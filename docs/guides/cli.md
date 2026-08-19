@@ -1,10 +1,11 @@
 # Command Line Tools
 
-Installing `@adrianhall/cloudflare-toolkit` adds four binaries. They are package `bin` entries,
+Installing `@adrianhall/cloudflare-toolkit` adds five binaries. They are package `bin` entries,
 not JavaScript import subpaths.
 
 | Command                   | Purpose                                                            |
 | ------------------------- | ------------------------------------------------------------------ |
+| `cf-access-policy`        | Reconcile reusable Access policies and self-hosted applications    |
 | `generate-wrangler`       | Build `wrangler.jsonc` from a template and Terraform outputs       |
 | `generate-wrangler-types` | Run `wrangler types` only when its output is stale                 |
 | `destroy-containers`      | Remove matching container applications and OCI registry image tags |
@@ -33,6 +34,114 @@ A Terraform-managed project can wire the commands into npm lifecycle scripts:
 
 Use `--yes` only for an intentional non-interactive cleanup. The cleanup command otherwise asks
 for confirmation.
+
+For a project whose only separately provisioned infrastructure is Cloudflare Access, Terraform is
+not required. Let `cf` deploy the Worker, then reconcile Access; remove Access before deleting the
+Worker:
+
+```jsonc
+{
+  "scripts": {
+    "deploy": "cf deploy",
+    "postdeploy": "cf-access-policy apply -c access.config.ts --yes",
+    "preteardown": "cf-access-policy remove -c access.config.ts --yes",
+    "teardown": "wrangler delete --force"
+  }
+}
+```
+
+## `cf-access-policy`
+
+`cf-access-policy <apply|remove>` loads a TypeScript default export and reconciles Cloudflare
+Access reusable policies and self-hosted applications by exact, unique `name`. It requires the
+`cf@^0.6.0` peer. `cf` supplies both authentication and account context: set
+`CLOUDFLARE_API_TOKEN`, or use an OAuth profile selected by `--profile`, the nearest directory
+binding, or the default profile. The credential needs **Access: Apps and Policies Write**.
+
+```ts
+// access.config.ts
+import { defineAccessConfig } from "@adrianhall/cloudflare-toolkit";
+
+export default defineAccessConfig({
+  policies: [
+    {
+      name: "example staff",
+      decision: "allow",
+      include: [{ email_domain: { domain: "example.com" } }],
+      exclude: [{ email: { email: "suspended@example.com" } }],
+      require: [{ country: { country_code: "US" } }],
+      sessionDuration: "24h"
+    }
+  ],
+  applications: [
+    {
+      name: "example app",
+      domain: "app.example.com",
+      destinations: [
+        { type: "public", uri: "app.example.com/*" },
+        { type: "public", uri: "app.example.com/api/*" }
+      ],
+      sessionDuration: "12h",
+      policies: [{ name: "example staff", precedence: 1 }]
+    },
+    {
+      name: "example admin",
+      domain: "admin.example.com",
+      destinations: [{ type: "public", uri: "admin.example.com/*" }],
+      policies: [{ name: "example staff", precedence: 1 }]
+    }
+  ]
+});
+```
+
+Policy `decision` is `"allow"`, `"deny"`, `"non_identity"`, or `"bypass"`; `include` must be
+non-empty, while `exclude`, `require`, and policy/application `sessionDuration` are optional.
+Applications are always `self_hosted`. Their optional destinations are public URI patterns, and
+their policy references use configured policy names with unique positive precedence values. A
+reusable policy can be shared by multiple applications, as above.
+
+| Flag                  | Meaning                                                |
+| --------------------- | ------------------------------------------------------ |
+| `-c, --config <path>` | TypeScript config path (default `access.config.ts`)    |
+| `--env-file <path>`   | Load dotenv values before `cf` resolves authentication |
+| `--profile <name>`    | Select a named `cf` OAuth profile                      |
+| `--dry-run`           | Print the plan without prompting or mutating           |
+| `-y, --yes`           | Apply the printed plan without prompting               |
+| `-q, --quiet`         | Emit warnings and errors only                          |
+| `-v, --verbose`       | Emit debug logs                                        |
+| `--help`              | Print help and exit                                    |
+| `--version`           | Print the package version and exit                     |
+
+`apply` discovers policies and applications once, then prints ordered `create`, `update`, or
+`no-change` operations. It creates or updates policies before applications so configured policy
+names can resolve to Cloudflare IDs. The command manages only the fields represented by the typed
+config; exact matches are no-change.
+
+`remove` is bounded to names present in the config. It never treats omission from the config as a
+request to delete another account resource. Before prompting, it verifies each configured
+policy's reported application count and refuses removal if a policy is linked to an unmanaged
+application or has links it cannot verify. Approved removal deletes configured applications
+before configured policies.
+
+Both commands print the full plan first. A no-change plan and `--dry-run` return success without a
+prompt; otherwise the default is an interactive confirmation. `--yes` is intended for reviewed
+CI/deployment automation. Discovery and removal preflight are fail closed, and mutations execute
+against the same snapshot used to produce the plan.
+
+Exit codes:
+
+- `0` help/version, no changes, dry run, or successful mutation,
+- `1` declined by the operator,
+- `2` environment-file or Access configuration failure,
+- `3` `cf` authentication/account/discovery failure or unsafe removal preflight,
+- `4` mutation failure,
+- `6` argument error,
+- `99` unexpected internal error.
+
+The config is TypeScript, not JSONC. This command has no interpolation, generated output file,
+direct REST credential flags, audience output, `--destroy` alias, or destination-overlap logic.
+Use `remove` for bounded teardown and obtain Audience (AUD) Tags separately from each Access
+application's overview when configuring runtime JWT validation.
 
 ## `generate-wrangler`
 
