@@ -1,7 +1,7 @@
 /**
- * @file Root barrel for `@adrianhall/cloudflare-toolkit`: re-exports `guards`, `errors`,
- * `problem-details`, and `logging`. Framework-agnostic — safe to import from any runtime
- * (Worker, Node, browser).
+ * @file Root barrel for `@adrianhall/cloudflare-toolkit`: re-exports the runtime-agnostic Access
+ * config contract, `guards`, `errors`, `problem-details`, and `logging`. Safe to import from any
+ * runtime (Worker, Node, browser).
  *
  * Never re-exports anything from a `hono`/`vite`/`testing` subpath, each of which pulls in a
  * `hono`/`vite`/Node-only runtime dependency and stays import-by-subpath-only. That exact set of
@@ -62,3 +62,11 @@ export type {
   Transport,
   TransportErrorHandler
 } from "./lib/logging/index.js";
+
+export { defineAccessConfig } from "./lib/access-config.js";
+export type {
+  AccessApplication,
+  AccessConfig,
+  AccessPolicy,
+  AccessRule
+} from "./lib/access-config.js";

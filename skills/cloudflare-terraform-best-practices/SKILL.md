@@ -28,6 +28,16 @@ This skill captures the non-obvious rules, idempotency requirements, and anti-pa
 
 When a pre-trained assumption about a resource attribute conflicts with the live docs, **trust the docs**.
 
+## Choose one Access owner
+
+Access-only projects can avoid Terraform and use the toolkit's
+`cf-access-policy` CLI with `cf deploy`. Projects that already use Terraform
+for Workers, bindings, DNS, or other infrastructure may keep Access in the
+Cloudflare provider using the patterns below. Never let Terraform and
+`cf-access-policy` own the same reusable policy or application: choose one
+owner per resource, or keep any mixed ownership strictly disjoint by stable
+resource name.
+
 ## Recommended file layout
 
 Follow HashiCorp's file-per-concern convention (see "Style guide compliance" below) rather than collapsing everything into one or two files. The concern boundaries that matter for a Cloudflare Developer Platform stack are: **credentials/provider setup**, **Access** (which protects the whole hostname surface, not any one Worker), **each Worker and the bindings that belong exclusively to it**, and **bindings shared across more than one Worker**:
@@ -695,6 +705,12 @@ Why this direction, specifically: Terraform destroys resources in **reverse** de
 
 For the full preteardown chain and npm-script wiring, load the **`cloudflare-deploy-scripts`** skill.
 
+If a disjoint set of Access resources is intentionally owned by
+`cf-access-policy`, run `cf-access-policy remove` before Worker deletion and
+before `terraform destroy`. Terraform-owned Access resources need no extra
+CLI step and remain governed by Terraform's dependency graph. Never add the
+CLI removal step for resources declared in `access.tf`.
+
 ## R2 buckets: setup and preteardown
 
 Setting up an R2 bucket is the one-resource block shown above (plus, optionally, `cloudflare_r2_bucket_cors` and an S3 token — see "R2 bucket, S3 credentials, and CORS"). The harder half is **tearing it down**: the R2 API refuses to delete a non-empty bucket, and Terraform has no built-in way to empty one.
@@ -817,6 +833,13 @@ properties = {
 Same lesson the R2/`cloudflare_account_token` sections above make for `resources`/CORS: the schema says `string`, but the API actually expects a JSON-encoded object — use `jsonencode()`, not a raw HCL map.
 
 ## Cloudflare Zero Trust Access
+
+This section applies when **Terraform owns Access**. If Access is the only
+infrastructure that needs declarative management, the simpler alternative is
+`cf-access-policy` from the `cloudflare-deploy-scripts` skill: a typed
+`access.config.ts` reconciles the same reusable-policy/application model
+through the `cf` CLI without Terraform state. Do not run both models against
+the same named resources.
 
 The v5 Access surface uses a **standalone-policy pattern**: policies and applications are independent resources, and the application references its policies by `{ id, precedence }`. The v4-era pattern of embedding `include`/`decision` inline on the application resource silently drops those blocks in v5 — do not use it.
 

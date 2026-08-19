@@ -9,6 +9,7 @@ const execFileAsync = promisify(execFile);
 const dist = join(dirname(fileURLToPath(import.meta.url)), "../../dist/cli");
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const commandNames = [
+  "access-policy",
   "generate-wrangler",
   "generate-wrangler-types",
   "destroy-containers",
@@ -29,11 +30,18 @@ describe("deployment CLI package metadata", () => {
   it("maps every command to its built entry point", async () => {
     const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
       bin: Record<string, string>;
+      peerDependencies: Record<string, string>;
     };
 
     expect(packageJson.bin).toMatchObject(
-      Object.fromEntries(commandNames.map((name) => [name, `./dist/cli/${name}/index.js`]))
+      Object.fromEntries(
+        commandNames.map((name) => [
+          name === "access-policy" ? "cf-access-policy" : name,
+          `./dist/cli/${name}/index.js`
+        ])
+      )
     );
+    expect(packageJson.peerDependencies.cf).toBe("^0.6.0");
   });
 });
 

@@ -1,6 +1,6 @@
 ---
 name: cloudflare-deploy-scripts
-description: CLI tools and npm-script orchestration for deploying Cloudflare Workers projects with @adrianhall/cloudflare-toolkit. Covers the three-phase provision/deploy/teardown pattern, generate-wrangler templating, generate-wrangler-types freshness checks, destroy-containers cleanup, empty-r2-bucket cleanup, template rules, npm scripts, and CLI anti-patterns. Load when wiring deployment scripts for a Cloudflare Workers project. For Terraform schema and service patterns, load the sibling `cloudflare-terraform-best-practices` skill.
+description: CLI tools and npm-script orchestration for deploying Cloudflare Workers projects with @adrianhall/cloudflare-toolkit. Covers cf-native Access policy/application reconciliation, the Terraform provision/deploy/teardown pattern, generate-wrangler templating, type freshness, Containers and R2 cleanup, safety rules, and npm scripts. Load when wiring deployment scripts for a Cloudflare Workers project. For Terraform schema and service patterns, load the sibling `cloudflare-terraform-best-practices` skill.
 ---
 
 # Cloudflare Deploy Scripts: CLI Tools and npm-Script Orchestration
@@ -9,6 +9,9 @@ This skill describes the **CLI tools** shipped by `@adrianhall/cloudflare-toolki
 
 The CLIs:
 
+- **`cf-access-policy`** — reconciles reusable Cloudflare Access policies
+  and self-hosted applications from typed TypeScript configuration through
+  the `cf` CLI.
 - **`generate-wrangler`** — substitutes Terraform outputs into a
   `wrangler.jsonc.tpl` template, producing a ready-to-use
   `wrangler.jsonc`.
@@ -24,6 +27,102 @@ The CLIs:
   required.
 
 > **Terraform schema, HCL conventions, token model, per-service patterns, and teardown ordering principles live in the sibling `cloudflare-terraform-best-practices` skill.** Load it before writing any `cloudflare_*` resource block. This skill assumes the Terraform stack is already designed correctly and focuses on the CLI-side orchestration.
+
+## Access-only workflow without Terraform
+
+When Cloudflare Access is the only separately provisioned infrastructure,
+use `cf-access-policy` and `cf deploy`; Terraform is not required. The
+required `cf@^0.6.0` peer owns authentication and account context. It first
+uses `CLOUDFLARE_API_TOKEN`, otherwise the OAuth profile selected by
+`--profile`, the nearest directory binding, or the default profile. The
+credential needs **Access: Apps and Policies Write**.
+
+Define reusable policies once and link them by name from one or more
+self-hosted applications:
+
+```ts
+// access.config.ts
+import { defineAccessConfig } from "@adrianhall/cloudflare-toolkit";
+
+export default defineAccessConfig({
+  policies: [
+    {
+      name: "example staff",
+      decision: "allow",
+      include: [{ email_domain: { domain: "example.com" } }],
+      exclude: [{ email: { email: "suspended@example.com" } }],
+      require: [{ country: { country_code: "US" } }],
+      sessionDuration: "24h"
+    }
+  ],
+  applications: [
+    {
+      name: "example app",
+      domain: "app.example.com",
+      destinations: [
+        { type: "public", uri: "app.example.com/*" },
+        { type: "public", uri: "app.example.com/api/*" }
+      ],
+      policies: [{ name: "example staff", precedence: 1 }]
+    },
+    {
+      name: "example admin",
+      domain: "admin.example.com",
+      destinations: [{ type: "public", uri: "admin.example.com/*" }],
+      policies: [{ name: "example staff", precedence: 1 }]
+    }
+  ]
+});
+```
+
+The command is exactly `cf-access-policy <apply|remove>`. Its options are:
+
+```text
+-c, --config <path>  TypeScript config (default: access.config.ts)
+--env-file <path>    Load dotenv values before cf resolves authentication
+--profile <name>     Select a named cf OAuth profile
+--dry-run            Print the plan without prompting or mutation
+-y, --yes            Apply the printed plan without prompting
+-q, --quiet          Warn/error logging only
+-v, --verbose        Debug logging
+--help               Print help
+--version            Print the package version
+```
+
+`apply` reconciles exact unique names and reports `create`, `update`, or
+`no-change`, applying policies before applications. `remove` deletes only
+configured names, applications before policies. Before any removal it
+verifies reusable-policy application counts and refuses unmanaged or
+unverifiable links. Discovery and preflight failures happen before the
+prompt and before all mutation. Both commands print a plan; no-change and
+`--dry-run` do not prompt, while `--yes` is suitable for reviewed automation.
+
+Exit codes are `0` success/help/version/dry run, `1` declined, `2` env or
+config failure, `3` discovery/auth/account or unsafe-removal preflight, `4`
+mutation failure, `6` argument error, and `99` unexpected internal failure.
+
+The input is TypeScript, not JSONC. There is no interpolation, output file,
+direct REST credential option, audience output, `--destroy`, or overlap
+logic. Application Audience (AUD) Tags must be obtained separately for
+runtime JWT validation.
+
+Wire Access after Worker deployment and remove it before Worker deletion:
+
+```json
+{
+  "scripts": {
+    "deploy": "cf deploy",
+    "postdeploy": "cf-access-policy apply -c access.config.ts --yes",
+    "preteardown": "cf-access-policy remove -c access.config.ts --yes",
+    "teardown": "wrangler delete --force"
+  }
+}
+```
+
+Do not let Terraform and `cf-access-policy` own the same Access policy or
+application. Projects already managing Access in Terraform should keep that
+ownership and skip this CLI; mixed projects may use `cf-access-policy` only
+for a disjoint set of names/resources.
 
 ## Overview: The Three-Phase Pattern
 
@@ -335,6 +434,9 @@ confirms completion.
 
 ### Cleanup CLI safety rules
 
+- `cf-access-policy remove` is bounded to configured names, refuses
+  unmanaged or unverifiable reusable-policy links, and deletes applications
+  before policies.
 - `destroy-containers` fails closed if application or registry discovery
   fails. It does not prompt or delete from a partial discovery result.
 - `empty-r2-bucket` fails closed if the initial non-empty probe fails or

@@ -31,6 +31,47 @@ Both halves of the process are built on the same internal JWT/JWKS/policy module
 
 The rest of this guide shows you how to wire each half, then covers configuring both for production and development in [Security hardening](#security-hardening).
 
+## Provisioning production Access
+
+The runtime middleware validates tokens that Cloudflare Access has already issued; it does not
+create the production Access applications or reusable policies. For an Access-only project, use
+[`cf-access-policy`](/guides/cli#cf-access-policy) with a typed `access.config.ts` to reconcile
+those resources through the `cf` CLI:
+
+```ts
+import { defineAccessConfig } from "@adrianhall/cloudflare-toolkit";
+
+export default defineAccessConfig({
+  policies: [
+    {
+      name: "example staff",
+      decision: "allow",
+      include: [{ email_domain: { domain: "example.com" } }]
+    }
+  ],
+  applications: [
+    {
+      name: "example API",
+      domain: "api.example.com",
+      destinations: [{ type: "public", uri: "api.example.com/*" }],
+      policies: [{ name: "example staff", precedence: 1 }]
+    }
+  ]
+});
+```
+
+Run `cf-access-policy apply` after `cf deploy`; use `cf-access-policy remove` before deleting the
+Worker. The CLI uses Cloudflare's reusable-policy model, so one named policy can be referenced by
+multiple configured self-hosted applications.
+
+The deployment `AccessConfig` and runtime [`PathPolicy`](#path-policies) are separate models and
+are **not automatically cross-validated**. `AccessConfig` determines which edge applications,
+destinations, identity rules, and policy precedence Cloudflare provisions. `PathPolicy` determines
+which requests the Worker validates and which audience each protected path accepts. Keep their
+route coverage aligned deliberately. `cf-access-policy` does not output application audience IDs;
+copy each Audience (AUD) Tag from the Access application overview into runtime configuration when
+setting the top-level or path-specific `audience`.
+
 ## Protecting your Worker
 
 Add [`cloudflareAccess`](/reference/lib/hono/functions/cloudflareAccess.md) as middleware. It reads the JWT, verifies it, and on success sets one typed identity object for every downstream handler:

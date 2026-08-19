@@ -3,8 +3,8 @@
 A toolkit of utilities and skills for developing Workers on the Cloudflare Dev Platform.
 `@adrianhall/cloudflare-toolkit` replaces the boilerplate historically scattered across
 multiple GitHub-only libraries — defensive guards, HTTP error generators, RFC 9457 problem
-details, structured logging, Cloudflare Access-aware Hono/Vite middleware, and deployment CLIs —
-with a single, MIT-licensed, npm-installable package.
+details, structured logging, Cloudflare Access-aware Hono/Vite middleware, typed Access
+configuration, and deployment CLIs — with a single, MIT-licensed, npm-installable package.
 
 **Full documentation, guides, and API reference:**
 https://adrianhall.github.io/cloudflare-toolkit
@@ -43,8 +43,8 @@ export default app;
 
 See the [documentation site](https://adrianhall.github.io/cloudflare-toolkit) for guides
 covering every export, including the defensive guards, HTTP error generators, the standalone
-logging core, the Vite plugin, and the `generate-wrangler`, `generate-wrangler-types`,
-`destroy-containers`, and `empty-r2-bucket` CLIs.
+logging core, the Vite plugin, the root `defineAccessConfig` helper, and the `cf-access-policy`,
+`generate-wrangler`, `generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket` CLIs.
 
 ## AI Skill
 
