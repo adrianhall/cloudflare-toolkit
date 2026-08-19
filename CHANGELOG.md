@@ -2,6 +2,7 @@
 
 ## Next release
 
+- 3174aa2 (minor): Added the `cf-access-policy` CLI for reconciling reusable Cloudflare Access policies and self-hosted applications from a typed `access.config.ts`, plus the root `defineAccessConfig` helper and configuration types.
 - 4f1d2a8 (minor): Added `preconditionFailed` (412) and `preconditionRequired` (428) HTTP error generators to `@adrianhall/cloudflare-toolkit/errors`, matching the signature/shape of every other generator.
 
 ## 2.4.0
