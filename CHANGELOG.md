@@ -2,6 +2,8 @@
 
 ## Next release
 
+## 2.5.1
+
 - 634360f (patch): Fixed `cf-access-policy` Access discovery incorrectly treating a successful `cross-spawn` result with `error: null` as a launch failure, causing `Cannot read properties of null (reading 'message')` even when the underlying `cf` command succeeded.
 
 ## 2.5.0
