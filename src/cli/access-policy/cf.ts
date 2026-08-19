@@ -50,7 +50,7 @@ function defaultRunner(command: string, args: string[]): ProcessResult {
 }
 
 function parseOutput(result: ProcessResult): unknown {
-  if (result.error !== undefined) throw new Error(`Cannot launch cf: ${result.error.message}`);
+  if (result.error) throw new Error(`Cannot launch cf: ${result.error.message}`);
   if (result.status !== 0) throw new Error(`cf exited with status ${result.status ?? 1}.`);
   try {
     return JSON.parse(result.stdout) as unknown;

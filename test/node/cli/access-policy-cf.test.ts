@@ -21,6 +21,16 @@ describe("cf Access adapter", () => {
     );
   });
 
+  it("treats a successful cross-spawn result with error: null as a launch success", () => {
+    expect(
+      createAccessApi(undefined, () => ({
+        error: null as unknown as undefined,
+        status: 0,
+        stdout: "[]"
+      })).listPolicies()
+    ).toEqual([]);
+  });
+
   it("normalizes non-string stdout from cross-spawn", () => {
     spawnSync.mockReturnValue({ status: 0, stdout: Buffer.from("[]") });
     expect(() => createAccessApi().listPolicies()).toThrow(/malformed JSON/);
