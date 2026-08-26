@@ -3,7 +3,7 @@
  *
  * Configures the production build of this library for distribution to npm:
  * - Builds one entry per subpath so every entry in `package.json#exports` (plus the
- *   five CLI bins) is actually present in the published `dist/` — see
+ *   six CLI bins) is actually present in the published `dist/` — see
  *   `docs/specs/SPECv2.md` §5.1 for the full subpath/export list.
  * - Externalizes every runtime dependency so none are bundled into `dist/` — consumers install
  *   these
@@ -33,7 +33,8 @@ export default defineConfig({
     "cli/destroy-containers/index": "src/cli/destroy-containers/index.ts",
     "cli/empty-r2-bucket/index": "src/cli/empty-r2-bucket/index.ts",
     "cli/generate-wrangler/index": "src/cli/generate-wrangler/index.ts",
-    "cli/generate-wrangler-types/index": "src/cli/generate-wrangler-types/index.ts"
+    "cli/generate-wrangler-types/index": "src/cli/generate-wrangler-types/index.ts",
+    "cli/inventory/index": "src/cli/inventory/index.ts"
   },
   format: "esm",
   fixedExtension: false,

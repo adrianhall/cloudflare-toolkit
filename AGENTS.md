@@ -19,8 +19,8 @@ be a deliberate, reasoned decision rather than an oversight.
 A toolkit of framework-agnostic and Hono/Vite-specific utilities for building Cloudflare Workers
 apps: defensive guards, RFC 9457 HTTP error generators, structured logging, Cloudflare
 Access-aware Hono middleware, a Vite plugin, typed Access configuration, Vitest testing helpers,
-and five deployment CLIs: `cf-access-policy`, `generate-wrangler`, `generate-wrangler-types`,
-`destroy-containers`, and `empty-r2-bucket`. See
+and six deployment/operations CLIs: `cf-access-policy`, `cf-inventory`, `generate-wrangler`,
+`generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket`. See
 [`README.md`](./README.md) for the consumer-facing quickstart and
 [`docs/specs/SPECv2.md`](./docs/specs/SPECv2.md) §5 for the full contents.
 
@@ -170,6 +170,7 @@ src/
       index.ts run.ts types.ts fs.ts wrangler.ts
     destroy-containers/           # Containers/OCI preteardown cleanup
     empty-r2-bucket/              # R2 bucket-emptying preteardown cleanup
+    inventory/                    # account-wide Developer Platform resource inventory
 scripts/
   release.ts                      # maintainer-only: `node scripts/release.ts <major|minor|patch>`
                                    # prepares a release PR (see CONTRIBUTING.md/RELEASING.md). Included

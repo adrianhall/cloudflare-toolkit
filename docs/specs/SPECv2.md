@@ -53,7 +53,7 @@ actually imports.
 | [`commander`](https://www.npmjs.com/package/commander)     | `^15.0.0` | Argument parsing for all package CLI bins (§5.7)                                                                                                                                                                                                                                                                            |
 | [`chalk`](https://www.npmjs.com/package/chalk)             | `^5.6.2`  | Colorized stderr output from the private shared CLI logger (§5.7)                                                                                                                                                                                                                                                           |
 | [`cross-spawn`](https://www.npmjs.com/package/cross-spawn) | `^7.0.6`  | Safely spawns `npx wrangler types` for `generate-wrangler-types` and `cf` for `cf-access-policy` (§5.7) without an unescaped `shell: true` string — fixes [SEC-002/CODE-001](https://github.com/adrianhall/cloudflare-toolkit/issues/47), a command-injection finding, while still resolving Windows `.cmd` shims correctly |
-| [`dotenv`](https://www.npmjs.com/package/dotenv)           | `^17.4.2` | Loads optional credential files for `cf-access-policy`, `destroy-containers`, and `empty-r2-bucket` without overriding existing environment variables (§5.7)                                                                                                                                                                |
+| [`dotenv`](https://www.npmjs.com/package/dotenv)           | `^17.4.2` | Loads optional credential files for `cf-access-policy`, `cf-inventory`, `destroy-containers`, and `empty-r2-bucket` without overriding existing environment variables (§5.7)                                                                                                                                                |
 
 Only CLI bins (not import subpaths — §5.7) pull in these CLI dependencies; nothing under
 `package.json#exports` depends on them, so tree-shaking a consumer's own bundle never pays for the CLI's
@@ -185,8 +185,9 @@ The toolkit consists of four parts:
 | `@adrianhall/cloudflare-toolkit/logging`         | `createLogger`, `resolveLoggerConfig`, transports, logging types                                                                                                                                                            | The framework-agnostic logger core that `cloudflareLogger` (hono subpath) wraps                                                                                                                                                                                      |
 | `@adrianhall/cloudflare-toolkit/testing`         | Dev-JWT signing + cookie helpers for Vitest/Playwright tests                                                                                                                                                                | For writing tests against `cloudflareAccess`-protected routes without a real Cloudflare Access deployment                                                                                                                                                            |
 
-Separately, the package ships five **CLI bins**, not import subpaths: `cf-access-policy`,
-`generate-wrangler`, `generate-wrangler-types`, `destroy-containers`, and `empty-r2-bucket` — see
+Separately, the package ships six **CLI bins**, not import subpaths: `cf-access-policy`,
+`cf-inventory`, `generate-wrangler`, `generate-wrangler-types`, `destroy-containers`, and
+`empty-r2-bucket` — see
 §5.7.
 
 ### 5.2 Defensive Guards
@@ -366,9 +367,10 @@ moved under this subpath, since `cloudflareAccessPlugin` still needs it.
 ### 5.7 Command Line Tools
 
 Three npm `bin` entries were originally ported from `cloudflare-scripts`; `generate-types` alone
-was renamed to `generate-wrangler-types`. `empty-r2-bucket` (issue #168) and
-`cf-access-policy` (issue #187) are toolkit-native additions following the same conventions. The
-package therefore has five CLI bins. The ported interfaces remain source-compatible except for
+was renamed to `generate-wrangler-types`. `empty-r2-bucket` (issue #168),
+`cf-access-policy` (issue #187), and `cf-inventory` (issue #196) are toolkit-native additions
+following the same conventions. The package therefore has six CLI bins. The ported interfaces
+remain source-compatible except for
 deliberate fail-closed safety fixes described below.
 
 - `cf-access-policy <apply|remove>` loads a typed TypeScript config (default
@@ -413,6 +415,14 @@ deliberate fail-closed safety fixes described below.
   group. The local adapter paginates and batch-deletes through Miniflare's Local Explorer API
   (`/cdn-cgi/explorer/api`) instead, since that API has no equivalent prefix-delete operation. See
   `docs/specs/EMPTY_R2_BUCKET.md` for the full design rationale and API investigation notes.
+- `cf-inventory` performs read-only, account-wide Developer Platform discovery through the
+  Cloudflare REST API. Workers and Pages are scanned first to build a binding reverse index; 25
+  additional product sections are then queried with bounded concurrency, request timeouts, and
+  retry/backoff for `429`/`5xx` responses. Product failures are isolated and produce a partial
+  report with exit `3`. Table and deterministic JSON formats report `CAN DELETE` as `Yes`, `No`,
+  or `Unknown`: bindings and concrete blockers produce `No`, complete relevant discovery produces
+  `Yes`, and failed or unavailable reverse discovery produces `Unknown`. It never treats absence
+  from an incomplete scan as evidence that deletion is safe.
 
 The Terraform and Cloudflare adapters, terminal logger, dotenv loader, and prompt live in private
 `src/cli/internal/` modules. They are shared by bins but are not package exports. Wired into a
@@ -507,6 +517,7 @@ src/
     generate-wrangler-types/
     destroy-containers/
     empty-r2-bucket/
+    inventory/
 test/
   node/       # errors, guards, problem-details, logging, vite plugin (mock req/res), CLI
   workers/    # workerd via @cloudflare/vitest-pool-workers: hono/* middleware
@@ -554,7 +565,7 @@ through source or this spec to figure out how to use the toolkit:
     and how RFC 9457 problem details show up in a response)
   - Defensive Guards (why `throwIfNull`/`valueOrDefault`/`sqlCount` exist, tied to the
     100%-coverage philosophy in §7/§8)
-  - The five deployment CLIs from §5.7
+  - The six deployment/operations CLIs from §5.7
   - Testing a toolkit-based app (`/testing` helpers, the `vite.config.ts`/`vitest.config.ts`
     pairing for `@cloudflare/vite-plugin` + `@cloudflare/vitest-pool-workers` against the same
     Worker, and `@cloudflare/vitest-pool-workers` recipes — this Vite + Vitest configuration
@@ -911,7 +922,7 @@ indication a second exists.
    `docs/specs/SPECv2.md` governs.
 
 **Resolution:** Issue #165 added three Node-only bins, satisfying the documented revisit trigger.
-The logger moved to `src/cli/internal/logger.ts` and is now shared by all five CLIs while remaining
+The logger moved to `src/cli/internal/logger.ts` and is now shared by all six CLIs while remaining
 separate from the public `Transport` contract. Cross-reference notes in both logger type files
 preserve discoverability.
 

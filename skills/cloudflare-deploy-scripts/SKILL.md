@@ -1,6 +1,6 @@
 ---
 name: cloudflare-deploy-scripts
-description: CLI tools and npm-script orchestration for deploying Cloudflare Workers projects with @adrianhall/cloudflare-toolkit. Covers cf-native Access policy/application reconciliation, the Terraform provision/deploy/teardown pattern, generate-wrangler templating, type freshness, Containers and R2 cleanup, safety rules, and npm scripts. Load when wiring deployment scripts for a Cloudflare Workers project. For Terraform schema and service patterns, load the sibling `cloudflare-terraform-best-practices` skill.
+description: CLI tools and npm-script orchestration for operating and deploying Cloudflare Workers projects with @adrianhall/cloudflare-toolkit. Covers account inventory, cf-native Access policy/application reconciliation, the Terraform provision/deploy/teardown pattern, generate-wrangler templating, type freshness, Containers and R2 cleanup, safety rules, and npm scripts. Load when inspecting resources or wiring deployment scripts for a Cloudflare Workers project. For Terraform schema and service patterns, load the sibling `cloudflare-terraform-best-practices` skill.
 ---
 
 # Cloudflare Deploy Scripts: CLI Tools and npm-Script Orchestration
@@ -12,6 +12,9 @@ The CLIs:
 - **`cf-access-policy`** — reconciles reusable Cloudflare Access policies
   and self-hosted applications from typed TypeScript configuration through
   the `cf` CLI.
+- **`cf-inventory`** — performs read-only account-wide Developer Platform
+  discovery, correlates known Worker/Pages bindings, and emits table or JSON
+  output with `Yes`/`No`/`Unknown` deletion assessments.
 - **`generate-wrangler`** — substitutes Terraform outputs into a
   `wrangler.jsonc.tpl` template, producing a ready-to-use
   `wrangler.jsonc`.
@@ -27,6 +30,23 @@ The CLIs:
   required.
 
 > **Terraform schema, HCL conventions, token model, per-service patterns, and teardown ordering principles live in the sibling `cloudflare-terraform-best-practices` skill.** Load it before writing any `cloudflare_*` resource block. This skill assumes the Terraform stack is already designed correctly and focuses on the CLI-side orchestration.
+
+## Account inventory
+
+Use `cf-inventory` before teardown or when auditing an account:
+
+```sh
+cf-inventory --env-file .env
+cf-inventory --env-file .env --verbose
+cf-inventory --env-file .env --format json > inventory.json
+```
+
+It requires `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. There is no single inventory
+permission; grant the current read permission for each product that should be included. Missing
+permissions are isolated to the report's Errors section and exit `3` rather than suppressing other
+products. Never interpret `Unknown` as safe to delete: it means a relevant query failed or no
+complete read-only reverse-dependency API exists. `No` means a known reference/blocker exists;
+`Yes` means implemented discovery completed without finding one.
 
 ## Access-only workflow without Terraform
 
