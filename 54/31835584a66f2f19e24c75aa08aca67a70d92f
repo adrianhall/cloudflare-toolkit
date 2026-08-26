@@ -1,0 +1,39 @@
+docs/guides/cli.md
+  s_a71d54b20a2995::t_20da54dfd451e8 3,9,39-91
+docs/specs/SPECv2.md
+  s_a71d54b20a2995::t_02fbd3cb77893d 56,188-190,370-373,418-425,520,568,925
+package-lock.json
+  s_a71d54b20a2995::t_f52968bb97e759 20
+src/cli/inventory/bindings.ts
+  s_c49b9f99de9558::t_8dff647b41e3ff 1-96
+src/cli/inventory/http.ts
+  s_a71d54b20a2995::t_6539d7d1728499 1-172
+test/node/cli/inventory.test.ts
+  s_a71d54b20a2995::t_5876ea127068fd 1-983
+test/package/deployment-clis.test.ts
+  s_c49b9f99de9558::t_3cc7f6f155fdc6 16-17,40-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5431835584a66f2f19e24c75aa08aca67a70d92f",
+  "prompts": {},
+  "sessions": {
+    "s_a71d54b20a2995": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc2592765ffem0ZqbhTvsXi98C",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    },
+    "s_c49b9f99de9558": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc2508417ffe9wFW6Agv1iAx10",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
