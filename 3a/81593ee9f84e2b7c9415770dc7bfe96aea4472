@@ -1,0 +1,21 @@
+docs/specs/SPECv2.md
+  s_ab3e969655f9c1::t_b3a477a82833b7 39-43,384-387
+package-lock.json
+  s_ab3e969655f9c1::t_d0af74cbafc21d 53,58-60,3165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3a81593ee9f84e2b7c9415770dc7bfe96aea4472",
+  "prompts": {},
+  "sessions": {
+    "s_ab3e969655f9c1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f751cc7a7ffe24TuJQvOfdp3kw",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ahall <ahall@cloudflare.com>"
+    }
+  }
+}
