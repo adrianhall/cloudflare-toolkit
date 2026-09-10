@@ -67,6 +67,7 @@
   },
   "bin": {
     "cf-access-policy": "./dist/cli/access-policy/index.js",
+    "cf-inventory": "./dist/cli/inventory/index.js",
     "destroy-containers": "./dist/cli/destroy-containers/index.js",
     "empty-r2-bucket": "./dist/cli/empty-r2-bucket/index.js",
     "generate-wrangler": "./dist/cli/generate-wrangler/index.js",

@@ -13,7 +13,8 @@ const commandNames = [
   "generate-wrangler",
   "generate-wrangler-types",
   "destroy-containers",
-  "empty-r2-bucket"
+  "empty-r2-bucket",
+  "inventory"
 ] as const;
 
 async function runCli(name: string, args: string[]): Promise<{ code: number; stdout: string }> {
@@ -36,7 +37,9 @@ describe("deployment CLI package metadata", () => {
     expect(packageJson.bin).toMatchObject(
       Object.fromEntries(
         commandNames.map((name) => [
-          name === "access-policy" ? "cf-access-policy" : name,
+          name === "access-policy" ? "cf-access-policy"
+          : name === "inventory" ? "cf-inventory"
+          : name,
           `./dist/cli/${name}/index.js`
         ])
       )

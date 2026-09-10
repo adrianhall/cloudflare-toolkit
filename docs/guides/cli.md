@@ -1,11 +1,12 @@
 # Command Line Tools
 
-Installing `@adrianhall/cloudflare-toolkit` adds five binaries. They are package `bin` entries,
+Installing `@adrianhall/cloudflare-toolkit` adds six binaries. They are package `bin` entries,
 not JavaScript import subpaths.
 
 | Command                   | Purpose                                                            |
 | ------------------------- | ------------------------------------------------------------------ |
 | `cf-access-policy`        | Reconcile reusable Access policies and self-hosted applications    |
+| `cf-inventory`            | Inventory account-wide Developer Platform resources                |
 | `generate-wrangler`       | Build `wrangler.jsonc` from a template and Terraform outputs       |
 | `generate-wrangler-types` | Run `wrangler types` only when its output is stale                 |
 | `destroy-containers`      | Remove matching container applications and OCI registry image tags |
@@ -34,6 +35,59 @@ A Terraform-managed project can wire the commands into npm lifecycle scripts:
 
 Use `--yes` only for an intentional non-interactive cleanup. The cleanup command otherwise asks
 for confirmation.
+
+## `cf-inventory`
+
+`cf-inventory` queries account-owned Developer Platform resources and prints one deterministic
+report. It scans Workers and Pages first to index known bindings, then inventories D1, KV, R2,
+Artifacts, Queues, Workflows, Pipelines, Hyperdrive, Secrets Store, Vectorize, Workers AI, AI
+Gateway, AI Search, Durable Objects, Containers, Workers for Platforms, Workers VPC, Images,
+Stream, Turnstile, Realtime, Analytics Engine, mTLS certificates, Logpush, and Email Routing.
+
+```sh
+cf-inventory --env-file .env
+cf-inventory --env-file .env --verbose
+cf-inventory --env-file .env --format json > inventory.json
+```
+
+| Flag                      | Meaning                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| `--env-file <path>`       | Load dotenv defaults before credential resolution         |
+| `-a, --account-id <id>`   | Discouraged compatibility option; prefer the environment  |
+| `-k, --api-token <token>` | Discouraged compatibility option; prefer the environment  |
+| `--format <table\|json>`  | Select human-readable table or deterministic JSON         |
+| `-q, --quiet`             | Emit warnings and errors only                             |
+| `-v, --verbose`           | Emit debug logs and include documented coverage-gap notes |
+| `--help`                  | Print help and exit                                       |
+| `--version`               | Print the package version and exit                        |
+
+Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Cloudflare does not provide one
+"inventory" permission: the token needs the read permission documented by each product endpoint
+you want included. A narrowly scoped token is valid; products outside its scopes appear in the
+Errors section and the command exits `3` after still reporting everything it could read. Consult
+Cloudflare's current [API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/)
+and each linked API endpoint when constructing the token.
+
+`CAN DELETE` is an assessment, not authorization to delete:
+
+- `No` means a known Worker/Pages binding, built-in resource, consumer, association, or other
+  concrete blocker was found.
+- `Yes` means every relevant discovery step implemented for that resource succeeded and no known
+  blocker was found.
+- `Unknown` means discovery was partial or Cloudflare exposes no complete read-only reverse lookup.
+
+The JSON document has `schemaVersion: 1`, the account ID, `complete`/`partial` status, summary
+counts, sorted resources, normalized errors, and coverage notes. Each resource includes product,
+type, name, ID, details, known referrers/blockers, and its deletion status. API tokens and Logpush
+destination query strings are never emitted.
+
+Exit codes:
+
+- `0` complete inventory, help, or version,
+- `2` environment-file or credential failure,
+- `3` partial product/binding/blocker discovery,
+- `6` argument error,
+- `99` unexpected internal failure.
 
 For a project whose only separately provisioned infrastructure is Cloudflare Access, Terraform is
 not required. Let `cf` deploy the Worker, then reconcile Access; remove Access before deleting the
