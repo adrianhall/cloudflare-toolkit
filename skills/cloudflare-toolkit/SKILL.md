@@ -641,6 +641,40 @@ the login form, or `401` for a `redirect: false` API route — exactly mirroring
 See ["Vite + Vitest configuration"](#vite--vitest-configuration-for-a-honoworkers-project) below
 for a full working pair with `@cloudflare/vite-plugin` and `@cloudflare/vitest-pool-workers`.
 
+### `readTerraformOutputs(options)` / `requireTerraformOutputs(options)`
+
+Runtime helpers for bridging `terraform output -json` into a `cloudflare.config.ts` file — the
+`cf`-CLI/`defineWorker` era successor to the Wrangler-era `generate-wrangler --terraform` bridge.
+Both read a gitignored outputs file (default `infra/outputs.json`, written by a project's own
+`postdeploy:<apply-script>` npm hook) and project it onto a typed, camelCased shape via a
+`keys` map from that shape's keys to Terraform's snake_case output names. Only `string`-valued
+Terraform outputs are supported.
+
+```ts
+// cloudflare.config.ts
+import { readTerraformOutputs, requireTerraformOutputs } from "@adrianhall/cloudflare-toolkit/vite";
+
+interface Outputs extends Record<string, string> {
+  hostname: string;
+}
+
+// Soft-fail probe: undefined if the file is missing, malformed, or incomplete — never throws.
+const outputs = readTerraformOutputs<Outputs>({ keys: { hostname: "hostname" } });
+
+// Loud-fail variant: throws an actionable error naming the outputs path and `hint` command.
+const required = requireTerraformOutputs<Outputs>({
+  keys: { hostname: "hostname" },
+  hint: "npm run deploy:infra"
+});
+```
+
+Use `readTerraformOutputs` to choose between "live infra available" and "local placeholder" modes
+in a `defineWorker((ctx) => ...)` callback, and `requireTerraformOutputs` in the production branch
+so a deploy with no Terraform state fails loudly instead of silently deploying stale/placeholder
+values. See the `cloudflare-terraform-best-practices` skill's "Terraform + the `cf` CLI
+(`cloudflare.config.ts` era)" section for the full worked pattern, including the npm hook and
+`defineWorker` wiring.
+
 ## Testing Helpers (`/testing`)
 
 Sign developer JWTs and build the cookie/header values `cloudflareAccess`'s dev-token bypass

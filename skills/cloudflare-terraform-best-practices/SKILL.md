@@ -1150,20 +1150,93 @@ Automating all seven steps behind `npm run deploy` matters more than it sounds �
 
 Without the preteardown chain (container/registry cleanup, `wrangler delete --force`, `empty-r2-bucket`) described above, `terraform destroy` can fail partway through because a bucket is non-empty, a binding is still live, or container resources remain — even with the `depends_on` fix in place, since `depends_on` only orders Terraform-known resources relative to each other, not the wrangler-side state Terraform never created. Always run the full preteardown chain first.
 
+## Terraform + the `cf` CLI (`cloudflare.config.ts` era)
+
+Everything in "Terraform + Wrangler: who owns what" above assumes a `wrangler.jsonc` (or `wrangler.jsonc.tpl`) config file, generated from Terraform outputs by `generate-wrangler`. Projects built on the newer `cf` CLI (the `cf dev`/`cf build`/`cf deploy` package, distinct from `wrangler`) and `@cloudflare/vite-plugin`'s `experimental-config` `defineWorker` API replace that generated file with `cloudflare.config.ts` — a real TypeScript module the CLI evaluates directly. `generate-wrangler`'s template-substitution approach doesn't apply here: there is no generated file to substitute into, since `cloudflare.config.ts` **is** the config, evaluated at `cf dev`/`cf build`/`cf deploy` time, not a build artifact produced ahead of it.
+
+**Terraform still owns infrastructure exactly as described above — only the bridge into the Worker's config changes.** The replacement bridge has three parts:
+
+1. A `postdeploy:<apply-script>` npm hook (mirroring the `outputs.tf` → `generate-wrangler` bridge's position in the pipeline) that dumps Terraform's outputs into a gitignored JSON file:
+
+   ```json
+   {
+     "scripts": {
+       "deploy:infra:apply": "terraform -chdir=infra apply -auto-approve",
+       "postdeploy:infra:apply": "terraform -chdir=infra output -json > infra/outputs.json"
+     }
+   }
+   ```
+
+2. `readTerraformOutputs`/`requireTerraformOutputs` (from `@adrianhall/cloudflare-toolkit/vite`) read that file back inside `cloudflare.config.ts`, mapping Terraform's `{ "<snake_case_name>": { value, type, sensitive } }` shape onto a typed, camelCased object — the same "scalar `string`/`number` outputs only" contract as `generate-wrangler` (see "Outputs must be `string` or `number`" above; only `string`-typed outputs are currently supported by these helpers). `readTerraformOutputs` is a soft-fail probe (`undefined` on any failure — file missing, malformed JSON, a missing/non-string key); `requireTerraformOutputs` is the loud-fail counterpart, throwing an actionable error naming the outputs path and a caller-supplied `hint` command.
+
+3. A `defineWorker((ctx) => ...)` callback that branches on `ctx.mode`: production calls `requireTerraformOutputs` (so a deploy with no infra provisioned fails loudly instead of deploying against stale or placeholder bindings); every other mode uses hermetic, hardcoded local-dev placeholder values, so `cf dev`/`vite dev`/tests never touch Terraform and stay fast and offline-friendly — the direct analog of the old `generate:wrangler:local` / `infra/local-outputs.json` pattern.
+
+```ts
+// cloudflare.config.ts
+import { bindings, defineWorker } from "@cloudflare/vite-plugin/experimental-config";
+import { readTerraformOutputs, requireTerraformOutputs } from "@adrianhall/cloudflare-toolkit/vite";
+import * as entrypoint from "./src/worker/index.ts" with { type: "cf-worker" };
+
+interface TerraformOutputs extends Record<string, string> {
+  hostname: string;
+  linksKvNamespaceId: string;
+  workerName: string;
+}
+
+const KEYS = {
+  hostname: "hostname",
+  linksKvNamespaceId: "links_kv_namespace_id",
+  workerName: "worker_name"
+};
+
+const LOCAL_DEV_DEFAULTS: TerraformOutputs = {
+  hostname: "url-shortener.localhost",
+  linksKvNamespaceId: "", // Miniflare auto-provisions a local KV namespace when omitted
+  workerName: "url-shortener-local"
+};
+
+export default defineWorker((ctx) => {
+  const isProduction = ctx.mode === "production";
+  const values =
+    isProduction ?
+      requireTerraformOutputs<TerraformOutputs>({
+        keys: KEYS,
+        hint: "npm run deploy:infra"
+      })
+    : LOCAL_DEV_DEFAULTS;
+
+  return {
+    name: values.workerName,
+    entrypoint,
+    domains: isProduction ? [values.hostname] : [],
+    env: {
+      LINKS: bindings.kv(isProduction ? { id: values.linksKvNamespaceId } : {})
+    }
+  };
+});
+```
+
+Note the `readTerraformOutputs`/`requireTerraformOutputs` split maps directly onto the same live-infra-vs-placeholder decision `generate-wrangler --terraform`'s soft-fail check makes for the Wrangler era (see the `cloudflare-deploy-scripts` skill) — only the mechanism (a runtime read inside a TypeScript config module, vs. a build-time template substitution) differs.
+
+### Anti-pattern: reaching for `generate-wrangler` in a `cf`-CLI project
+
+`generate-wrangler` exists specifically to produce `wrangler.jsonc` from `wrangler.jsonc.tpl`. A `cf`-CLI project has no `wrangler.jsonc.tpl` and no generation step at all — `cloudflare.config.ts` is hand-written, checked-in TypeScript that calls `readTerraformOutputs`/`requireTerraformOutputs` directly. Do not add a `generate:wrangler` npm script (or a `wrangler.jsonc.tpl`) to a `cf`-CLI project; it has nothing to generate.
+
 ## Quick reference
 
-| Topic                                                  | Section                                             |
-| ------------------------------------------------------ | --------------------------------------------------- |
-| dotenv ingestion, provider setup, locals               | `providers.tf`: dotenv, provider setup, and locals  |
-| Account vs. user tokens, JSON-encoded policies         | Credentials and token model                         |
-| HCL formatting/naming conventions                      | Style guide compliance (HashiCorp)                  |
-| File-per-Worker layout, dedicated vs. shared bindings  | Recommended file layout / Per-Worker files...       |
-| Worker registration + the custom-domain bootstrap fix  | Per-Worker files: the Worker, its bootstrap...      |
-| D1 / KV / R2 / Queues resources and tokens             | Per-Worker files: the Worker, its bootstrap...      |
-| Worker-before-bindings destroy ordering                | Teardown ordering: `depends_on` must point...       |
-| R2 bucket lifecycle and emptying before destroy        | R2 buckets: setup and preteardown                   |
-| Gateway drift, dynamic routing `elements`/gotchas      | Cloudflare AI Gateway                               |
-| Single- and multi-path Cloudflare Access               | Cloudflare Zero Trust Access                        |
-| Scalar-only outputs, one-way secrets flow              | Outputs and secrets flow                            |
-| `fmt`/`validate`/`tflint`/Trivy                        | Validating, formatting, and scanning your Terraform |
-| Terraform vs. Wrangler ownership, full deploy pipeline | Terraform + Wrangler: who owns what                 |
+| Topic                                                  | Section                                               |
+| ------------------------------------------------------ | ----------------------------------------------------- |
+| dotenv ingestion, provider setup, locals               | `providers.tf`: dotenv, provider setup, and locals    |
+| Account vs. user tokens, JSON-encoded policies         | Credentials and token model                           |
+| HCL formatting/naming conventions                      | Style guide compliance (HashiCorp)                    |
+| File-per-Worker layout, dedicated vs. shared bindings  | Recommended file layout / Per-Worker files...         |
+| Worker registration + the custom-domain bootstrap fix  | Per-Worker files: the Worker, its bootstrap...        |
+| D1 / KV / R2 / Queues resources and tokens             | Per-Worker files: the Worker, its bootstrap...        |
+| Worker-before-bindings destroy ordering                | Teardown ordering: `depends_on` must point...         |
+| R2 bucket lifecycle and emptying before destroy        | R2 buckets: setup and preteardown                     |
+| Gateway drift, dynamic routing `elements`/gotchas      | Cloudflare AI Gateway                                 |
+| Single- and multi-path Cloudflare Access               | Cloudflare Zero Trust Access                          |
+| Scalar-only outputs, one-way secrets flow              | Outputs and secrets flow                              |
+| `fmt`/`validate`/`tflint`/Trivy                        | Validating, formatting, and scanning your Terraform   |
+| Terraform vs. Wrangler ownership, full deploy pipeline | Terraform + Wrangler: who owns what                   |
+| `cloudflare.config.ts`/`cf` CLI outputs bridge         | Terraform + the `cf` CLI (`cloudflare.config.ts` era) |
