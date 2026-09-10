@@ -279,6 +279,19 @@ produced:
 `--local` and an explicit `--terraform` are mutually exclusive (exit `6`); `--local` is exit `3`
 if the file is missing, `4` if it cannot be read or fails to parse as strict JSON.
 
+### The `cf` CLI / `cloudflare.config.ts` alternative
+
+`generate-wrangler` substitutes Terraform outputs into a **generated** `wrangler.jsonc`. Projects
+built on the newer `cf` CLI (`cf dev`/`cf build`/`cf deploy`) and
+`@cloudflare/vite-plugin`'s `experimental-config` `defineWorker` API use `cloudflare.config.ts`
+instead — a real TypeScript module evaluated directly by the CLI, with no generation step. For
+that shape of project, use
+[`readTerraformOutputs`/`requireTerraformOutputs`](/reference/lib/vite/functions/readTerraformOutputs.md)
+(`/vite`) to read `terraform output -json` (written to a gitignored file by a `postdeploy`
+npm hook) directly inside `cloudflare.config.ts`, rather than reaching for `generate-wrangler`. See
+the `cloudflare-terraform-best-practices` skill's "Terraform + the `cf` CLI
+(`cloudflare.config.ts` era)" section for the full worked pattern.
+
 ## `generate-wrangler-types`
 
 This command wraps `wrangler types`. It compares the modification times of `wrangler.jsonc` and

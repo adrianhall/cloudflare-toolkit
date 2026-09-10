@@ -12,3 +12,9 @@ export type { CloudflareAccessPluginOptions } from "./plugin.js";
 // Reference page, not the rest of that module's surface.
 export type { PathPolicy } from "../auth-internal/types.js";
 export type { DevLoginUser } from "./login-page.js";
+export { readTerraformOutputs, requireTerraformOutputs } from "./terraform-outputs.js";
+export type {
+  ReadTerraformOutputsOptions,
+  RequireTerraformOutputsOptions,
+  TerraformOutputKeys
+} from "./terraform-outputs.js";
