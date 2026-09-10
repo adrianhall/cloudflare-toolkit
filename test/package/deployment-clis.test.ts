@@ -44,7 +44,7 @@ describe("deployment CLI package metadata", () => {
         ])
       )
     );
-    expect(packageJson.peerDependencies.cf).toBe("^0.6.0");
+    expect(packageJson.peerDependencies.cf).toBe(">=0.6.0 <1");
   });
 });
 

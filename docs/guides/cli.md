@@ -108,7 +108,7 @@ Worker:
 
 `cf-access-policy <apply|remove>` loads a TypeScript default export and reconciles Cloudflare
 Access reusable policies and self-hosted applications by exact, unique `name`. It requires the
-`cf@^0.6.0` peer. `cf` supplies both authentication and account context: set
+optional `cf@>=0.6.0 <1` peer. `cf` supplies both authentication and account context: set
 `CLOUDFLARE_API_TOKEN`, or use an OAuth profile selected by `--profile`, the nearest directory
 binding, or the default profile. The credential needs **Access: Apps and Policies Write**.
 
