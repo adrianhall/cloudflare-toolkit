@@ -2,6 +2,7 @@
 
 ## Next release
 
+- 1be6e0d (minor): Added `readTerraformOutputs`/`requireTerraformOutputs` to `@adrianhall/cloudflare-toolkit/vite` for bridging `terraform output -json` into a `cloudflare.config.ts` file (the `cf` CLI/`defineWorker` era successor to `generate-wrangler --terraform`), and documented the pattern in the `cloudflare-terraform-best-practices` skill.
 - 5431835 (minor): Added the `cf-inventory` CLI for deterministic, fail-closed inventory and deletion-readiness assessment across Cloudflare Developer Platform resources.
 - 3a81593 (patch): Widened the `cf` peer dependency from `^0.6.0` to `>=0.6.0 <1` and marked it optional, so consumers who don't invoke `cf-access-policy` are no longer forced to install `cf` or bypass npm's strict peer-dependency resolution when using current `cf` releases (e.g. `0.10.0`).
 
