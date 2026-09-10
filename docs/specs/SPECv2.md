@@ -36,11 +36,11 @@ deliberate exceptions (`typescript`, `@cloudflare/workers-types`) explained in �
 Declared in `package.json#peerDependencies`. Consumers install these themselves — the toolkit
 never bundles them.
 
-| Package                                      | Version    | Required?                                                            |
-| -------------------------------------------- | ---------- | -------------------------------------------------------------------- |
-| [`cf`](https://www.npmjs.com/package/cf)     | `^0.6.0`   | Required — `cf-access-policy` delegates Access API/auth to it (§5.7) |
-| [`hono`](https://www.npmjs.com/package/hono) | `^4.12.28` | Required — everything under `/hono` (§5.5) needs it                  |
-| [`vite`](https://www.npmjs.com/package/vite) | `^8.1.4`   | Optional — only `/vite` (§5.6) needs it                              |
+| Package                                      | Version      | Required?                                                                                                                                      |
+| -------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`cf`](https://www.npmjs.com/package/cf)     | `>=0.6.0 <1` | Optional — only the `cf-access-policy` bin (§5.7) delegates Access API/auth to it; consumers who never invoke that bin don't need it installed |
+| [`hono`](https://www.npmjs.com/package/hono) | `^4.12.28`   | Required — everything under `/hono` (§5.5) needs it                                                                                            |
+| [`vite`](https://www.npmjs.com/package/vite) | `^8.1.4`     | Optional — only `/vite` (§5.6) needs it                                                                                                        |
 
 ### 2.2 Dependencies
 
@@ -381,9 +381,10 @@ deliberate fail-closed safety fixes described below.
   positive precedence). A policy can be shared by multiple applications. It deliberately has no
   JSONC input, interpolation, output file, audience output, direct REST credential flags,
   `--destroy`, or overlap logic.
-- The CLI delegates API calls, authentication, and account context to the required `cf@^0.6.0`
-  peer. `cf` resolves `CLOUDFLARE_API_TOKEN` first, then a named `--profile`, nearest directory
-  binding, or default OAuth profile. The credential needs `Access: Apps and Policies Write`.
+- The CLI delegates API calls, authentication, and account context to the optional `cf` peer
+  (`>=0.6.0 <1`). `cf` resolves `CLOUDFLARE_API_TOKEN` first, then a named `--profile`, nearest
+  directory binding, or default OAuth profile. The credential needs `Access: Apps and Policies
+Write`.
 - Reconciliation keys are exact unique names. `apply` discovers once, plans
   `create`/`update`/`no-change`, and mutates policies before applications. `remove` is bounded to
   configured names, verifies each configured policy's complete application linkage, refuses an

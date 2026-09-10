@@ -83,11 +83,14 @@
     "npm": ">=11"
   },
   "peerDependencies": {
-    "cf": "^0.6.0",
+    "cf": ">=0.6.0 <1",
     "hono": "^4.12.28",
     "vite": "^8.1.4"
   },
   "peerDependenciesMeta": {
+    "cf": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     }
