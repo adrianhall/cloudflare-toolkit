@@ -2,6 +2,8 @@
 
 ## Next release
 
+## 2.7.0
+
 - 65e13ec (minor): Fixed `cloudflareAccessPlugin` letting an unauthenticated non-navigation request through a redirect-protected path. An RSC/`fetch`-shaped request, a POST, or an `OPTIONS` preflight previously fell through to the Vite/Workers handler, so local dev could read a payload that deployed Cloudflare Access would have challenged. A protected path is now always answered by the plugin: an HTML navigation gets the dev login form, every other request gets a `401`.
 
   Two observable behavior changes for `@adrianhall/cloudflare-toolkit/vite` consumers (dev-only — nothing in a deployed Worker changes):
