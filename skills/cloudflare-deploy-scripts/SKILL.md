@@ -52,10 +52,10 @@ complete read-only reverse-dependency API exists. `No` means a known reference/b
 
 When Cloudflare Access is the only separately provisioned infrastructure,
 use `cf-access-policy` and `cf deploy`; Terraform is not required. The
-optional `cf@>=0.6.0 <1` peer owns authentication and account context. It first
-uses `CLOUDFLARE_API_TOKEN`, otherwise the OAuth profile selected by
-`--profile`, the nearest directory binding, or the default profile. The
-credential needs **Access: Apps and Policies Write**.
+optional `cf@>=0.6.0 <2 || >=1.0.0-0 <2` peer owns authentication and account
+context. It first uses `CLOUDFLARE_API_TOKEN`, otherwise the OAuth profile
+selected by `--profile`, the nearest directory binding, or the default profile.
+The credential needs **Access: Apps and Policies Write**.
 
 Define reusable policies once and link them by name from one or more
 self-hosted applications:
