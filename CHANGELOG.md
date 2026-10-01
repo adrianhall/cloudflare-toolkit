@@ -2,6 +2,13 @@
 
 ## Next release
 
+- 65e13ec (minor): Fixed `cloudflareAccessPlugin` letting an unauthenticated non-navigation request through a redirect-protected path. An RSC/`fetch`-shaped request, a POST, or an `OPTIONS` preflight previously fell through to the Vite/Workers handler, so local dev could read a payload that deployed Cloudflare Access would have challenged. A protected path is now always answered by the plugin: an HTML navigation gets the dev login form, every other request gets a `401`.
+
+  Two observable behavior changes for `@adrianhall/cloudflare-toolkit/vite` consumers (dev-only — nothing in a deployed Worker changes):
+
+  - A path matching **no** policy is now gated the same way, making the documented "all non-internal paths are treated as protected" contract true for the zero-config case instead of only for navigations. The plugin has no `defaultAction` equivalent to `cloudflareAccess`'s, so a broad `authenticate: true` pattern also gates subresources Vite would otherwise serve (`/favicon.ico`, files copied from `public/`, `/.well-known/…`); add an `authenticate: false` policy for any such path. Vite's own internals stay exempt.
+  - Every `401` the plugin emits is now an RFC 9457 `application/problem+json` response (`{ type, status, title, detail }`), matching the shape `cloudflareAccess` returns in the Worker. This also replaces the previous ad-hoc `{ "error": "Authentication required" }` body on `redirect: false` routes and `/cdn-cgi/access/get-identity`.
+
 - 56f2d09 (patch): Widened the optional `cf` peer dependency from `>=0.6.0 <1` to `>=0.6.0 <2 || >=1.0.0-0 <2`, so `cf` 1.0 prereleases (e.g. `1.0.0-beta.6`) and stable 1.x releases satisfy it without a peer-dependency warning, while still excluding 2.x.
 
 ## 2.6.0
