@@ -631,6 +631,21 @@ itself, and issues a dev-signed JWT accepted by the Worker's own `cloudflareAcce
 the same `DEFAULT_DEV_SECRET`/verification code internally) — no separate verification logic to
 keep in sync.
 
+**A protected path is always enforced by the plugin (#203)** — an unauthenticated request to it
+never reaches the Worker, matching deployed Cloudflare Access, which protects a path regardless
+of request type. An HTML navigation gets the login form; every other unauthenticated request (an
+RSC/`fetch`-shaped request, a POST, an `OPTIONS` preflight, or any `redirect: false` route) gets
+a `401` RFC 9457 `application/problem+json` response — the same shape `cloudflareAccess` returns
+in the Worker — since there is no browser to hand a form to.
+
+**The plugin has no `defaultAction` equivalent: a path matching no policy is protected**
+(including every path when `policies` is omitted). So a broad `authenticate: true` pattern also
+gates subresources Vite would otherwise serve — `/favicon.ico`, files copied from `public/`,
+`/.well-known/…` — and a `401` on a subresource fails silently in the browser, rendering a
+partial page rather than prompting a login. Only Vite's own internals (`/@vite`, `/@fs`, `/@id`,
+`/@react-refresh`, `/node_modules/`, `/__vite`, `/src/`) are always exempt; add an
+`authenticate: false` policy for any other asset path that must stay reachable unauthenticated.
+
 **Path-specific audiences (#181)**: when a policy's `audience` is set, the login form issues one
 session token whose `aud` claim covers every distinct audience referenced across `policies`, so a
 single local sign-in still reaches every role-specific page. A session that doesn't carry the

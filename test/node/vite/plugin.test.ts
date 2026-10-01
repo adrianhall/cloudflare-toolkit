@@ -596,11 +596,13 @@ describe("get-identity", () => {
     expect(body.name).toBe("nobody@example.com");
   });
 
-  it("returns 401 when there is no session", async () => {
+  it("returns a problem+json 401 when there is no session", async () => {
     const req = makeReq({ url: "/cdn-cgi/access/get-identity" });
     const res = makeRes();
     await invoke({}, req, res);
     expect(res.statusCode).toBe(401);
+    expect(res._headers["content-type"]).toContain("application/problem+json");
+    expect(JSON.parse(res._body!).detail).toBe("Authentication required");
   });
 });
 
@@ -663,13 +665,43 @@ describe("gating unauthenticated requests", () => {
     expect(req.headers[JWT_HEADER]).toBeUndefined();
   });
 
-  it("returns 401 JSON for protected API routes (redirect: false)", async () => {
+  it("passes through an explicitly public non-navigation request", async () => {
+    // A public API route reached by fetch() must stay reachable — the protected branch below
+    // must never swallow an `authenticate: false` match.
+    const req = makeReq({
+      url: "/api/public/info",
+      headers: { "accept": "application/json", "sec-fetch-mode": "cors" }
+    });
+    const res = makeRes();
+    const result = await invoke({ policies }, req, res);
+    expect(result.nextCalled).toBe(true);
+    expect(req.headers[JWT_HEADER]).toBeUndefined();
+  });
+
+  it("returns a problem+json 401 for protected API routes (redirect: false)", async () => {
     const req = makeReq({ url: "/api/me", headers: { accept: "application/json" } });
     const res = makeRes();
     const result = await invoke({ policies }, req, res);
     expect(result.nextCalled).toBe(false);
     expect(res.statusCode).toBe(401);
-    expect(JSON.parse(res._body!).error).toContain("Authentication required");
+    expect(res._headers["content-type"]).toContain("application/problem+json");
+    const problem = JSON.parse(res._body!);
+    expect(problem.status).toBe(401);
+    expect(problem.title).toBe("Unauthorized");
+    expect(problem.detail).toBe("Authentication required");
+  });
+
+  it("returns 401 for a navigation to a redirect:false protected route", async () => {
+    // `redirect: false` opts out of the login form entirely, so even a browser navigation gets
+    // a 401 rather than a 302.
+    const req = makeReq({
+      url: "/api/me",
+      headers: { "accept": "text/html", "sec-fetch-mode": "navigate" }
+    });
+    const res = makeRes();
+    const result = await invoke({ policies }, req, res);
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
   });
 
   it("redirects protected navigations to the login form (Sec-Fetch-Mode)", async () => {
@@ -687,16 +719,59 @@ describe("gating unauthenticated requests", () => {
     expect(res.statusCode).toBe(302);
   });
 
-  it("lets a non-navigation protected fetch through (Worker enforces 401)", async () => {
-    // /dashboard is protected but redirect defaults to true; a fetch (no navigate, no
-    // text/html) is neither redirected nor 401'd here.
-    const req = makeReq({ url: "/dashboard", headers: { "sec-fetch-mode": "cors" } });
+  it("returns 401 for a non-navigation request to a redirect:true protected path (#203)", async () => {
+    // /dashboard is protected with redirect defaulting to true; an RSC/fetch-shaped request
+    // (no navigate, no text/html) has no browser to hand a login form to, so it must be 401'd
+    // here rather than forwarded to the Worker unauthenticated.
+    const req = makeReq({
+      url: "/dashboard",
+      headers: { "accept": "text/x-component", "sec-fetch-mode": "cors" }
+    });
     const res = makeRes();
     const result = await invoke({ policies }, req, res);
-    expect(result.nextCalled).toBe(true);
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+    expect(res._headers["content-type"]).toContain("application/problem+json");
+    expect(JSON.parse(res._body!).detail).toBe("Authentication required");
   });
 
-  it("treats all paths as protected when no policies are given", async () => {
+  it("returns 401 for an OPTIONS preflight to a protected path", async () => {
+    const req = makeReq({
+      url: "/dashboard",
+      method: "OPTIONS",
+      headers: { "sec-fetch-mode": "cors" }
+    });
+    const res = makeRes();
+    const result = await invoke({ policies }, req, res);
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("redirects a HEAD navigation but 401s a HEAD fetch to a protected path", async () => {
+    // isNavigation() deliberately admits HEAD alongside GET.
+    const navReq = makeReq({
+      url: "/dashboard",
+      method: "HEAD",
+      headers: { "sec-fetch-mode": "navigate" }
+    });
+    const navRes = makeRes();
+    await invoke({ policies }, navReq, navRes);
+    expect(navRes.statusCode).toBe(302);
+
+    const fetchReq = makeReq({
+      url: "/dashboard",
+      method: "HEAD",
+      headers: { "sec-fetch-mode": "cors" }
+    });
+    const fetchRes = makeRes();
+    await invoke({ policies }, fetchReq, fetchRes);
+    expect(fetchRes.statusCode).toBe(401);
+  });
+
+  it("treats all paths as protected when no policies are given (#203)", async () => {
+    // With `policies` omitted every non-internal path is protected, and — like a matched
+    // `authenticate: true` policy — an unmatched path is answered here rather than forwarded to
+    // the Worker: navigation → login form, anything else → 401.
     const navReq = makeReq({ url: "/anything", headers: { "sec-fetch-mode": "navigate" } });
     const navRes = makeRes();
     await invoke({}, navReq, navRes);
@@ -705,10 +780,47 @@ describe("gating unauthenticated requests", () => {
     const fetchReq = makeReq({ url: "/anything", headers: { "sec-fetch-mode": "cors" } });
     const fetchRes = makeRes();
     const result = await invoke({}, fetchReq, fetchRes);
-    expect(result.nextCalled).toBe(true);
+    expect(result.nextCalled).toBe(false);
+    expect(fetchRes.statusCode).toBe(401);
   });
 
-  it("does not treat a protected POST as a navigation (hands off to Worker)", async () => {
+  it("gates a path matching no policy at all (no defaultAction bypass)", async () => {
+    // /unlisted matches none of `policies`. Unlike cloudflareAccess's `defaultAction`, this
+    // plugin has no bypass option — an unmatched path is protected.
+    const req = makeReq({ url: "/unlisted", headers: { "sec-fetch-mode": "cors" } });
+    const res = makeRes();
+    const result = await invoke({ policies }, req, res);
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("gates an unauthenticated asset-shaped request under a protected prefix", async () => {
+    // Documents the blast radius of a broad protected pattern: a subresource Vite would
+    // otherwise serve is gated too, matching deployed Access. Vite's own internals stay exempt.
+    const assetReq = makeReq({
+      url: "/favicon.ico",
+      headers: { "accept": "image/avif,*/*", "sec-fetch-mode": "no-cors" }
+    });
+    const assetRes = makeRes();
+    const assetResult = await invoke({}, assetReq, assetRes);
+    expect(assetResult.nextCalled).toBe(false);
+    expect(assetRes.statusCode).toBe(401);
+
+    // An `authenticate: false` policy is how a consumer opts such a path back out.
+    const publicReq = makeReq({
+      url: "/favicon.ico",
+      headers: { "accept": "image/avif,*/*", "sec-fetch-mode": "no-cors" }
+    });
+    const publicRes = makeRes();
+    const publicResult = await invoke(
+      { policies: [{ pattern: /^\/favicon\.ico$/, authenticate: false }] },
+      publicReq,
+      publicRes
+    );
+    expect(publicResult.nextCalled).toBe(true);
+  });
+
+  it("returns 401 for an unauthenticated POST to a protected path (not a navigation)", async () => {
     const req = makeReq({
       url: "/dashboard",
       method: "POST",
@@ -716,7 +828,8 @@ describe("gating unauthenticated requests", () => {
     });
     const res = makeRes();
     const result = await invoke({ policies }, req, res);
-    expect(result.nextCalled).toBe(true);
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
   });
 
   it("handles array-valued request headers", async () => {
@@ -738,11 +851,12 @@ describe("gating unauthenticated requests", () => {
   it("does not treat a protected GET as a navigation when neither Sec-Fetch-Mode nor Accept is present", async () => {
     // No Sec-Fetch-Mode and no Accept header at all — isNavigation() must fall through its
     // `accept?.includes(...) ?? false` default without throwing, and treat the request as a
-    // non-navigation (hands off to the Worker rather than redirecting).
+    // non-navigation (401 rather than a redirect to the login form).
     const req = makeReq({ url: "/dashboard" });
     const res = makeRes();
     const result = await invoke({ policies }, req, res);
-    expect(result.nextCalled).toBe(true);
+    expect(result.nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
   });
 });
 
