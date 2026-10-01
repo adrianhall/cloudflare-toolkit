@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import semver from "semver";
 import { describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);
@@ -44,7 +45,11 @@ describe("deployment CLI package metadata", () => {
         ])
       )
     );
-    expect(packageJson.peerDependencies.cf).toBe(">=0.6.0 <1");
+    expect(packageJson.peerDependencies.cf).toBe(">=0.6.0 <2 || >=1.0.0-0 <2");
+    for (const version of ["0.6.0", "0.15.0", "1.0.0-beta.10", "1.0.0", "1.9.9"])
+      expect(semver.satisfies(version, packageJson.peerDependencies.cf)).toBe(true);
+    for (const version of ["0.5.9", "2.0.0-beta.1", "2.0.0"])
+      expect(semver.satisfies(version, packageJson.peerDependencies.cf)).toBe(false);
   });
 });
 

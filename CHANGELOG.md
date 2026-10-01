@@ -2,6 +2,8 @@
 
 ## Next release
 
+- 56f2d09 (patch): Widened the optional `cf` peer dependency from `>=0.6.0 <1` to `>=0.6.0 <2 || >=1.0.0-0 <2`, so `cf` 1.0 prereleases (e.g. `1.0.0-beta.6`) and stable 1.x releases satisfy it without a peer-dependency warning, while still excluding 2.x.
+
 ## 2.6.0
 
 - 1be6e0d (minor): Added `readTerraformOutputs`/`requireTerraformOutputs` to `@adrianhall/cloudflare-toolkit/vite` for bridging `terraform output -json` into a `cloudflare.config.ts` file (the `cf` CLI/`defineWorker` era successor to `generate-wrangler --terraform`), and documented the pattern in the `cloudflare-terraform-best-practices` skill.
