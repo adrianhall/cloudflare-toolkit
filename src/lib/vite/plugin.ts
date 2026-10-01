@@ -14,10 +14,12 @@
  * without any duplicated verification logic (proved end-to-end in
  * `test/node/vite/handshake.test.ts`).
  *
- * Also depends on `../errors/generators.js` (`contentTooLarge`) and
+ * Also depends on `../errors/generators.js` (`contentTooLarge`, `unauthorized`) and
  * `../problem-details/error.js` (`ProblemDetailsError`) so an oversized login-form POST body
- * (see `readFormBody`) is rejected with a standard `application/problem+json` response, the same
- * shape every other error in this toolkit produces — CODE-008.
+ * (see `readFormBody`) and every `401` this plugin emits are standard
+ * `application/problem+json` responses — the same shape every other error in this toolkit
+ * produces, including the `401`s the Worker's own `cloudflareAccess` returns in production
+ * (CODE-008, #203).
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Connect, Plugin } from "vite";
@@ -33,7 +35,7 @@ import {
 } from "../auth-internal/jwt.js";
 import { matchPolicy } from "../auth-internal/policy.js";
 import type { PathPolicy } from "../auth-internal/types.js";
-import { contentTooLarge } from "../errors/generators.js";
+import { contentTooLarge, unauthorized } from "../errors/generators.js";
 import { ProblemDetailsError } from "../problem-details/error.js";
 import { renderViteLoginPage, type DevLoginUser } from "./login-page.js";
 
@@ -72,10 +74,26 @@ export interface CloudflareAccessPluginOptions {
    * (../hono/cloudflare-access.ts) so dev and prod agree on which paths are protected.
    *
    * - `authenticate: false` — public (no gating, no header injection).
-   * - `authenticate: true` — protected. Unauthenticated navigations are redirected to the login
-   *   form; API routes with `redirect: false` receive a 401.
+   * - `authenticate: true` — protected (see below).
+   * - No matching policy — protected, exactly as if a matching `authenticate: true` policy with
+   *   the default `redirect: true` had been found. This plugin has no `defaultAction` equivalent
+   *   to `cloudflareAccess`'s, so list an `authenticate: false` policy for anything that must
+   *   stay reachable unauthenticated.
    *
-   * When omitted, **all** non-internal paths are treated as protected.
+   * **A protected path is always answered by this plugin** and is **never** forwarded to the
+   * Worker unauthenticated (#203), because deployed Cloudflare Access protects a path regardless
+   * of request type. An unauthenticated HTML navigation is redirected to the dev login form
+   * (unless the matched policy sets `redirect: false`); every other unauthenticated request —
+   * an RSC/`fetch`-shaped request, a POST, an `OPTIONS` preflight, or any `redirect: false`
+   * route — receives a `401` RFC 9457 `application/problem+json` response, the same shape
+   * `cloudflareAccess` returns in the Worker, since there is no browser to hand a login form to.
+   *
+   * Because of this, a broad `authenticate: true` pattern also gates subresource requests that
+   * Vite would otherwise serve (`/favicon.ico`, files copied from `public/`, `/.well-known/…`) —
+   * a `401` on those fails silently in the browser and renders a partial page. Vite's own
+   * internals (`/@vite`, `/@fs`, `/@id`, `/@react-refresh`, `/node_modules/`, `/__vite`,
+   * `/src/`) are always exempt; add an `authenticate: false` policy for any other asset path
+   * your app serves from a protected prefix.
    *
    * A policy's own `audience` (see `PathPolicy.audience`, `../auth-internal/types.js`) is
    * enforced here too: an existing session cookie whose dev token doesn't carry the matched
@@ -219,20 +237,20 @@ export function createAccessDevMiddleware(
       return next();
     }
 
-    // API-style protected route (redirect: false) → 401 JSON.
-    if (policyMatch?.authenticate === true && policyMatch.redirect === false) {
-      return sendJson(res, 401, { error: "Authentication required" });
-    }
-
-    // HTML navigations to protected paths → redirect to the login form.
-    if (isNavigation(req)) {
+    // Everything else is protected: either a matched `authenticate: true` policy, or no policy
+    // matched at all (which this plugin treats as protected — see `policies`' docs). The request
+    // is always answered here and never forwarded to the Worker unauthenticated (#203), because
+    // deployed Cloudflare Access protects a path regardless of whether the request is a document
+    // navigation:
+    //
+    // - an HTML navigation that opted into `redirect` (the default) → the dev login form;
+    // - anything else (an RSC/fetch-shaped request, a POST, an OPTIONS preflight, or any
+    //   `redirect: false` route) → a 401, since there is no browser to hand a login form to.
+    const redirectable = policyMatch?.redirect ?? true;
+    if (redirectable && isNavigation(req)) {
       return redirectToLogin(res, loginPath, pathname);
     }
-
-    // Anything else (e.g. an unauthenticated fetch to a protected API that did not opt into
-    // `redirect: false`) → let it through; the Worker's own cloudflareAccess() will reject it
-    // with a 401.
-    return next();
+    return sendProblemDetails(res, unauthorized({ detail: "Authentication required" }));
   }
 
   // -------------------------------------------------------------------------
@@ -293,7 +311,7 @@ export function createAccessDevMiddleware(
     const token = parseCookie(req.headers.cookie);
     const verified = token ? await verifyDevJwt(token, devSecret) : null;
     if (!verified) {
-      sendJson(res, 401, { error: "Authentication required" });
+      await sendProblemDetails(res, unauthorized({ detail: "Authentication required" }));
       return;
     }
     const display = users.find((u) => u.email === verified.email)?.name;

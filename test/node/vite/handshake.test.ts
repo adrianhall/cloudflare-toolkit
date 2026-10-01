@@ -87,6 +87,64 @@ describe("vite plugin → cloudflareAccess() handshake", () => {
   });
 
   // -------------------------------------------------------------------------
+  // #203: a protected path with `redirect: true` (the default) must be gated by BOTH layers for
+  // a non-navigation request. Before the fix the plugin called next() for these, so an RSC/fetch
+  // request read a protected payload locally that deployed Access would have challenged.
+  // -------------------------------------------------------------------------
+  describe("non-navigation parity on a redirect:true path", () => {
+    const pagePolicies: PathPolicy[] = [{ pattern: /^\/admin(?:\/|$)/u, authenticate: true }];
+
+    function createPageWorker() {
+      const app = new Hono<{ Bindings: typeof MOCK_ENV; Variables: AuthVariables }>();
+      app.use(cloudflareAccess({ policies: pagePolicies, enableDevTokens: true }));
+      app.get("/admin", (c) => c.json({ secret: "admin payload" }));
+      return app;
+    }
+
+    it("an unauthenticated RSC-shaped request is rejected by both layers", async () => {
+      // Plugin layer: the request must be answered here with a 401 and never handed to the
+      // Worker, even though the policy's `redirect` defaults to true.
+      const req = Readable.from([]) as unknown as IncomingMessage;
+      req.url = "/admin";
+      req.method = "GET";
+      req.headers = { "accept": "text/x-component", "sec-fetch-mode": "cors" };
+      req.rawHeaders = ["accept", "text/x-component", "sec-fetch-mode", "cors"];
+
+      const res = makeRes();
+      let pluginNextCalled = false;
+      const mw = createAccessDevMiddleware({ policies: pagePolicies });
+      await new Promise<void>((resolve, reject) => {
+        const originalEnd = res.end.bind(res);
+        res.end = ((body?: string) => {
+          originalEnd(body);
+          resolve();
+          return res;
+        }) as typeof res.end;
+        mw(req, res, (err?: unknown) => {
+          pluginNextCalled = true;
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+      expect(pluginNextCalled).toBe(false);
+      expect(res.statusCode).toBe(401);
+
+      // Worker layer: the same request reaching cloudflareAccess directly is rejected too, so
+      // both layers agree that request type does not affect whether the path is protected.
+      const workerRes = await createPageWorker().fetch(
+        new Request("http://localhost/admin", {
+          headers: { "accept": "text/x-component", "sec-fetch-mode": "cors" }
+        }),
+        MOCK_ENV
+      );
+      expect(workerRes.status).toBe(401);
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // #181: path-specific PathPolicy.audience must agree between the plugin's dev-emulation layer
   // and the Worker's own cloudflareAccess — a session accepted by one but rejected by the other
   // would be a dev/prod parity bug.
