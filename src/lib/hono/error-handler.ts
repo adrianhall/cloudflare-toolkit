@@ -9,6 +9,7 @@
  */
 import type { Context, ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { Logger } from "../logging/types.js";
 import { ProblemDetailsError } from "../problem-details/error.js";
 import { statusToPhrase, statusToSlug } from "../problem-details/status.js";
 import type { ProblemDetails, ProblemDetailsInput } from "../problem-details/types.js";
@@ -37,6 +38,17 @@ export interface ProblemDetailsErrorHandlerOptions {
    * Default: `false` — opt-in to avoid silently changing response shape.
    */
   autoInstance?: boolean;
+  /**
+   * Logger that receives an `error`-level `unhandled_request_error` record (name, message, stack,
+   * cause, request path and method) for every error the application did not raise deliberately.
+   * Falls back to the request-scoped `LOGGER` set by `cloudflareLogger` when omitted; when neither
+   * is available nothing is logged.
+   *
+   * {@link ProblemDetailsError} and Hono `HTTPException` are expected outcomes and are never
+   * logged. An error routed through `mapError` is still logged. The stack is always included in
+   * the log record — `includeStack` governs only what reaches the client.
+   */
+  logger?: Logger;
   /** Custom error to {@link ProblemDetailsInput} mapping. */
   mapError?: (error: Error) => ProblemDetailsInput | undefined;
   /**
@@ -80,9 +92,36 @@ function toResponse(
   return buildProblemResponse(pd);
 }
 
+/** Describe `error.cause` as `"Name: message"`, or `undefined` when there is no `Error` cause. */
+function describeCause(error: Error): string | undefined {
+  return error.cause instanceof Error ? `${error.cause.name}: ${error.cause.message}` : undefined;
+}
+
+/**
+ * Log an unexpected error. A logger failure must never make the error handler throw, because
+ * that would re-enter `onError` and lose the original error's response.
+ */
+function logUnexpected(error: Error, c: Context, options: ProblemDetailsErrorHandlerOptions): void {
+  try {
+    const logger = options.logger ?? (c.get("LOGGER") as Logger | undefined);
+    logger?.error("unhandled_request_error", {
+      path: c.req.path,
+      method: c.req.method,
+      errorName: error.name,
+      errorMessage: error.message,
+      stack: error.stack,
+      cause: describeCause(error)
+    });
+  } catch {
+    // Swallow: see above.
+  }
+}
+
 /**
  * Create an `app.onError` handler that returns RFC 9457 Problem Details responses. Handles
- * {@link ProblemDetailsError}, Hono `HTTPException`, and unhandled exceptions.
+ * {@link ProblemDetailsError}, Hono `HTTPException`, and unhandled exceptions. Unexpected errors
+ * (anything other than those two, including errors converted by `mapError`) are logged at `error`
+ * level — via `options.logger`, else the request's `LOGGER` — before the response is built.
  *
  * @param options - Options controlling `type` URI construction, stack-trace exposure, `instance`
  * auto-population, custom error mapping, and localization.
@@ -102,6 +141,12 @@ export function problemDetailsErrorHandler(
   return (error, c) => {
     if (error instanceof ProblemDetailsError) {
       return toResponse(error.problemDetails, c, options);
+    }
+
+    // ProblemDetailsError (above) and HTTPException are deliberate; everything else — including
+    // errors converted by `mapError` — is unexpected and must leave a trace.
+    if (!(error instanceof HTTPException)) {
+      logUnexpected(error, c, options);
     }
 
     if (options.mapError) {

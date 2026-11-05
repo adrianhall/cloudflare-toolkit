@@ -14,6 +14,10 @@ import {
   unprocessableContent,
   unsupportedMediaType
 } from "../../../src/lib/errors/generators.js";
+import { cloudflareLogger } from "../../../src/lib/hono/logger-middleware.js";
+import { createLogger } from "../../../src/lib/logging/logger.js";
+import { createCaptureTransport } from "../../../src/lib/logging/transports/capture.js";
+import type { Logger } from "../../../src/lib/logging/types.js";
 import { problemDetails } from "../../../src/lib/problem-details/factory.js";
 import {
   problemDetailsErrorHandler,
@@ -395,6 +399,158 @@ describe("problemDetailsErrorHandler — extension safety (shared with problem-d
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.type).toBe("about:blank");
+    expect(body.title).toBe("Internal Server Error");
+  });
+});
+
+describe("problemDetailsErrorHandler — logging of unexpected errors", () => {
+  function captureLogger() {
+    const transport = createCaptureTransport();
+    return { transport, logger: createLogger({ level: "trace", transport }) };
+  }
+
+  it("logs an unhandled error via options.logger with name, message, stack, path, and method", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({ logger });
+    app.post("/api/status", () => {
+      throw new TypeError("Cannot read properties of null");
+    });
+    const res = await app.request("/api/status", { method: "POST" });
+    expect(res.status).toBe(500);
+
+    const records = transport.find("error");
+    expect(records).toHaveLength(1);
+    expect(records[0]?.message).toBe("unhandled_request_error");
+    expect(records[0]?.context).toMatchObject({
+      path: "/api/status",
+      method: "POST",
+      errorName: "TypeError",
+      errorMessage: "Cannot read properties of null"
+    });
+    expect(records[0]?.context.stack).toContain("Cannot read properties of null");
+    expect(records[0]?.context.cause).toBeUndefined();
+  });
+
+  it("logs the stack even though includeStack is false and the client never sees it", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({ logger, includeStack: false });
+    app.get("/", () => {
+      throw new Error("Secret failure");
+    });
+    const res = await app.request("/");
+    const body = await res.json();
+    expect(body.stack).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("Secret failure");
+    expect(transport.find("error")[0]?.context.stack).toContain("Secret failure");
+  });
+
+  it("describes an Error cause as 'Name: message'", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({ logger });
+    app.get("/", () => {
+      throw new Error("outer", { cause: new RangeError("inner") });
+    });
+    await app.request("/");
+    expect(transport.find("error")[0]?.context.cause).toBe("RangeError: inner");
+  });
+
+  it("omits cause when it is not an Error", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({ logger });
+    app.get("/", () => {
+      throw new Error("outer", { cause: "just a string" });
+    });
+    await app.request("/");
+    expect(transport.find("error")[0]?.context.cause).toBeUndefined();
+  });
+
+  it("falls back to the request-scoped LOGGER set by cloudflareLogger", async () => {
+    const transport = createCaptureTransport();
+    const app = new Hono();
+    app.use(cloudflareLogger({ level: "trace", transport }));
+    app.onError(problemDetailsErrorHandler());
+    app.get("/", () => {
+      throw new Error("from context logger");
+    });
+    const res = await app.request("/");
+    expect(res.status).toBe(500);
+    const records = transport.find("error");
+    expect(records).toHaveLength(1);
+    expect(records[0]?.context.errorMessage).toBe("from context logger");
+  });
+
+  it("prefers options.logger over the request-scoped LOGGER", async () => {
+    const contextTransport = createCaptureTransport();
+    const { transport, logger } = captureLogger();
+    const app = new Hono();
+    app.use(cloudflareLogger({ level: "trace", transport: contextTransport }));
+    app.onError(problemDetailsErrorHandler({ logger }));
+    app.get("/", () => {
+      throw new Error("boom");
+    });
+    await app.request("/");
+    expect(transport.find("error")).toHaveLength(1);
+    expect(contextTransport.find("error")).toHaveLength(0);
+  });
+
+  it("logs an error that is converted through mapError", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({
+      logger,
+      mapError: () => ({ status: 409, title: "Conflict" })
+    });
+    app.get("/", () => {
+      throw new Error("mapped but unexpected");
+    });
+    const res = await app.request("/");
+    expect(res.status).toBe(409);
+    expect(transport.find("error")).toHaveLength(1);
+  });
+
+  it("does not log a ProblemDetailsError", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({ logger });
+    app.get("/", () => {
+      throw notFound({ detail: "expected" });
+    });
+    const res = await app.request("/");
+    expect(res.status).toBe(404);
+    expect(transport.records).toHaveLength(0);
+  });
+
+  it("does not log a Hono HTTPException", async () => {
+    const { transport, logger } = captureLogger();
+    const app = createApp({ logger });
+    app.get("/", () => {
+      throw new HTTPException(403, { message: "Forbidden" });
+    });
+    const res = await app.request("/");
+    expect(res.status).toBe(403);
+    expect(transport.records).toHaveLength(0);
+  });
+
+  it("does not throw when no logger is available", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw new Error("nobody listening");
+    });
+    const res = await app.request("/");
+    expect(res.status).toBe(500);
+  });
+
+  it("still returns the problem response when the logger throws", async () => {
+    const logger = {
+      error() {
+        throw new Error("logger exploded");
+      }
+    } as unknown as Logger;
+    const app = createApp({ logger });
+    app.get("/", () => {
+      throw new Error("original");
+    });
+    const res = await app.request("/");
+    expect(res.status).toBe(500);
+    const body = await res.json();
     expect(body.title).toBe("Internal Server Error");
   });
 });
