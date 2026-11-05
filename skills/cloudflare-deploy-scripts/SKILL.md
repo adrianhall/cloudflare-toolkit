@@ -340,6 +340,8 @@ automatically when you call `npm run provision`, `npm run deploy`, etc.
 
 For the _why_ behind the preteardown chain (wrangler-managed bindings are invisible to Terraform; ordering matters), load the `cloudflare-terraform-best-practices` skill ("Teardown ordering" section).
 
+A Workflow needs no preteardown step when Terraform registers it (the bootstrap-Workflow pattern in the `cloudflare-terraform-best-practices` skill's "Cloudflare Workflows" section): `terraform destroy` removes it. For projects that do not, add `cf workflows delete <name> --force` after `preteardown:worker`, because deleting a Worker does not delete its Workflow.
+
 ### Full provision + deploy in one command
 
 ```bash

@@ -2,6 +2,8 @@
 
 ## Next release
 
+- dff3911 (patch): Added a "Cloudflare Workflows" section to the `cloudflare-terraform-best-practices` skill covering the bootstrap-Workflow pattern (`cloudflare_workflow` registered against a placeholder class so `terraform destroy` removes the Workflow), the three-way identity match, deploy-tool ownership of Workflow settings, and the `cf workflows delete --force` fallback, plus matching teardown-ordering, anti-pattern, and `cloudflare-deploy-scripts` notes.
+
 ## 2.7.0
 
 - 65e13ec (minor): Fixed `cloudflareAccessPlugin` letting an unauthenticated non-navigation request through a redirect-protected path. An RSC/`fetch`-shaped request, a POST, or an `OPTIONS` preflight previously fell through to the Vite/Workers handler, so local dev could read a payload that deployed Cloudflare Access would have challenged. A protected path is now always answered by the plugin: an HTML navigation gets the dev login form, every other request gets a `401`.
