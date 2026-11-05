@@ -2,6 +2,7 @@
 
 ## Next release
 
+- 3616997 (minor): `problemDetailsErrorHandler` now logs unexpected errors instead of silently discarding them. Any error that is not a `ProblemDetailsError` or Hono `HTTPException` (including one converted via `mapError`) is logged at `error` level as `unhandled_request_error` with `path`, `method`, `errorName`, `errorMessage`, `stack`, and `cause`, using the new `logger` option or else the request-scoped `LOGGER` set by `cloudflareLogger()`. The stack is always logged; `includeStack` still governs only the client response. Nothing is logged when no logger is available, and a throwing logger never changes the response.
 - dff3911 (patch): Added a "Cloudflare Workflows" section to the `cloudflare-terraform-best-practices` skill covering the bootstrap-Workflow pattern (`cloudflare_workflow` registered against a placeholder class so `terraform destroy` removes the Workflow), the three-way identity match, deploy-tool ownership of Workflow settings, and the `cf workflows delete --force` fallback, plus matching teardown-ordering, anti-pattern, and `cloudflare-deploy-scripts` notes.
 
 ## 2.7.0
