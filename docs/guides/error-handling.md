@@ -146,7 +146,19 @@ app.onError(
 );
 ```
 
-Unrecognized errors still fall through to the generic `500 Internal Server Error` response.
+Unrecognized errors still fall through to the generic `500 Internal Server Error` response, and are [logged](#log-unexpected-errors).
+
+### Log unexpected errors
+
+An error that is not a `ProblemDetailsError` or a Hono `HTTPException` is one your application did not raise deliberately, so the handler logs it at `error` level as `unhandled_request_error` before returning the generic `500`. The record carries `path`, `method`, `errorName`, `errorMessage`, `stack`, and `cause` (formatted as `Name: message` when the cause is an `Error`). An error converted through `mapError` is still logged.
+
+The handler uses the request-scoped `LOGGER` set by [`cloudflareLogger()`](/reference/lib/hono/functions/cloudflareLogger.md) when it is present. Apps that do not use that middleware can pass a `logger` option instead, which takes precedence:
+
+```ts
+app.onError(problemDetailsErrorHandler({ logger }));
+```
+
+With neither, nothing is logged. `ProblemDetailsError` and `HTTPException` are expected outcomes already described by their status, so they are never logged. The stack always goes to the log; [`includeStack`](#keep-stack-traces-out-of-production) governs only what reaches the client.
 
 ### Localize client-facing text
 

@@ -209,6 +209,12 @@ app.post("/orders", async (c) => {
 });
 ```
 
+Errors that are not a `ProblemDetailsError` or Hono `HTTPException` (including ones converted via
+`mapError`) are logged at `error` level as `unhandled_request_error` (path, method, name, message,
+stack, cause) before the generic `500` is returned — via `options.logger`, else the request's
+`LOGGER` from `cloudflareLogger()`. `ProblemDetailsError`s are never logged, and `includeStack`
+governs only the client response, never the log.
+
 `429 Too Many Requests` is deliberately not included (a platform/rate-limiting concern, not this
 toolkit's). `304 Not Modified`, `409 Conflict`, and `412 Precondition Failed` are also not
 included in v1 — their useful shape is a future Data Access Patterns concern.
