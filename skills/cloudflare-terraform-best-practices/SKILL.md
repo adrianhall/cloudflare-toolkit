@@ -1,6 +1,6 @@
 ---
 name: cloudflare-terraform-best-practices
-description: Terraform v5 best practices for the Cloudflare provider. Use when writing, reviewing, or generating Terraform/HCL that provisions the Cloudflare Developer Platform (Workers, D1, Workers KV, R2, Queues, AI Gateway, Zero Trust Access).
+description: Terraform v5 best practices for the Cloudflare provider. Use when writing, reviewing, or generating Terraform/HCL that provisions the Cloudflare Developer Platform (Workers, Workflows, D1, Workers KV, R2, Queues, AI Gateway, Zero Trust Access).
 ---
 
 # Cloudflare Terraform Best Practices (v5 provider)
@@ -471,6 +471,105 @@ Notes:
 - No npm-script changes are needed for this — it is entirely a Terraform-side fix and is idempotent across every `terraform apply`.
 - When you run `wrangler deploy` for the first time, it creates a new version/deployment on top of the bootstrap one. Both are removed together when the Worker itself is destroyed (see "Teardown ordering" below) — you never need to clean up the bootstrap resources separately.
 
+### Cloudflare Workflows
+
+**The problem.** A Worker that exports a `WorkflowEntrypoint` class registers a Workflow, and **deleting the Worker does not delete the Workflow**. The registration survives `wrangler delete` / `cf workers delete` (the API reports `script_deleted: true`). The platform terminates running and sleeping instances within roughly 10 to 60 seconds, but the instance records remain. Workflow names are unique per account, so the orphan **blocks the next deploy** of a different Worker that declares the same Workflow name. A project that treats `terraform destroy` as the end of teardown therefore leaves the account unclean, with no error to say so.
+
+**The fix: a bootstrap Workflow, the same shape as the bootstrap Worker.** Terraform registers the Workflow against a placeholder class, the deploy tool takes it over, and `terraform destroy` removes the registration. No `cf workflows` or `wrangler workflows` command is needed at teardown. `cloudflare_workflow` requires provider **5.11.0 or later**. Extend the bootstrap version from the previous section so the placeholder module exports the Workflow class, then register the Workflow:
+
+```hcl
+resource "cloudflare_worker_version" "bootstrap" {
+  account_id         = local.cloudflare_account_id
+  worker_id          = cloudflare_worker.demo.id
+  main_module        = "index.js"
+  compatibility_date = "2026-08-25" # any past date; frozen, see above
+
+  modules = [{
+    name         = "index.js"
+    content_type = "application/javascript+module"
+    content_base64 = base64encode(<<-JS
+      import { WorkflowEntrypoint } from "cloudflare:workers";
+
+      // The class name is part of the Workflow registration, so it must equal
+      // the class the real Worker exports and the key in the deploy config.
+      export class ProcessVideo extends WorkflowEntrypoint {
+        async run(event, step) {}
+      }
+
+      export default {
+        async fetch() {
+          return new Response("Bootstrapping", { status: 503 });
+        },
+      };
+    JS
+    )
+  }]
+
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+# cloudflare_workers_deployment.bootstrap is unchanged from the previous section.
+
+resource "cloudflare_workflow" "process_video" {
+  account_id    = local.cloudflare_account_id
+  workflow_name = local.workflow_name # must equal exports.workflow({ name })
+  class_name    = "ProcessVideo"      # must equal the exports key
+  script_name   = cloudflare_worker.demo.name
+
+  # The class must exist before the registration can be created.
+  depends_on = [cloudflare_workers_deployment.bootstrap]
+}
+```
+
+The real Worker declares the same Workflow in the deploy config. With the `cf` CLI (`cloudflare.config.ts`):
+
+```ts
+export default defineConfig({
+  worker: defineWorker(() => ({
+    name, // must equal cloudflare_worker.demo.name
+    entrypoint,
+    exports: {
+      // The key must equal class_name above; the name must equal workflow_name.
+      ProcessVideo: exports.workflow({ name: workflowName })
+    }
+  }))
+});
+```
+
+The Wrangler-era equivalent is a `workflows` entry in `wrangler.jsonc` with a matching `name` and `class_name`. The pattern should carry over unchanged, because the bootstrap and `cloudflare_workflow` are tool-independent, but that is inferred, not measured.
+
+Teardown needs nothing added to the existing order:
+
+```sh
+cf workers delete <worker> --force || true
+terraform -chdir=infra destroy -auto-approve
+```
+
+The `depends_on` from the Workflow to the bootstrap deployment also fixes the destroy order: Terraform reverses it, so the Workflow is destroyed first, then the deployment, version, and Worker.
+
+Notes:
+
+- **The identity fields must match in three places.** `workflow_name`, `class_name`, and `script_name` in Terraform must equal, respectively, the `name` passed to `exports.workflow` (or the `workflows[].name` entry), the export key of that entry (which is also the real class name), and the Worker name. A mismatch was not tested, but `class_name` is part of the registration, so a placeholder class named differently from the real one is the likely failure. Add a test that asserts the three values agree between Terraform and the deploy config.
+- **The deploy tool adopts the registration.** `cf deploy` of the real Worker, declaring the same Workflow name, took over the Terraform-registered Workflow without a prompt, warning, or error: same Workflow ID, new Workflow version. `terraform plan` after the deploy reported `No changes.`
+- **Settings are owned by the deploy tool, not Terraform.** The provider's refresh does not read the active version's settings back. In testing, Terraform declared `concurrency = { limit = 10 }` and `limits = { steps = 100 }`; a later `cf deploy` with `concurrency.limit = 20` made a new version active, yet Terraform state still held `10` and still pointed at the bootstrap version, and both `terraform plan` and `terraform apply -refresh-only` reported no changes. This is the opposite failure from the perpetual-drift anti-patterns elsewhere in this skill: the drift is **invisible**. Treat the deploy config as the source of truth for `concurrency`, `limits`, and `default_retention`, and set only `workflow_name`, `class_name`, and `script_name` in Terraform. Caveat: the spike set `concurrency` and `limits` in Terraform too, so omitting them was **not tested**; a project that prefers to keep a mirror can, but must not expect Terraform to enforce it. Adding `lifecycle { ignore_changes = all }` to `cloudflare_workflow` was also **not tested** (there was never any drift to absorb); it is cheap protection against a future provider that does read settings back.
+- **Destroying after the Worker is already gone does not fail.** Running `terraform destroy` after `cf workers delete` succeeded (`1 destroyed`): the provider dropped the vanished Worker, version, and deployment from state on refresh, with no `state rm` or `-refresh` needed. The Workflow then returns `workflow.not_found` (404). `terraform destroy` with the Worker still live and instances sleeping also succeeded (`4 destroyed`).
+- **Use unique, project-derived Workflow names** (for example `<worker>-<purpose>`), never generic ones, so a name collision means a genuine leftover. If an orphan exists and a _different_ Worker declares the same name, a non-interactive `cf deploy` aborts with exit status 1 ("The following workflow(s) already exist and belong to different workers"), while an interactive one answering `y` **silently reassigns** the Workflow to the new Worker, keeping the old instance records.
+- **`cf deploy` prints `Deploy complete` even when the upload aborted** on the conflict above. Scripts must rely on the exit status, never the text.
+- **Verifying teardown: instance listings lag.** For 30 to 60 seconds after `terraform destroy` or `cf workflows delete`, `cf workflows instances list` can still return the old instances (and can return a `500` before settling on `404`); it can also omit just-created instances for about 30 seconds. Verify with `cf workflows list --search <prefix>` or `cf workflows get <name>`, which reflect deletion immediately, or retry the instance list.
+- **`cf workflows instances create --params '{"x":1}'` stores a string**, so `event.payload.x` is `undefined` inside the Workflow. Pass an object instead: `--body '{"instance_id":"...","params":{...}}'`. This matters for any smoke script that starts instances.
+
+**Fallback: no Terraform-registered Workflow.** Projects that cannot use the bootstrap can delete the Workflow explicitly as a preteardown step, after deleting the Worker and before `terraform destroy`:
+
+```sh
+cf workflows delete <name> --force
+```
+
+This returned `{"status":"ok"}` with instances still present; no per-instance deletion is needed.
+
+**Limits of what was tested.** One account, one run, on `cf` 1.0.0-beta.16, `@cloudflare/config` 0.25.0, Terraform 1.17.0, and provider 5.28.0 (`cloudflare/cloudflare ~> 5.22`). Adoption and destroy behavior could change in newer releases, so run a deploy-then-teardown check whenever you upgrade `cf` or the provider. Also not tested: a mismatched `class_name`, deleting the Workflow before the Worker, and a Wrangler-era (`wrangler.jsonc`) project.
+
 ### D1 database
 
 ```hcl
@@ -704,6 +803,8 @@ Why this direction, specifically: Terraform destroys resources in **reverse** de
 4. `terraform destroy` — now safe: the Worker's binding is long gone (step 2), buckets are empty (step 3), and even if some step were skipped, `depends_on` still forces the correct relative order between `cloudflare_worker` and its binding-backing resources.
 
 For the full preteardown chain and npm-script wiring, load the **`cloudflare-deploy-scripts`** skill.
+
+**A Worker's Workflow survives the Worker's deletion.** With the bootstrap-Workflow pattern (see "Cloudflare Workflows" above), `terraform destroy` removes the registration, and `depends_on` from `cloudflare_workflow` to `cloudflare_workers_deployment.bootstrap` gives the right destroy order (Workflow, then deployment, version, and Worker). Destroying after the Worker is already deleted does not error. Without a Terraform-registered Workflow, add a `cf workflows delete <name> --force` preteardown step instead.
 
 If a disjoint set of Access resources is intentionally owned by
 `cf-access-policy`, run `cf-access-policy remove` before Worker deletion and
@@ -1222,6 +1323,21 @@ Note the `readTerraformOutputs`/`requireTerraformOutputs` split maps directly on
 
 `generate-wrangler` exists specifically to produce `wrangler.jsonc` from `wrangler.jsonc.tpl`. A `cf`-CLI project has no `wrangler.jsonc.tpl` and no generation step at all — `cloudflare.config.ts` is hand-written, checked-in TypeScript that calls `readTerraformOutputs`/`requireTerraformOutputs` directly. Do not add a `generate:wrangler` npm script (or a `wrangler.jsonc.tpl`) to a `cf`-CLI project; it has nothing to generate.
 
+### Anti-pattern: declaring `exports.workflow` with no Terraform-registered Workflow, then relying on `terraform destroy`
+
+```ts
+// cloudflare.config.ts — Workflow declared here only
+exports: {
+  ProcessVideo: exports.workflow({ name: workflowName });
+}
+```
+
+```hcl
+# infra/ — no cloudflare_workflow resource anywhere
+```
+
+`cf deploy` registers the Workflow, but Terraform has no record of it, so `terraform destroy` (and deleting the Worker) leaves it behind as an orphan. The orphan blocks the next deploy of any Worker that declares the same Workflow name. Register the Workflow in Terraform with the bootstrap pattern in "Cloudflare Workflows" above, or add an explicit `cf workflows delete <name> --force` preteardown step.
+
 ## Quick reference
 
 | Topic                                                  | Section                                               |
@@ -1232,6 +1348,7 @@ Note the `readTerraformOutputs`/`requireTerraformOutputs` split maps directly on
 | File-per-Worker layout, dedicated vs. shared bindings  | Recommended file layout / Per-Worker files...         |
 | Worker registration + the custom-domain bootstrap fix  | Per-Worker files: the Worker, its bootstrap...        |
 | D1 / KV / R2 / Queues resources and tokens             | Per-Worker files: the Worker, its bootstrap...        |
+| Workflow registration and teardown                     | Cloudflare Workflows                                  |
 | Worker-before-bindings destroy ordering                | Teardown ordering: `depends_on` must point...         |
 | R2 bucket lifecycle and emptying before destroy        | R2 buckets: setup and preteardown                     |
 | Gateway drift, dynamic routing `elements`/gotchas      | Cloudflare AI Gateway                                 |
